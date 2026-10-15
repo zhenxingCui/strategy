@@ -1,0 +1,71 @@
+#sec-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+#sec-header .header-top {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sec-header .logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#sec-header .header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-header .tabs-nav {
+  display: flex;
+  padding: 0 16px;
+}
+
+#sec-header .tab-item {
+  position: relative;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+#sec-header .tab-item.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+#sec-header .tab-item.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  background: #2563eb;
+  border-radius: 1px;
+}

@@ -1,0 +1,36 @@
+# ===== IDE / 编辑器 =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ===== 前端 =====
+node_modules/
+front/node_modules/
+front/dist/
+dist/
+npm-debug.log*
+yarn-error.log*
+.npm/
+front/.npm/
+
+# ===== 后端构建产物 =====
+back/target/
+target/
+*.class
+back/deploy/strategy-review.jar
+back/deploy/logs/
+*.log
+
+# ===== 后端本地依赖 jar：仅保留 pom.xml systemPath 引用的 2 个 =====
+back/lib/*.jar
+!back/lib/pec-core-7.0.0-SNAPSHOT.jar
+!back/lib/pec-common-jx-7.0.0-SNAPSHOT.jar
+
+# ===== 临时/打包文件 =====
+html.zip
+*.tmp
+~$*

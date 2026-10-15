@@ -1,0 +1,76 @@
+/**
+ * 策略复盘与预警模块 - 共享样式
+ * 提供配色令牌与通用类，各组件通过 @import '../styles/index.less' 引用
+ */
+
+// ===== 配色令牌 =====
+@color-primary: #2563eb;
+@color-primary-light: #eff6ff;
+@color-primary-dark: #1d4ed8;
+@color-success: #10b981;
+@color-danger: #ef4444;
+@color-warning: #f59e0b;
+@color-info: #6b7280;
+
+@text-primary: #111827;
+@text-regular: #374151;
+@text-secondary: #6b7280;
+@text-placeholder: #9ca3af;
+
+@border-base: #e5e7eb;
+@border-light: #f3f4f6;
+@bg-page: #f5f7fa;
+@bg-card: #ffffff;
+@bg-subtle: #f9fafb;
+
+// ===== 通用 CSS 变量（便于运行时主题切换） =====
+:root {
+  --sr-primary: @color-primary;
+  --sr-primary-light: @color-primary-light;
+  --sr-success: @color-success;
+  --sr-danger: @color-danger;
+  --sr-warning: @color-warning;
+  --sr-text-primary: @text-primary;
+  --sr-text-regular: @text-regular;
+  --sr-text-secondary: @text-secondary;
+  --sr-border: @border-base;
+  --sr-bg-page: @bg-page;
+  --sr-bg-card: @bg-card;
+}
+
+// ===== 通用类 =====
+.text-up { color: @color-success; }
+.text-down { color: @color-danger; }
+.text-primary { color: @color-primary; }
+.text-secondary { color: @text-secondary; }
+
+// 卡片基础类（备用，组件内部已自定义）
+.card-base {
+  background: @bg-card;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+// 标题装饰点
+.title-dot {
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: @color-primary;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+// 滚动条美化（用于表格、面板内部）
+.scrollbar-thin {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  &::-webkit-scrollbar-track { background: transparent; }
+}
+
+// 表格行高亮（通用）
+.row-active {
+  background: @color-primary-light !important;
+}

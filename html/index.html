@@ -1,0 +1,3360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略复盘与预警 - UI 设计稿（静态数据）</title>
+<style>
+/* ===== 页面基础（与 Vue 版全局一致） ===== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; }
+body {
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", SimSun, sans-serif;
+  font-size: 14px;
+  color: #303133;
+  background: #f5f6fa;
+  -webkit-font-smoothing: antialiased;
+}
+.page-main { padding: 10px 14px 20px; }
+.page-main > section { min-height: 120px; }
+
+/* ===== 设计标注工具（spec-ui，不属于页面本身） ===== */
+#spec-ui { position: fixed; z-index: 2147483000; }
+#spec-bar {
+  position: fixed; top: 12px; right: 12px; display: flex; align-items: center; gap: 8px;
+  background: #111827; color: #fff; padding: 6px 10px; border-radius: 8px;
+  font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25); font-family: Consolas, "Microsoft YaHei", monospace;
+}
+#spec-bar .spec-title { font-weight: 700; letter-spacing: 1px; margin-right: 2px; }
+#spec-bar button {
+  background: #374151; color: #e5e7eb; border: 0; border-radius: 4px; padding: 4px 10px;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+}
+#spec-bar button:hover { background: #4b5563; color: #fff; }
+#spec-bar button.on { background: #2563eb; color: #fff; }
+#spec-bar .spec-tip { color: #9ca3af; font-size: 11px; }
+
+/* 标注检查：悬浮高亮 + 信息面板 */
+#spec-hover-box {
+  position: fixed; display: none; pointer-events: none;
+  outline: 2px solid #ff4d4f; outline-offset: -2px; background: rgba(255,77,79,.06);
+}
+#spec-hover-tag {
+  position: fixed; display: none; pointer-events: none;
+  background: #ff4d4f; color: #fff; font-size: 11px; line-height: 16px;
+  padding: 1px 6px; border-radius: 3px; font-family: Consolas, monospace; white-space: nowrap;
+}
+#spec-panel {
+  position: fixed; display: none; pointer-events: none; width: 300px;
+  background: rgba(17,24,39,.96); color: #e5e7eb; border-radius: 8px; padding: 10px 12px;
+  font-family: Consolas, "Microsoft YaHei", monospace; font-size: 12px; line-height: 1.7;
+  box-shadow: 0 6px 24px rgba(0,0,0,.35);
+}
+#spec-panel .sp-sel { color: #93c5fd; font-weight: 700; word-break: break-all; margin-bottom: 4px; }
+#spec-panel .sp-row b { color: #fbbf24; font-weight: 600; }
+#spec-panel .sp-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(255,255,255,.35); }
+
+/* 清单面板（色值/字号） */
+#spec-list-panel {
+  position: fixed; top: 52px; right: 12px; width: 340px; max-height: 70vh; overflow: auto;
+  background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.25); display: none;
+  font-size: 12px; font-family: Consolas, "Microsoft YaHei", monospace;
+}
+#spec-list-panel .slp-head { padding: 10px 14px; font-weight: 700; color: #111827; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+#spec-list-panel .slp-head span:last-child { cursor: pointer; color: #9ca3af; font-weight: 400; }
+#spec-list-panel .slp-head span:last-child:hover { color: #374151; }
+#spec-list-panel .slp-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid #f9fafb; color: #374151; }
+#spec-list-panel .slp-row:hover { background: #f9fafb; }
+#spec-list-panel .slp-sw { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #e5e7eb; flex: none; }
+#spec-list-panel .slp-val { flex: 1; }
+#spec-list-panel .slp-cnt { color: #9ca3af; }
+#spec-list-panel .slp-sample { color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+
+/* 设计说明横幅 */
+#spec-note {
+  position: fixed; left: 12px; bottom: 12px; width: 300px; background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #92400e; line-height: 1.7;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 2147483000; font-family: "Microsoft YaHei", sans-serif;
+}
+#spec-note b { display: block; margin-bottom: 2px; color: #78350f; }
+#spec-note .sn-close { position: absolute; top: 6px; right: 8px; cursor: pointer; color: #b45309; font-weight: 700; }
+</style>
+<style>
+#sec-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+#sec-header .header-top {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sec-header .logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#sec-header .header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-header .tabs-nav {
+  display: flex;
+  padding: 0 16px;
+}
+
+#sec-header .tab-item {
+  position: relative;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+#sec-header .tab-item.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+#sec-header .tab-item.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  background: #2563eb;
+  border-radius: 1px;
+}
+
+/* 策略整体情况 StrategyOverview —— 由 StrategyOverview.vue 还原（less 嵌套已平铺） */
+
+#sec-overview {
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+#sec-overview .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-overview .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-overview .card-title-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-overview .card-body {
+  padding: 14px 16px;
+}
+
+#sec-overview .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#sec-overview .kpi-card {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#sec-overview .kpi-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+#sec-overview .kpi-label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+#sec-overview .kpi-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+#sec-overview .kpi-icon svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+#sec-overview .kpi-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+#sec-overview .kpi-value .unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-left: 2px;
+}
+
+#sec-overview .kpi-trend {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#sec-overview .kpi-trend-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+}
+
+#sec-overview .kpi-trend-label {
+  color: #9ca3af;
+}
+
+#sec-overview .kpi-trend-value {
+  font-weight: 500;
+}
+
+#sec-overview .kpi-trend-value.up {
+  color: #10b981;
+}
+
+#sec-overview .kpi-trend-value.down {
+  color: #ef4444;
+}
+
+#sec-overview .kpi-card.kpi-card-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+#sec-overview .chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+#sec-overview .chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+#sec-overview .chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+#sec-overview .chart-legend-dot.dot-bar {
+  background: #3b82f6;
+}
+
+#sec-overview .chart-legend-dot.dot-line {
+  background: #0ea5e9;
+  border-radius: 50%;
+}
+
+#sec-overview .chart-box {
+  width: 100%;
+  height: 240px;
+}
+
+/* ===== 触点执行 TouchpointExecution ===== */
+#sec-touchpoint {
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  color: #606266;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+#sec-touchpoint *,
+#sec-touchpoint *::before,
+#sec-touchpoint *::after {
+  box-sizing: border-box;
+}
+
+#sec-touchpoint .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-touchpoint .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-touchpoint .card-title-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-touchpoint .card-body {
+  padding: 8px 12px;
+}
+
+#sec-touchpoint .grid-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+#sec-touchpoint .left-panel,
+#sec-touchpoint .right-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+/* 左右上块统一高度：280px，虚线分界对齐 */
+#sec-touchpoint .top-block {
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  flex-shrink: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+#sec-touchpoint .category-block {
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+#sec-touchpoint .channel-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+  min-height: 280px;
+}
+
+#sec-touchpoint .channel-detail-card {
+  background: #f9fafb;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sec-touchpoint .panel-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+#sec-touchpoint .panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+#sec-touchpoint .panel-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .panel-dot.blue {
+  background: #2563eb;
+}
+
+#sec-touchpoint .panel-filters {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ===== 筛选栏 ===== */
+#sec-touchpoint .filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .f-flex {
+  flex: 1;
+}
+
+#sec-touchpoint .f-input {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  line-height: 22px;
+  padding: 0 10px;
+  font-size: 11px;
+  color: #c0c4cc;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .f-month {
+  width: 140px;
+  padding-left: 26px;
+}
+
+#sec-touchpoint .f-name {
+  width: 140px;
+}
+
+#sec-touchpoint .f-select {
+  padding-right: 24px;
+}
+
+#sec-touchpoint .f-select.w110 {
+  width: 110px;
+}
+
+#sec-touchpoint .f-select.w100 {
+  width: 100px;
+}
+
+#sec-touchpoint .f-input .ic {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  color: #c0c4cc;
+}
+
+#sec-touchpoint .f-month .ic {
+  left: 8px;
+}
+
+#sec-touchpoint .f-select .ic {
+  right: 6px;
+}
+
+#sec-touchpoint .f-select.is-disabled {
+  background: #f5f7fa;
+  border-color: #e4e7ed;
+  cursor: not-allowed;
+}
+
+/* ===== 按钮（24px 高） ===== */
+#sec-touchpoint .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .btn-primary {
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+}
+
+#sec-touchpoint .btn-plain {
+  background: #fff;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+
+#sec-touchpoint .btn-fav {
+  background: #ecf5ff;
+  border-color: #b3d8ff;
+  color: #2563eb;
+  gap: 3px;
+}
+
+#sec-touchpoint .btn-fav .ic {
+  display: inline-flex;
+  color: #409eff;
+}
+
+#sec-touchpoint .btn-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0;
+  margin-left: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #409eff;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .btn-text svg,
+#sec-touchpoint .btn svg,
+#sec-touchpoint .f-input .ic svg {
+  display: block;
+}
+
+/* ===== 表格（6px 圆角 + overflow hidden，左右 10px 内边距） ===== */
+#sec-touchpoint .table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+}
+
+#sec-touchpoint .table-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#sec-touchpoint .table-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+#sec-touchpoint .table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#sec-touchpoint .footer-spacer {
+  height: 24px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  margin-top: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+#sec-touchpoint .data-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+#sec-touchpoint .data-table th {
+  background: #fff;
+  color: #909399;
+  font-weight: 500;
+  text-align: right;
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+}
+
+#sec-touchpoint .data-table td {
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  text-align: right;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+#sec-touchpoint .data-table th:last-child,
+#sec-touchpoint .data-table td:last-child {
+  border-right: none;
+}
+
+#sec-touchpoint .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-touchpoint .data-table tbody tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+#sec-touchpoint .data-table tbody tr {
+  cursor: pointer;
+}
+
+#sec-touchpoint .ta-l {
+  text-align: left !important;
+}
+
+#sec-touchpoint .ta-r {
+  text-align: right !important;
+}
+
+#sec-touchpoint .ta-c {
+  text-align: center !important;
+}
+
+#sec-touchpoint .col-check {
+  width: 36px;
+}
+
+#sec-touchpoint .w90 { width: 90px; }
+#sec-touchpoint .w100 { width: 100px; }
+#sec-touchpoint .w110 { width: 110px; }
+#sec-touchpoint .w130 { width: 130px; }
+
+/* 复选框 */
+#sec-touchpoint .ckbox {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+/* 排序箭头 */
+#sec-touchpoint .sort-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+#sec-touchpoint .caret-up {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid #c0c4cc;
+}
+
+#sec-touchpoint .caret-down {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #c0c4cc;
+}
+
+#sec-touchpoint .caret-down.on {
+  border-top-color: #409eff;
+}
+
+/* 数值 + 环角标（上下两行） */
+#sec-touchpoint .cell-qoq {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+#sec-touchpoint .qoq-badge {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#sec-touchpoint .cell-qoq .qoq-badge {
+  font-size: 10px;
+  padding: 0 3px;
+}
+
+#sec-touchpoint .qoq-badge.up { color: #10b981; }
+#sec-touchpoint .qoq-badge.down { color: #ef4444; }
+
+/* 渠道标签：文字不换行 */
+#sec-touchpoint .channel-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 15px;
+}
+
+#sec-touchpoint .channel-tag.ch-blue {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+  border-color: #2563eb;
+}
+
+#sec-touchpoint .channel-tag.ch-purple {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+  border-color: #7c3aed;
+}
+
+#sec-touchpoint .channel-tag.ch-cyan {
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.1);
+  border-color: #0891b2;
+}
+
+#sec-touchpoint .channel-tag.ch-green {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+  border-color: #059669;
+}
+
+#sec-touchpoint .channel-tag.ch-red {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  border-color: #dc2626;
+}
+
+/* 大类/小类链接 */
+#sec-touchpoint .category-link {
+  cursor: pointer;
+  color: #2563eb;
+}
+
+#sec-touchpoint .category-link:hover {
+  text-decoration: underline;
+}
+
+#sec-touchpoint .category-link.active {
+  background: #2563eb;
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+#sec-touchpoint .category-link.disabled {
+  cursor: not-allowed;
+  color: #2563eb;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 策略名称 */
+#sec-touchpoint .strategy-name {
+  cursor: pointer;
+  color: #2563eb;
+}
+
+#sec-touchpoint .strategy-name:hover {
+  text-decoration: underline;
+}
+
+#sec-touchpoint .strategy-name.strategy-active {
+  font-weight: 600;
+}
+
+#sec-touchpoint .ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 合计行 */
+#sec-touchpoint .row-total td {
+  background: #f5f7fa !important;
+  font-weight: 600;
+}
+
+#sec-touchpoint .total-label {
+  font-weight: 700;
+  color: #111827;
+  font-size: 12px;
+}
+
+/* ===== 策略执行情况块 ===== */
+#sec-touchpoint .strategy-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  margin-top: 8px;
+  padding-top: 6px;
+}
+
+/* ===== 下块两张卡片的标题行 ===== */
+#sec-touchpoint .detail-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+#sec-touchpoint .detail-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+}
+
+#sec-touchpoint .detail-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .detail-dot.blue {
+  background: #2563eb;
+}
+
+#sec-touchpoint .detail-subtitle {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+/* 图例 */
+#sec-touchpoint .chart-legend-mini {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 2px;
+  font-size: 10px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+#sec-touchpoint .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#sec-touchpoint .legend-bar {
+  width: 10px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+}
+
+#sec-touchpoint .legend-line-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+#sec-touchpoint .trend-chart {
+  height: 240px;
+  min-height: 0;
+}
+
+#sec-touchpoint .trend-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#sec-touchpoint .trend-svg text {
+  font-family: inherit;
+}
+
+/* 业务产能明细表（无边框、无斑马纹） */
+#sec-touchpoint .biz-table-inner {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-touchpoint .biz-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#sec-touchpoint .biz-table th {
+  background: #fff;
+  color: #909399;
+  font-weight: 500;
+  text-align: right;
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  border-bottom: 1px solid #ebeef5;
+  white-space: nowrap;
+}
+
+#sec-touchpoint .biz-table td {
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  text-align: right;
+  border-bottom: 1px solid #ebeef5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+#sec-touchpoint .biz-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-touchpoint .biz-table .col-cap {
+  width: 80px;
+}
+
+#sec-touchpoint .biz-table .col-qoq {
+  width: 88px;
+}
+
+/* ===== 分页器（背景型 small） ===== */
+#sec-touchpoint .pg {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+#sec-touchpoint .pg-btn,
+#sec-touchpoint .pg-num {
+  min-width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  background: #f4f4f5;
+  color: #606266;
+  border-radius: 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#sec-touchpoint .pg-num.is-active {
+  background: #409eff;
+  color: #fff;
+  font-weight: 600;
+}
+
+#sec-touchpoint .pg-btn.is-disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+/* ===== 执行明细 ExecutionDetail ===== */
+#sec-detail {
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+#sec-detail .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-detail .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-detail .card-title-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-detail .strategy-tag {
+  padding: 1px 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+#sec-detail .card-body {
+  padding: 10px 12px;
+}
+
+#sec-detail .three-col-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 2fr;
+  gap: 10px;
+  min-width: 0;
+  align-items: stretch;
+}
+
+#sec-detail .col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+#sec-detail .detail-card {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+/* 上排卡片统一固定高度，与组件一致 */
+#sec-detail .info-card,
+#sec-detail .trend-card {
+  height: 228px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+#sec-detail .reject-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .biz-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .exec-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 10px;
+}
+
+#sec-detail .detail-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+#sec-detail .detail-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#sec-detail .detail-dot.blue {
+  background: #2563eb;
+}
+
+#sec-detail .detail-dot.orange {
+  background: #f59e0b;
+}
+
+/* ===== 策略详情 ===== */
+#sec-detail .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed #f3f4f6;
+}
+
+#sec-detail .info-row:last-child {
+  border-bottom: none;
+}
+
+#sec-detail .info-lbl {
+  color: #6b7280;
+}
+
+#sec-detail .info-val {
+  color: #111827;
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sec-detail .info-val.bold {
+  font-weight: 700;
+  font-size: 14px;
+  color: #111827;
+}
+
+#sec-detail .info-val.blue {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* ===== 图表占位 ===== */
+#sec-detail .reject-chart-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#sec-detail .chart-placeholder {
+  height: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+#sec-detail .trend-placeholder {
+  height: 180px;
+  min-height: 0;
+}
+
+/* ===== 业务产能明细表 ===== */
+#sec-detail .biz-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .biz-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#sec-detail .biz-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: left;
+}
+
+#sec-detail .biz-table td {
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  border-bottom: 1px solid #ebeef5;
+}
+
+#sec-detail .biz-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-detail .ta-r {
+  text-align: right !important;
+}
+
+#sec-detail .ta-l {
+  text-align: left !important;
+}
+
+#sec-detail .biz-table td.biz-name {
+  color: #111827;
+  font-weight: 500;
+  padding-left: 6px;
+}
+
+#sec-detail .biz-table td.num {
+  color: #374151;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+#sec-detail .qoq-badge {
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+#sec-detail .qoq-badge.up {
+  color: #10b981;
+}
+
+#sec-detail .qoq-badge.down {
+  color: #ef4444;
+}
+
+/* ===== 执行明细 ===== */
+#sec-detail .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+#sec-detail .exec-title {
+  margin-bottom: 0;
+}
+
+#sec-detail .exec-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#sec-detail .exec-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+#sec-detail .exec-action-btn svg {
+  display: block;
+}
+
+#sec-detail .exec-tabs-wrap {
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+}
+
+#sec-detail .exec-tabs {
+  display: flex;
+  gap: 0;
+}
+
+#sec-detail .exec-tab-item {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+}
+
+#sec-detail .exec-tab-item:first-child {
+  padding-left: 0;
+}
+
+#sec-detail .exec-tab-item.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+#sec-detail .exec-tab-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #2563eb;
+}
+
+#sec-detail .exec-table-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#sec-detail .exec-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+/* 分日明细表 */
+#sec-detail .daily-table {
+  border-collapse: collapse;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  width: max-content;
+  min-width: 100%;
+}
+
+#sec-detail .daily-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#sec-detail .daily-table td {
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#sec-detail .daily-table td:last-child,
+#sec-detail .daily-table th:last-child {
+  border-right: none;
+}
+
+#sec-detail .daily-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-detail .daily-table th:nth-child(1) { width: 90px; }
+#sec-detail .daily-table th:nth-child(2) { width: 90px; }
+#sec-detail .daily-table th:nth-child(3) { width: 90px; }
+#sec-detail .daily-table th:nth-child(4) { width: 130px; }
+#sec-detail .daily-table th:nth-child(5) { width: 75px; }
+#sec-detail .daily-table th:nth-child(6) { width: 75px; }
+#sec-detail .daily-table th:nth-child(7) { width: 75px; }
+#sec-detail .daily-table th:nth-child(8) { width: 75px; }
+#sec-detail .daily-table th:nth-child(9) { width: 90px; }
+#sec-detail .daily-table th:nth-child(10) { width: 90px; }
+#sec-detail .daily-table th:nth-child(11) { width: 100px; }
+#sec-detail .daily-table th:nth-child(12) { width: 100px; }
+#sec-detail .daily-table th:nth-child(13) { width: 100px; }
+#sec-detail .daily-table th:nth-child(14) { width: 100px; }
+
+/* ===== 底部分页 ===== */
+#sec-detail .biz-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+#sec-detail .biz-total {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+#sec-detail .exec-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+
+#sec-detail .exec-total {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+#sec-detail .pagination {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+#sec-detail .pg-btn,
+#sec-detail .pg-num {
+  min-width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  background: #f4f4f5;
+  color: #606266;
+  border-radius: 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#sec-detail .pg-num.active {
+  background: #409eff;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ===== 自动预警 AutoWarning ===== */
+#sec-warning {
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+#sec-warning .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-warning .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-warning .card-title-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-warning .card-body {
+  padding: 12px;
+}
+
+#sec-warning .two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* ===== 通用小按钮（el-button mini） ===== */
+#sec-warning .btn-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+#sec-warning .btn-primary {
+  background: #409eff;
+  border: 1px solid #409eff;
+  color: #fff;
+}
+
+#sec-warning .btn-plain {
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  color: #606266;
+}
+
+#sec-warning .btn-disabled {
+  background: #a0cfff;
+  border-color: #a0cfff;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+/* ===== 左侧：历史预警规则 ===== */
+#sec-warning .left-panel {
+  min-width: 0;
+}
+
+#sec-warning .rule-list-card {
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-warning .rule-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+#sec-warning .rule-list-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-warning .rule-list-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-warning .rule-list-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sec-warning .rule-count {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: normal;
+}
+
+/* 筛选栏 */
+#sec-warning .rule-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-warning .filter-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  line-height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #a8abb2;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sec-warning .filter-input-sm {
+  flex: 0.6;
+  max-width: 100px;
+}
+
+#sec-warning .filter-select {
+  width: 76px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  font-size: 12px;
+  color: #a8abb2;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+}
+
+#sec-warning .select-arrow {
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid #c0c4cc;
+  border-bottom: 1px solid #c0c4cc;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+/* 规则卡片列表 */
+#sec-warning .rule-cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+#sec-warning .rule-item {
+  border: 1px solid #f3f4f6;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+
+#sec-warning .rule-item:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
+}
+
+#sec-warning .rule-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+#sec-warning .rule-item-left {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+#sec-warning .rule-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+#sec-warning .rule-item-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#sec-warning .rule-status-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  min-width: 36px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+#sec-warning .rule-status-tag.success {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+#sec-warning .rule-status-tag.gray {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+#sec-warning .rule-status-tag.danger {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+#sec-warning .rule-item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#sec-warning .icon-act {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  font-style: normal;
+}
+
+#sec-warning .icon-act:hover {
+  color: #2563eb;
+}
+
+#sec-warning .icon-del:hover {
+  color: #ef4444;
+}
+
+#sec-warning .rule-item-desc {
+  font-size: 11px;
+  color: #374151;
+  margin: 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sec-warning .rule-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+#sec-warning .rule-item-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+#sec-warning .rule-item-meta svg {
+  flex-shrink: 0;
+}
+
+/* ===== 右侧：预警策略 / 重点关注策略 ===== */
+#sec-warning .right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+#sec-warning .strategy-card {
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sec-warning .strategy-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+#sec-warning .strategy-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-warning .strategy-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+#sec-warning .strategy-dot.blue {
+  background: #2563eb;
+}
+
+#sec-warning .strategy-dot.orange {
+  background: #f59e0b;
+}
+
+/* 内层胶囊 tab */
+#sec-warning .inner-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-warning .inner-tab {
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#sec-warning .inner-tab.active {
+  color: #fff;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* 表格区域 */
+#sec-warning .strategy-table-wrap {
+  padding: 6px 8px 8px;
+}
+
+#sec-warning .strategy-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+#sec-warning .selected-count {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+#sec-warning .table-scroll {
+  overflow-x: auto;
+}
+
+#sec-warning .warning-table {
+  border-collapse: collapse;
+  border: 1px solid #ebeef5;
+  width: max-content;
+  min-width: 100%;
+}
+
+#sec-warning .warning-table th {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #111827;
+  background: #f9fafb;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 15px;
+}
+
+#sec-warning .warning-table td {
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #374151;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 15px;
+}
+
+#sec-warning .warning-table th:last-child,
+#sec-warning .warning-table td:last-child {
+  border-right: none;
+}
+
+#sec-warning .warning-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-warning .warning-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+#sec-warning .ta-r {
+  text-align: right !important;
+}
+
+#sec-warning .ta-l {
+  text-align: left !important;
+}
+
+#sec-warning .warning-table th:nth-child(1) { width: 28px; }
+#sec-warning .warning-table th:nth-child(2) { width: 90px; }
+#sec-warning .warning-table th:nth-child(3) { width: 70px; }
+#sec-warning .warning-table th:nth-child(4) { width: 70px; }
+#sec-warning .warning-table th:nth-child(5) { width: 70px; }
+#sec-warning .warning-table th:nth-child(6) { width: 100px; }
+#sec-warning .warning-table th:nth-child(7) { width: 60px; }
+#sec-warning .warning-table th:nth-child(8) { width: 60px; }
+#sec-warning .warning-table th:nth-child(9) { width: 60px; }
+#sec-warning .warning-table th:nth-child(10) { width: 60px; }
+#sec-warning .warning-table th:nth-child(11) { width: 80px; }
+#sec-warning .warning-table th:nth-child(12) { width: 80px; }
+#sec-warning .warning-table th:nth-child(13) { width: 90px; }
+#sec-warning .warning-table th:nth-child(14) { width: 90px; }
+#sec-warning .warning-table th:nth-child(15) { width: 90px; }
+#sec-warning .warning-table th:nth-child(16) { width: 90px; }
+
+/* 复选框（未选中态） */
+#sec-warning .checkbox {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 1px solid #dcdfe6;
+  border-radius: 2px;
+  background: #fff;
+  vertical-align: middle;
+}
+
+#sec-warning .ck-col {
+  text-align: center !important;
+  width: 28px;
+}
+
+#sec-warning .strategy-name-link {
+  color: #2563eb;
+  cursor: pointer;
+}
+
+#sec-warning .strategy-name-link:hover {
+  text-decoration: underline;
+}
+
+/* 底部分页 */
+#sec-warning .table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+#sec-warning .table-footer > span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+#sec-warning .pagination {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+#sec-warning .pg-btn,
+#sec-warning .pg-num {
+  min-width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  background: #f4f4f5;
+  color: #606266;
+  border-radius: 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#sec-warning .pg-num.active {
+  background: #409eff;
+  color: #fff;
+  font-weight: 600;
+}
+
+</style>
+</head>
+<body>
+
+<section id="sec-header" class="sec-header">
+  <div class="header-top">
+    <div class="header-left">
+      <div class="logo">策</div>
+      <div class="header-title">策略复盘与预警</div>
+    </div>
+  </div>
+  <nav class="tabs-nav">
+    <div class="tab-item active">主动策略（我找客户）</div>
+    <div class="tab-item">被动策略（客户找我）</div>
+    <div class="tab-item">控损策略（控损挽留）</div>
+  </nav>
+</section>
+
+<section id="sec-overview" class="sec-overview">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="card-title-dot"></span>
+      策略整体情况
+    </div>
+    <div class="card-actions"></div>
+  </div>
+
+  <div class="card-body">
+    <!-- KPI 卡片网格 -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">策略数</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">128<span class="unit">个</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+6.7%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+15.3%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-card-active">
+        <div class="kpi-card-top">
+          <span class="kpi-label">推送量</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">17,280,000<span class="unit">次</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+12%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+26.8%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">使用量</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">15,864,300<span class="unit">次</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+11.8%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+27.2%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">触达量</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">12,436,800<span class="unit">次</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value down">-7.2%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+19.4%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">转化量</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">3,862,500<span class="unit">次</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+15.3%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+32.8%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">转化率</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">3.85<span class="unit">%</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+0.39%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+1.2%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-top">
+          <span class="kpi-label">转收</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l6 8 6-8"/><line x1="12" y1="11" x2="12" y2="21"/><line x1="7" y1="15" x2="17" y2="15"/><line x1="7" y1="18.5" x2="17" y2="18.5"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">8,572,400<span class="unit">元</span></div>
+        <div class="kpi-trend">
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">环比</span>
+            <span class="kpi-trend-value up">+18.5%</span>
+          </div>
+          <div class="kpi-trend-row">
+            <span class="kpi-trend-label">同比</span>
+            <span class="kpi-trend-value up">+42.3%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="chart-legend">
+      <div class="chart-legend-item">
+        <span class="chart-legend-dot dot-bar"></span>
+        推送量
+      </div>
+      <div class="chart-legend-item">
+        <span class="chart-legend-dot dot-line"></span>
+        环比
+      </div>
+    </div>
+
+    <!-- 趋势图 -->
+    <div class="chart-box" id="chart-overview-trend"></div>
+  </div>
+</section>
+
+<section id="sec-touchpoint" class="sec-touchpoint">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="card-title-dot"></span>
+      策略触点执行情况
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="grid-two-col">
+      <!-- ===== 左侧：触点执行 ===== -->
+      <div class="left-panel">
+        <div class="top-block">
+          <div class="panel-title-row">
+            <div class="panel-title">
+              <span class="panel-dot blue"></span>
+              触点执行
+            </div>
+            <div class="panel-filters">
+              <span class="btn-text"><svg viewBox="0 0 14 14" width="12" height="12"><path d="M7 1.5v7M3.8 5.7 7 8.9l3.2-3.2M2 12.5h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>导出</span>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-check ta-c"><span class="ckbox"></span></th>
+                  <th class="ta-l w110">触点渠道</th>
+                  <th class="ta-r w90">策略量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">推送量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">触达量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">全产品转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down on"></i></span></th>
+                  <th class="ta-r w110">全产品转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">预期收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">实际收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-blue">短信</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>18</span><span class="qoq-badge up">+5.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>17,280,000</span><span class="qoq-badge up">+4.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,685,000</span><span class="qoq-badge up">+7.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.7</span><span class="qoq-badge up">+1.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>15,320,000</span><span class="qoq-badge up">+5.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>1,258,000</span><span class="qoq-badge up">+10.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9.3</span><span class="qoq-badge up">+0.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>1,580,000</span><span class="qoq-badge up">+12.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11.7</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,800,000</span><span class="qoq-badge up">+8.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,520,000</span><span class="qoq-badge up">+9.1%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-purple">中国移动APP</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12</span><span class="qoq-badge up">+15.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>22,150,000</span><span class="qoq-badge up">+18.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,960,000</span><span class="qoq-badge up">+20.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>45.0</span><span class="qoq-badge up">+1.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>19,740,000</span><span class="qoq-badge up">+17.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,300,000</span><span class="qoq-badge up">+22.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10.4</span><span class="qoq-badge up">+1.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,830,000</span><span class="qoq-badge up">+25.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12.9</span><span class="qoq-badge up">+2.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11,200,000</span><span class="qoq-badge up">+20.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,580,000</span><span class="qoq-badge up">+21.5%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-cyan">视频彩铃</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8</span><span class="qoq-badge down">-5.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,460,000</span><span class="qoq-badge down">-1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,230,000</span><span class="qoq-badge up">+3.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.7</span><span class="qoq-badge up">+2.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8,220,000</span><span class="qoq-badge up">+0.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>715,000</span><span class="qoq-badge up">+6.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.5</span><span class="qoq-badge up">+0.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>885,000</span><span class="qoq-badge up">+8.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10.6</span><span class="qoq-badge up">+1.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,530,000</span><span class="qoq-badge up">+5.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,690,000</span><span class="qoq-badge up">+4.8%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-green">权益小站</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>15</span><span class="qoq-badge up">+25.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>31,860,000</span><span class="qoq-badge up">+20.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>14,260,000</span><span class="qoq-badge up">+24.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.8</span><span class="qoq-badge up">+1.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>28,150,000</span><span class="qoq-badge up">+21.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,640,000</span><span class="qoq-badge up">+28.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11.3</span><span class="qoq-badge up">+1.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,500,000</span><span class="qoq-badge up">+30.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>14.0</span><span class="qoq-badge up">+2.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>18,690,000</span><span class="qoq-badge up">+25.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>15,870,000</span><span class="qoq-badge up">+27.1%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-red">企业微信</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6</span><span class="qoq-badge up">+475.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,380,000</span><span class="qoq-badge up">+2.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,860,000</span><span class="qoq-badge up">+2.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.8</span><span class="qoq-badge up">+0.7%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,730,000</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>412,000</span><span class="qoq-badge up">+4.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7.0</span><span class="qoq-badge up">+0.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>528,000</span><span class="qoq-badge up">+5.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.9</span><span class="qoq-badge up">+0.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,470,000</span><span class="qoq-badge up">+3.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,950,000</span><span class="qoq-badge up">+3.2%</span></div></td>
+                </tr>
+                <tr class="row-total">
+                  <td class="ta-c col-check"></td>
+                  <td class="ta-l"><span class="total-label">合计</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>59</span><span class="qoq-badge up">+8.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>87,130,000</span><span class="qoq-badge up">+9.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>39,000,000</span><span class="qoq-badge up">+12.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.8</span><span class="qoq-badge up">+1.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>77,160,000</span><span class="qoq-badge up">+10.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8,325,000</span><span class="qoq-badge up">+15.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10.1</span><span class="qoq-badge up">+1.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10,323,000</span><span class="qoq-badge up">+18.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12.5</span><span class="qoq-badge up">+1.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>46,690,000</span><span class="qoq-badge up">+14.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>39,610,000</span><span class="qoq-badge up">+15.8%</span></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="footer-spacer"></div>
+        </div>
+
+        <!-- 触点产能趋势 + 业务产能明细 -->
+        <div class="channel-bottom-grid">
+          <div class="channel-detail-card">
+            <div class="detail-title-row">
+              <div class="detail-title">
+                <span class="detail-dot blue"></span>
+                触点产能趋势
+              </div>
+              <div class="detail-subtitle">全部渠道</div>
+            </div>
+            <div class="chart-legend-mini">
+              <div class="legend-item"><span class="legend-bar"></span><span>产能</span></div>
+              <div class="legend-item"><span class="legend-line-dot"></span><span>环比</span></div>
+            </div>
+            <div class="trend-chart">
+              <svg class="trend-svg" viewBox="0 0 560 240" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="tpx-bar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#60a5fa"/>
+                    <stop offset="1" stop-color="#2563eb"/>
+                  </linearGradient>
+                </defs>
+                <path d="M36 150H516M36 80H516M36 10H516" stroke="#f3f4f6" stroke-dasharray="4 3" fill="none"/>
+                <g fill="#9ca3af" font-size="10" text-anchor="end">
+                  <text x="30" y="223">0</text>
+                  <text x="30" y="153">1000</text>
+                  <text x="30" y="83">2000</text>
+                  <text x="30" y="13">3000</text>
+                </g>
+                <g fill="#9ca3af" font-size="10">
+                  <text x="516" y="7">环比</text>
+                  <text x="522" y="16">40%</text>
+                  <text x="522" y="67">20%</text>
+                  <text x="522" y="118">0%</text>
+                  <text x="522" y="170">-20%</text>
+                  <text x="522" y="222">-40%</text>
+                </g>
+                <path d="M36 220H516" stroke="#e5e7eb" fill="none"/>
+                <g fill="url(#tpx-bar)">
+                  <path d="M58 93.5Q58 90.5 61 90.5L91 90.5Q94 90.5 94 93.5L94 220L58 220Z"/>
+                  <path d="M138 76Q138 73 141 73L171 73Q174 73 174 76L174 220L138 220Z"/>
+                  <path d="M218 58.5Q218 55.5 221 55.5L251 55.5Q254 55.5 254 58.5L254 220L218 220Z"/>
+                  <path d="M298 88.6Q298 85.6 301 85.6L331 85.6Q334 85.6 334 88.6L334 220L298 220Z"/>
+                  <path d="M378 49.4Q378 46.4 381 46.4L411 46.4Q414 46.4 414 49.4L414 220L378 220Z"/>
+                  <path d="M458 30.5Q458 27.5 461 27.5L491 27.5Q494 27.5 494 30.5L494 220L458 220Z"/>
+                </g>
+                <path d="M76 136.5C106 136.5 126 79.6 156 79.6C186 79.6 206 83.8 236 83.8C266 83.8 286 163 316 163C346 163 366 38.4 396 38.4C426 38.4 446 86.4 476 86.4" fill="none" stroke="#f59e0b" stroke-width="2"/>
+                <g fill="#f59e0b" stroke="#fff" stroke-width="2">
+                  <circle cx="76" cy="136.5" r="5"/>
+                  <circle cx="156" cy="79.6" r="5"/>
+                  <circle cx="236" cy="83.8" r="5"/>
+                  <circle cx="316" cy="163" r="5"/>
+                  <circle cx="396" cy="38.4" r="5"/>
+                  <circle cx="476" cy="86.4" r="5"/>
+                </g>
+                <g fill="#9ca3af" font-size="11" text-anchor="middle">
+                  <text x="76" y="235">2026-04</text>
+                  <text x="156" y="235">2026-05</text>
+                  <text x="236" y="235">2026-06</text>
+                  <text x="316" y="235">2026-07</text>
+                  <text x="396" y="235">2026-08</text>
+                  <text x="476" y="235">2026-09</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <div class="channel-detail-card">
+            <div class="detail-title-row">
+              <div class="detail-title">
+                <span class="detail-dot blue"></span>
+                业务产能明细
+              </div>
+              <div class="detail-subtitle">全部渠道</div>
+            </div>
+            <div class="biz-table-inner">
+              <table class="biz-table">
+                <thead>
+                  <tr>
+                    <th class="ta-l">业务</th>
+                    <th class="ta-r col-cap">产能</th>
+                    <th class="ta-r col-qoq">环比</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td class="ta-l">5G套餐升档</td><td class="ta-r">862</td><td class="ta-r"><span class="qoq-badge up">+15.2%</span></td></tr>
+                  <tr><td class="ta-l">流量包叠加</td><td class="ta-r">720</td><td class="ta-r"><span class="qoq-badge up">+8.5%</span></td></tr>
+                  <tr><td class="ta-l">视频会员</td><td class="ta-r">613</td><td class="ta-r"><span class="qoq-badge down">-3.1%</span></td></tr>
+                  <tr><td class="ta-l">权益包兑换</td><td class="ta-r">452</td><td class="ta-r"><span class="qoq-badge up">+22.7%</span></td></tr>
+                  <tr><td class="ta-l">宽带续约</td><td class="ta-r">368</td><td class="ta-r"><span class="qoq-badge down">-5.4%</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 右侧：策略分类执行情况 + 策略执行情况 ===== -->
+      <div class="right-panel">
+        <div class="category-block top-block">
+          <div class="panel-title-row">
+            <div class="panel-title">
+              <span class="panel-dot blue"></span>
+              策略分类执行情况
+            </div>
+          </div>
+          <div class="filter-bar">
+            <span class="f-input f-month"><i class="ic"><svg viewBox="0 0 14 14" width="12" height="12"><rect x="1.5" y="2.5" width="11" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 5.8h11M4.5 1.2v2.8M9.5 1.2v2.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>选择月份</span>
+            <span class="f-input f-select w110">策略大类<i class="ic"><svg viewBox="0 0 12 12" width="10" height="10"><path d="M3 4.4 6.5 7.9 10 4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></i></span>
+            <span class="f-input f-select w110 is-disabled">策略小类<i class="ic"><svg viewBox="0 0 12 12" width="10" height="10"><path d="M3 4.4 6.5 7.9 10 4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></i></span>
+            <span class="f-input f-select w100">触点<i class="ic"><svg viewBox="0 0 12 12" width="10" height="10"><path d="M3 4.4 6.5 7.9 10 4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></i></span>
+            <span class="btn btn-primary">搜索</span>
+            <span class="btn btn-plain">重置</span>
+            <span class="f-flex"></span>
+            <span class="btn-text"><svg viewBox="0 0 14 14" width="12" height="12"><path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>全屏</span>
+            <span class="btn-text"><svg viewBox="0 0 14 14" width="12" height="12"><path d="M7 1.5v7M3.8 5.7 7 8.9l3.2-3.2M2 12.5h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>导出</span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="ta-l w100">策略大类</th>
+                  <th class="ta-l w100">策略小类</th>
+                  <th class="ta-r w90">策略量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">推送量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">触达量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">全产品转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down on"></i></span></th>
+                  <th class="ta-r w110">全产品转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">预期收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">实际收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ta-l"><span class="category-link">权益运营</span></td>
+                  <td class="ta-l"><span class="category-link">权益领取</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12</span><span class="qoq-badge up">+8.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,860,000</span><span class="qoq-badge up">+6.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,380,000</span><span class="qoq-badge up">+9.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.4</span><span class="qoq-badge up">+1.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8,720,000</span><span class="qoq-badge up">+7.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>580,000</span><span class="qoq-badge up">+12.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6.7</span><span class="qoq-badge up">+0.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>715,000</span><span class="qoq-badge up">+15.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.3</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,560,000</span><span class="qoq-badge up">+10.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,970,000</span><span class="qoq-badge up">+11.8%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-l"><span class="category-link">权益运营</span></td>
+                  <td class="ta-l"><span class="category-link">权益兑换</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8</span><span class="qoq-badge down">-3.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,150,000</span><span class="qoq-badge down">-1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,190,000</span><span class="qoq-badge up">+4.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.6</span><span class="qoq-badge up">+2.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,450,000</span><span class="qoq-badge up">+3.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>435,000</span><span class="qoq-badge up">+8.7%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6.8</span><span class="qoq-badge up">+0.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>528,000</span><span class="qoq-badge up">+9.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.2</span><span class="qoq-badge up">+1.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,540,000</span><span class="qoq-badge up">+7.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,120,000</span><span class="qoq-badge up">+6.9%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-l"><span class="category-link">流量经营</span></td>
+                  <td class="ta-l"><span class="category-link">流量包推荐</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6</span><span class="qoq-badge up">+20.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12,480,000</span><span class="qoq-badge up">+12.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,620,000</span><span class="qoq-badge up">+18.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>45.0</span><span class="qoq-badge up">+2.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11,020,000</span><span class="qoq-badge up">+14.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>905,000</span><span class="qoq-badge up">+22.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.2</span><span class="qoq-badge up">+1.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>1,120,000</span><span class="qoq-badge up">+25.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9.9</span><span class="qoq-badge up">+2.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,890,000</span><span class="qoq-badge up">+28.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,920,000</span><span class="qoq-badge up">+26.7%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-l"><span class="category-link">流量经营</span></td>
+                  <td class="ta-l"><span class="category-link">超套关怀</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5</span><span class="qoq-badge up">+9.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8,930,000</span><span class="qoq-badge up">+4.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,980,000</span><span class="qoq-badge up">+6.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.6</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,880,000</span><span class="qoq-badge up">+5.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>612,000</span><span class="qoq-badge up">+10.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7.8</span><span class="qoq-badge up">+0.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>756,000</span><span class="qoq-badge up">+13.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9.5</span><span class="qoq-badge up">+1.7%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,150,000</span><span class="qoq-badge up">+9.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,540,000</span><span class="qoq-badge up">+8.9%</span></div></td>
+                </tr>
+                <tr class="row-total">
+                  <td class="ta-l"><span class="total-label">合计</span></td>
+                  <td class="ta-l"><span class="total-label">--</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>62</span><span class="qoq-badge up">+8.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>87,530,000</span><span class="qoq-badge up">+6.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>39,130,000</span><span class="qoq-badge up">+9.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.7</span><span class="qoq-badge up">+1.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>77,510,000</span><span class="qoq-badge up">+7.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,245,000</span><span class="qoq-badge up">+12.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.1</span><span class="qoq-badge up">+0.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,675,000</span><span class="qoq-badge up">+15.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9.9</span><span class="qoq-badge up">+1.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>42,910,000</span><span class="qoq-badge up">+11.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>36,400,000</span><span class="qoq-badge up">+11.0%</span></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span>共9条</span>
+            <div class="pg">
+              <span class="pg-btn is-disabled">‹</span><span class="pg-num is-active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 策略执行情况 -->
+        <div class="strategy-block">
+          <div class="panel-title-row">
+            <div class="panel-title">
+              <span class="panel-dot blue"></span>
+              策略执行情况
+            </div>
+          </div>
+          <div class="filter-bar">
+            <span class="f-input f-month"><i class="ic"><svg viewBox="0 0 14 14" width="12" height="12"><rect x="1.5" y="2.5" width="11" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 5.8h11M4.5 1.2v2.8M9.5 1.2v2.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>选择月份</span>
+            <span class="f-input f-name">请输入策略名</span>
+            <span class="f-input f-select w100">触点<i class="ic"><svg viewBox="0 0 12 12" width="10" height="10"><path d="M3 4.4 6.5 7.9 10 4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></i></span>
+            <span class="btn btn-primary">搜索</span>
+            <span class="btn btn-plain">重置</span>
+            <span class="btn-text"><svg viewBox="0 0 14 14" width="12" height="12"><path d="M7 1.5v7M3.8 5.7 7 8.9l3.2-3.2M2 12.5h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>导出</span>
+            <span class="f-flex"></span>
+            <span class="btn-text"><svg viewBox="0 0 14 14" width="12" height="12"><path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>全屏</span>
+            <span class="btn btn-fav"><i class="ic"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></i>收藏</span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-check ta-c"><span class="ckbox"></span></th>
+                  <th class="ta-l w100">渠道</th>
+                  <th class="ta-l w100">策略大类</th>
+                  <th class="ta-l w100">策略小类</th>
+                  <th class="ta-l w130">策略名称</th>
+                  <th class="ta-r w90">推送量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">使用率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">触达量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w90">目标转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">全产品转化量<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down on"></i></span></th>
+                  <th class="ta-r w110">全产品转化率<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">预期收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                  <th class="ta-r w110">实际收入(元)<span class="sort-wrap"><i class="caret-up"></i><i class="caret-down"></i></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-blue">短信</span></td>
+                  <td class="ta-l"><span class="category-link">存量经营</span></td>
+                  <td class="ta-l"><span class="category-link">到期关怀</span></td>
+                  <td class="ta-l"><span class="strategy-name ellipsis">5G套餐升档提醒</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>17,280,000</span><span class="qoq-badge up">+4.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,685,000</span><span class="qoq-badge up">+7.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.5%</span><span class="qoq-badge up">+1.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>15,320,000</span><span class="qoq-badge up">+5.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>1,258,000</span><span class="qoq-badge up">+10.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9.3%</span><span class="qoq-badge up">+0.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>1,580,000</span><span class="qoq-badge up">+12.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11.7%</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7,800,000</span><span class="qoq-badge up">+8.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,520,000</span><span class="qoq-badge up">+9.1%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-purple">中国移动APP</span></td>
+                  <td class="ta-l"><span class="category-link">权益运营</span></td>
+                  <td class="ta-l"><span class="category-link">权益领取</span></td>
+                  <td class="ta-l"><span class="strategy-name ellipsis">流量权益推荐</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>22,150,000</span><span class="qoq-badge up">+18.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,960,000</span><span class="qoq-badge up">+20.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>45.0%</span><span class="qoq-badge up">+1.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>19,740,000</span><span class="qoq-badge up">+17.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,300,000</span><span class="qoq-badge up">+22.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10.4%</span><span class="qoq-badge up">+1.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,830,000</span><span class="qoq-badge up">+25.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>12.9%</span><span class="qoq-badge up">+2.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11,200,000</span><span class="qoq-badge up">+20.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,580,000</span><span class="qoq-badge up">+21.5%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-cyan">视频彩铃</span></td>
+                  <td class="ta-l"><span class="category-link">增值业务</span></td>
+                  <td class="ta-l"><span class="category-link">视频会员</span></td>
+                  <td class="ta-l"><span class="strategy-name ellipsis">视频会员首月体验</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>9,460,000</span><span class="qoq-badge down">-1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,230,000</span><span class="qoq-badge up">+3.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.7%</span><span class="qoq-badge up">+2.1%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8,220,000</span><span class="qoq-badge up">+0.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>715,000</span><span class="qoq-badge up">+6.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.5%</span><span class="qoq-badge up">+0.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>885,000</span><span class="qoq-badge up">+8.9%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>10.6%</span><span class="qoq-badge up">+1.0%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,530,000</span><span class="qoq-badge up">+5.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,690,000</span><span class="qoq-badge up">+4.8%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-green">权益小站</span></td>
+                  <td class="ta-l"><span class="category-link">流量经营</span></td>
+                  <td class="ta-l"><span class="category-link">流量包推荐</span></td>
+                  <td class="ta-l"><span class="strategy-name ellipsis">高流量用户流量包推荐</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>31,860,000</span><span class="qoq-badge up">+20.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>14,260,000</span><span class="qoq-badge up">+24.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.8%</span><span class="qoq-badge up">+1.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>28,150,000</span><span class="qoq-badge up">+21.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,640,000</span><span class="qoq-badge up">+28.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>11.3%</span><span class="qoq-badge up">+1.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>4,500,000</span><span class="qoq-badge up">+30.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>14.0%</span><span class="qoq-badge up">+2.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>18,690,000</span><span class="qoq-badge up">+25.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>15,870,000</span><span class="qoq-badge up">+27.1%</span></div></td>
+                </tr>
+                <tr>
+                  <td class="ta-c col-check"><span class="ckbox"></span></td>
+                  <td class="ta-l"><span class="channel-tag ch-blue">客户经理</span></td>
+                  <td class="ta-l"><span class="category-link">存量经营</span></td>
+                  <td class="ta-l"><span class="category-link">升档推荐</span></td>
+                  <td class="ta-l"><span class="strategy-name ellipsis">融合套餐升档邀约</span></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>6,380,000</span><span class="qoq-badge up">+2.4%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,860,000</span><span class="qoq-badge up">+2.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>44.8%</span><span class="qoq-badge up">+0.7%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>5,730,000</span><span class="qoq-badge up">+1.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>412,000</span><span class="qoq-badge up">+4.2%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>7.0%</span><span class="qoq-badge up">+0.3%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>528,000</span><span class="qoq-badge up">+5.8%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>8.9%</span><span class="qoq-badge up">+0.6%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>3,470,000</span><span class="qoq-badge up">+3.5%</span></div></td>
+                  <td class="ta-r"><div class="cell-qoq"><span>2,950,000</span><span class="qoq-badge up">+3.2%</span></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span>共9条，每页5条</span>
+            <div class="pg">
+              <span class="pg-btn is-disabled">‹</span><span class="pg-num is-active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-detail" class="sec-detail">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="card-title-dot"></span>
+      策略执行详情
+      <span class="strategy-tag">高饱和策略</span>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="three-col-grid">
+      <!-- 左列 -->
+      <div class="col col-left">
+        <div class="detail-card info-card">
+          <div class="detail-card-title"><span class="detail-dot blue"></span>策略详情</div>
+          <div class="strategy-info-list">
+            <div class="info-row"><span class="info-lbl">策略名称</span><span class="info-val bold">高饱和策略</span></div>
+            <div class="info-row"><span class="info-lbl">所属渠道</span><span class="info-val">在线-外呼</span></div>
+            <div class="info-row"><span class="info-lbl">策略级别</span><span class="info-val">省级策划</span></div>
+            <div class="info-row"><span class="info-lbl">客群口径</span><span class="info-val blue">80%饱和度以上</span></div>
+            <div class="info-row"><span class="info-lbl">创建时间</span><span class="info-val">2026-03-12</span></div>
+          </div>
+        </div>
+
+        <div class="detail-card reject-card">
+          <div class="detail-card-title"><span class="detail-dot orange"></span>策略拒绝原因</div>
+          <div class="reject-chart-wrap">
+            <div class="chart-placeholder">图表：拒绝原因环形图（高 200px）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中列 -->
+      <div class="col col-mid">
+        <div class="detail-card trend-card">
+          <div class="detail-card-title"><span class="detail-dot blue"></span>策略产能</div>
+          <div class="chart-placeholder trend-placeholder">图表：策略产能柱状图 + 环比折线图（高 180px）</div>
+        </div>
+
+        <div class="detail-card biz-card">
+          <div class="detail-card-title"><span class="detail-dot blue"></span>业务产能明细</div>
+          <div class="biz-table-wrap">
+            <table class="biz-table">
+              <thead>
+                <tr><th class="ta-l">业务</th><th class="ta-r">产能</th><th class="ta-r">环比</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="ta-l biz-name">套餐焕新</td><td class="ta-r num">1,256</td><td class="ta-r"><span class="qoq-badge up">+5.2%</span></td></tr>
+                <tr><td class="ta-l biz-name">流量包</td><td class="ta-r num">986</td><td class="ta-r"><span class="qoq-badge up">+3.8%</span></td></tr>
+                <tr><td class="ta-l biz-name">宽带新装</td><td class="ta-r num">865</td><td class="ta-r"><span class="qoq-badge up">+8.9%</span></td></tr>
+                <tr><td class="ta-l biz-name">修复</td><td class="ta-r num">756</td><td class="ta-r"><span class="qoq-badge down">-1.2%</span></td></tr>
+                <tr><td class="ta-l biz-name">百G包</td><td class="ta-r num">623</td><td class="ta-r"><span class="qoq-badge up">+2.4%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="biz-footer">
+            <span class="biz-total">共7条</span>
+            <div class="pagination">
+              <span class="pg-btn">‹</span><span class="pg-num active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右列：执行明细 -->
+      <div class="col col-right">
+        <div class="detail-card exec-card">
+          <div class="exec-header">
+            <div class="detail-card-title exec-title"><span class="detail-dot blue"></span>执行明细</div>
+            <div class="exec-header-actions">
+              <span class="exec-action-btn icon-only" title="全屏查看"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></span>
+              <span class="exec-action-btn" title="导出"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M7 1.5v7M3.8 5.7 7 8.9l3.2-3.2M2 12.5h10" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>导出</span>
+            </div>
+          </div>
+
+          <div class="exec-tabs-wrap">
+            <div class="exec-tabs">
+              <div class="exec-tab-item active">策略执行情况（分日）</div>
+              <div class="exec-tab-item">对照执行情况（待上线）</div>
+            </div>
+          </div>
+
+          <div class="exec-table-wrap">
+            <div class="exec-table-scroll">
+              <table class="daily-table">
+                <thead>
+                  <tr>
+                    <th>日期</th><th>策略大类</th><th>策略小类</th><th class="ta-l">策略名称</th>
+                    <th class="ta-r">推送量</th><th class="ta-r">使用量</th><th class="ta-r">使用率</th><th class="ta-r">触达量</th>
+                    <th class="ta-r">目标转化量</th><th class="ta-r">目标转化率</th><th class="ta-r">全产品转化量</th><th class="ta-r">全产品转化率</th>
+                    <th class="ta-r">预期收入(元)</th><th class="ta-r">实际收入(元)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>2026-10-07</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,845,203</td><td class="ta-r">11,141,727</td><td class="ta-r">86.7%</td><td class="ta-r">10,214,386</td><td class="ta-r">1,327,870</td><td class="ta-r">13.0%</td><td class="ta-r">2,461,852</td><td class="ta-r">24.1%</td><td class="ta-r">5,933,063,320</td><td class="ta-r">5,221,095,722</td></tr>
+                  <tr><td>2026-10-06</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,406,582</td><td class="ta-r">10,793,726</td><td class="ta-r">87.0%</td><td class="ta-r">9,822,940</td><td class="ta-r">1,178,753</td><td class="ta-r">12.0%</td><td class="ta-r">2,260,277</td><td class="ta-r">23.0%</td><td class="ta-r">5,424,664,800</td><td class="ta-r">4,773,705,024</td></tr>
+                  <tr><td>2026-10-05</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">11,972,045</td><td class="ta-r">10,415,679</td><td class="ta-r">87.0%</td><td class="ta-r">9,167,786</td><td class="ta-r">1,191,812</td><td class="ta-r">13.0%</td><td class="ta-r">2,201,469</td><td class="ta-r">24.0%</td><td class="ta-r">5,305,540,290</td><td class="ta-r">4,673,375,455</td></tr>
+                  <tr><td>2026-10-04</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,533,761</td><td class="ta-r">10,904,372</td><td class="ta-r">87.0%</td><td class="ta-r">9,814,923</td><td class="ta-r">1,079,642</td><td class="ta-r">11.0%</td><td class="ta-r">2,352,742</td><td class="ta-r">24.0%</td><td class="ta-r">5,693,635,640</td><td class="ta-r">5,010,399,363</td></tr>
+                  <tr><td>2026-10-03</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">11,684,930</td><td class="ta-r">10,165,889</td><td class="ta-r">87.0%</td><td class="ta-r">8,945,982</td><td class="ta-r">1,073,518</td><td class="ta-r">12.0%</td><td class="ta-r">2,140,356</td><td class="ta-r">23.9%</td><td class="ta-r">5,136,854,400</td><td class="ta-r">4,520,431,872</td></tr>
+                  <tr><td>2026-10-02</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,210,477</td><td class="ta-r">10,623,115</td><td class="ta-r">87.0%</td><td class="ta-r">9,348,341</td><td class="ta-r">1,121,801</td><td class="ta-r">12.0%</td><td class="ta-r">2,243,602</td><td class="ta-r">24.0%</td><td class="ta-r">5,384,644,800</td><td class="ta-r">4,738,487,424</td></tr>
+                  <tr><td>2026-10-01</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,058,934</td><td class="ta-r">10,491,273</td><td class="ta-r">87.0%</td><td class="ta-r">9,231,120</td><td class="ta-r">1,107,734</td><td class="ta-r">12.0%</td><td class="ta-r">2,212,087</td><td class="ta-r">24.0%</td><td class="ta-r">5,309,008,800</td><td class="ta-r">4,671,927,744</td></tr>
+                  <tr><td>2026-09-30</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">11,845,602</td><td class="ta-r">10,309,673</td><td class="ta-r">87.0%</td><td class="ta-r">9,072,513</td><td class="ta-r">1,088,702</td><td class="ta-r">12.0%</td><td class="ta-r">2,173,943</td><td class="ta-r">23.9%</td><td class="ta-r">5,217,463,200</td><td class="ta-r">4,594,567,616</td></tr>
+                  <tr><td>2026-09-29</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">12,318,845</td><td class="ta-r">10,717,395</td><td class="ta-r">87.0%</td><td class="ta-r">9,431,288</td><td class="ta-r">1,131,755</td><td class="ta-r">12.0%</td><td class="ta-r">2,260,411</td><td class="ta-r">24.0%</td><td class="ta-r">5,424,986,400</td><td class="ta-r">4,773,988,032</td></tr>
+                  <tr><td>2026-09-28</td><td>存量经营</td><td>高饱和关怀</td><td class="ta-l">高饱和策略</td><td class="ta-r">11,723,406</td><td class="ta-r">10,203,363</td><td class="ta-r">87.0%</td><td class="ta-r">8,981,760</td><td class="ta-r">1,077,811</td><td class="ta-r">12.0%</td><td class="ta-r">2,148,422</td><td class="ta-r">23.9%</td><td class="ta-r">5,156,212,800</td><td class="ta-r">4,537,467,264</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="exec-footer">
+              <span class="exec-total">共15条，每页10条</span>
+              <div class="pagination">
+                <span class="pg-btn">‹</span><span class="pg-num active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-warning" class="sec-warning">
+  <div class="card-header">
+    <div class="card-title">
+      <span class="card-title-dot"></span>
+      策略自动预警
+    </div>
+  </div>
+
+  <div class="card-body two-col-grid">
+    <!-- 左侧：历史预警规则 -->
+    <div class="left-panel">
+      <div class="rule-list-card">
+        <div class="rule-list-header">
+          <div class="rule-list-title">
+            <span class="rule-list-dot"></span>
+            历史预警规则
+          </div>
+          <div class="rule-list-right">
+            <span class="rule-count">4 条</span>
+            <span class="btn-mini btn-primary"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M6 1.5v9M1.5 6h9" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>新增规则</span>
+          </div>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="rule-filter-bar">
+          <span class="filter-input">请输入场景指标名称</span>
+          <span class="filter-input filter-input-sm">用户编码</span>
+          <span class="filter-select">全部状态<i class="select-arrow"></i></span>
+          <span class="btn-mini btn-primary">搜索</span>
+          <span class="btn-mini btn-plain">重置</span>
+        </div>
+
+        <!-- 规则卡片列表 -->
+        <div class="rule-cards">
+          <div class="rule-item">
+            <div class="rule-item-header">
+              <div class="rule-item-left"><span class="rule-item-name">使用率低于80%预警</span></div>
+              <div class="rule-item-center"><span class="rule-status-tag success">生效中</span></div>
+              <div class="rule-item-actions">
+                <i class="icon-act" title="编辑"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M9.5 2l2.5 2.5L5 11.5l-3.2.7.7-3.2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></i>
+                <i class="icon-act icon-del" title="删除"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M2 3.5h10M5.5 3.5V2h3v1.5M3.5 3.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>
+              </div>
+            </div>
+            <div class="rule-item-desc">策略使用率连续3日低于80%时预警</div>
+            <div class="rule-item-meta">
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><rect x="1.5" y="2.5" width="11" height="10" rx="1" fill="none" stroke="currentColor"/><path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" fill="none" stroke="currentColor"/></svg>2026-09-01 ~ 2026-10-31</span>
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><circle cx="7" cy="4.5" r="2.5" fill="none" stroke="currentColor"/><path d="M2 12.5c0-2.5 2.2-4 5-4s5 1.5 5 4" fill="none" stroke="currentColor"/></svg>2026-09-01 10:23</span>
+            </div>
+          </div>
+
+          <div class="rule-item">
+            <div class="rule-item-header">
+              <div class="rule-item-left"><span class="rule-item-name">目标转化率下降预警</span></div>
+              <div class="rule-item-center"><span class="rule-status-tag success">生效中</span></div>
+              <div class="rule-item-actions">
+                <i class="icon-act" title="编辑"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M9.5 2l2.5 2.5L5 11.5l-3.2.7.7-3.2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></i>
+                <i class="icon-act icon-del" title="删除"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M2 3.5h10M5.5 3.5V2h3v1.5M3.5 3.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>
+              </div>
+            </div>
+            <div class="rule-item-desc">目标转化率环比下降超过15%时预警</div>
+            <div class="rule-item-meta">
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><rect x="1.5" y="2.5" width="11" height="10" rx="1" fill="none" stroke="currentColor"/><path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" fill="none" stroke="currentColor"/></svg>2026-09-15 ~ 2026-10-15</span>
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><circle cx="7" cy="4.5" r="2.5" fill="none" stroke="currentColor"/><path d="M2 12.5c0-2.5 2.2-4 5-4s5 1.5 5 4" fill="none" stroke="currentColor"/></svg>2026-09-15 14:05</span>
+            </div>
+          </div>
+
+          <div class="rule-item">
+            <div class="rule-item-header">
+              <div class="rule-item-left"><span class="rule-item-name">触达量异常预警</span></div>
+              <div class="rule-item-center"><span class="rule-status-tag gray">已过期</span></div>
+              <div class="rule-item-actions">
+                <i class="icon-act" title="编辑"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M9.5 2l2.5 2.5L5 11.5l-3.2.7.7-3.2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></i>
+                <i class="icon-act icon-del" title="删除"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M2 3.5h10M5.5 3.5V2h3v1.5M3.5 3.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>
+              </div>
+            </div>
+            <div class="rule-item-desc">触达量低于预期值50%时预警</div>
+            <div class="rule-item-meta">
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><rect x="1.5" y="2.5" width="11" height="10" rx="1" fill="none" stroke="currentColor"/><path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" fill="none" stroke="currentColor"/></svg>2026-08-01 ~ 2026-08-31</span>
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><circle cx="7" cy="4.5" r="2.5" fill="none" stroke="currentColor"/><path d="M2 12.5c0-2.5 2.2-4 5-4s5 1.5 5 4" fill="none" stroke="currentColor"/></svg>2026-08-01 09:12</span>
+            </div>
+          </div>
+
+          <div class="rule-item">
+            <div class="rule-item-header">
+              <div class="rule-item-left"><span class="rule-item-name">全产品转化率预警</span></div>
+              <div class="rule-item-center"><span class="rule-status-tag danger">已停用</span></div>
+              <div class="rule-item-actions">
+                <i class="icon-act" title="编辑"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M9.5 2l2.5 2.5L5 11.5l-3.2.7.7-3.2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></i>
+                <i class="icon-act icon-del" title="删除"><svg viewBox="0 0 14 14" width="13" height="13"><path d="M2 3.5h10M5.5 3.5V2h3v1.5M3.5 3.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></i>
+              </div>
+            </div>
+            <div class="rule-item-desc">全产品转化率连续5日低于20%时预警</div>
+            <div class="rule-item-meta">
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><rect x="1.5" y="2.5" width="11" height="10" rx="1" fill="none" stroke="currentColor"/><path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" fill="none" stroke="currentColor"/></svg>2026-09-05 ~ 2026-09-30</span>
+              <span><svg viewBox="0 0 14 14" width="11" height="11"><circle cx="7" cy="4.5" r="2.5" fill="none" stroke="currentColor"/><path d="M2 12.5c0-2.5 2.2-4 5-4s5 1.5 5 4" fill="none" stroke="currentColor"/></svg>2026-09-05 16:40</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：预警策略 + 重点关注策略 -->
+    <div class="right-panel">
+      <!-- 预警策略 -->
+      <div class="strategy-card">
+        <div class="strategy-card-header">
+          <div class="strategy-card-title">
+            <span class="strategy-dot blue"></span>
+            预警策略
+          </div>
+        </div>
+        <div class="inner-tabs">
+          <div class="inner-tab active">使用率低于80%预警</div>
+          <div class="inner-tab">目标转化率下降预警</div>
+        </div>
+        <div class="strategy-table-wrap">
+          <div class="strategy-table-toolbar">
+            <span class="selected-count">已选 0 项</span>
+            <span class="btn-mini btn-primary btn-disabled">☆ 收藏</span>
+          </div>
+          <div class="table-scroll">
+            <table class="warning-table">
+              <thead>
+                <tr>
+                  <th class="ck-col"><span class="checkbox"></span></th>
+                  <th class="ta-l">日期</th><th class="ta-l">触点</th>
+                  <th class="ta-l">策略大类</th><th class="ta-l">策略小类</th>
+                  <th class="ta-l">策略名称</th>
+                  <th class="ta-r">推送量</th><th class="ta-r">使用量</th><th class="ta-r">使用率</th><th class="ta-r">触达量</th>
+                  <th class="ta-r">目标转化量</th><th class="ta-r">目标转化率</th>
+                  <th class="ta-r">全产品转化量</th><th class="ta-r">全产品转化率</th>
+                  <th class="ta-r">预期收入(元)</th><th class="ta-r">实际收入(元)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">存量经营</td><td class="ta-l">到期关怀</td><td class="ta-l"><span class="strategy-name-link">到期关怀-P1</span></td><td class="ta-r">13,254,860</td><td class="ta-r">11,531,728</td><td class="ta-r">87.0%</td><td class="ta-r">10,377,555</td><td class="ta-r">1,246,307</td><td class="ta-r">12.0%</td><td class="ta-r">2,491,213</td><td class="ta-r">24.0%</td><td class="ta-r">5,978,911,200</td><td class="ta-r">5,261,441,856</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">存量经营</td><td class="ta-l">套餐焕新</td><td class="ta-l"><span class="strategy-name-link">套餐焕新挽留</span></td><td class="ta-r">11,842,375</td><td class="ta-r">10,192,843</td><td class="ta-r">86.1%</td><td class="ta-r">9,174,559</td><td class="ta-r">1,101,947</td><td class="ta-r">12.0%</td><td class="ta-r">2,205,914</td><td class="ta-r">24.0%</td><td class="ta-r">5,294,193,600</td><td class="ta-r">4,658,890,368</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">存量经营</td><td class="ta-l">高饱和关怀</td><td class="ta-l"><span class="strategy-name-link">高饱和策略</span></td><td class="ta-r">10,953,214</td><td class="ta-r">9,629,828</td><td class="ta-r">87.9%</td><td class="ta-r">8,570,747</td><td class="ta-r">1,114,197</td><td class="ta-r">13.0%</td><td class="ta-r">2,142,179</td><td class="ta-r">25.0%</td><td class="ta-r">5,141,229,600</td><td class="ta-r">4,524,282,048</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">存量经营</td><td class="ta-l">流量经营</td><td class="ta-l"><span class="strategy-name-link">流量包续订提醒</span></td><td class="ta-r">9,842,106</td><td class="ta-r">8,566,232</td><td class="ta-r">87.0%</td><td class="ta-r">7,623,947</td><td class="ta-r">914,874</td><td class="ta-r">12.0%</td><td class="ta-r">1,829,747</td><td class="ta-r">24.0%</td><td class="ta-r">4,391,392,800</td><td class="ta-r">3,864,425,664</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">存量经营</td><td class="ta-l">宽带经营</td><td class="ta-l"><span class="strategy-name-link">宽带提速推荐</span></td><td class="ta-r">8,754,302</td><td class="ta-r">7,613,243</td><td class="ta-r">87.0%</td><td class="ta-r">6,780,786</td><td class="ta-r">880,502</td><td class="ta-r">13.0%</td><td class="ta-r">1,626,989</td><td class="ta-r">24.0%</td><td class="ta-r">3,904,773,600</td><td class="ta-r">3,436,200,768</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">存量经营</td><td class="ta-l">亲情网</td><td class="ta-l"><span class="strategy-name-link">亲情网升级</span></td><td class="ta-r">7,942,158</td><td class="ta-r">6,905,678</td><td class="ta-r">87.0%</td><td class="ta-r">6,146,054</td><td class="ta-r">737,526</td><td class="ta-r">12.0%</td><td class="ta-r">1,474,053</td><td class="ta-r">24.0%</td><td class="ta-r">3,537,727,200</td><td class="ta-r">3,113,199,936</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">存量经营</td><td class="ta-l">5G升级</td><td class="ta-l"><span class="strategy-name-link">5G套餐升级</span></td><td class="ta-r">7,213,460</td><td class="ta-r">6,279,710</td><td class="ta-r">87.1%</td><td class="ta-r">5,587,942</td><td class="ta-r">671,553</td><td class="ta-r">12.0%</td><td class="ta-r">1,339,106</td><td class="ta-r">24.0%</td><td class="ta-r">3,213,854,400</td><td class="ta-r">2,828,191,872</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">权益运营</td><td class="ta-l">权益运营</td><td class="ta-l"><span class="strategy-name-link">权益包领取提醒</span></td><td class="ta-r">6,542,890</td><td class="ta-r">5,687,314</td><td class="ta-r">86.9%</td><td class="ta-r">5,118,583</td><td class="ta-r">614,230</td><td class="ta-r">12.0%</td><td class="ta-r">1,228,460</td><td class="ta-r">24.0%</td><td class="ta-r">2,948,304,000</td><td class="ta-r">2,594,507,520</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">服务提醒</td><td class="ta-l">服务提醒</td><td class="ta-l"><span class="strategy-name-link">话费余额提醒</span></td><td class="ta-r">5,873,214</td><td class="ta-r">5,109,696</td><td class="ta-r">87.0%</td><td class="ta-r">4,598,726</td><td class="ta-r">552,847</td><td class="ta-r">12.0%</td><td class="ta-r">1,105,894</td><td class="ta-r">24.0%</td><td class="ta-r">2,654,145,600</td><td class="ta-r">2,335,648,128</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">权益运营</td><td class="ta-l">权益运营</td><td class="ta-l"><span class="strategy-name-link">积分兑换提醒</span></td><td class="ta-r">5,214,730</td><td class="ta-r">4,532,815</td><td class="ta-r">86.9%</td><td class="ta-r">4,079,534</td><td class="ta-r">489,544</td><td class="ta-r">12.0%</td><td class="ta-r">979,088</td><td class="ta-r">24.0%</td><td class="ta-r">2,349,811,200</td><td class="ta-r">2,067,833,856</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span>共 15 条，每页 10 条</span>
+            <div class="pagination">
+              <span class="pg-btn">‹</span><span class="pg-num active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 重点关注策略 -->
+      <div class="strategy-card">
+        <div class="strategy-card-header">
+          <div class="strategy-card-title">
+            <span class="strategy-dot orange"></span>
+            重点关注策略
+          </div>
+        </div>
+        <div class="inner-tabs">
+          <div class="inner-tab">使用率低于80%预警</div>
+          <div class="inner-tab">目标转化率下降预警</div>
+          <div class="inner-tab active">其他收藏策略</div>
+        </div>
+        <div class="strategy-table-wrap">
+          <div class="strategy-table-toolbar">
+            <span class="selected-count">已选 0 项</span>
+            <span class="btn-mini btn-primary btn-disabled">取消收藏</span>
+          </div>
+          <div class="table-scroll">
+            <table class="warning-table">
+              <thead>
+                <tr>
+                  <th class="ck-col"><span class="checkbox"></span></th>
+                  <th class="ta-l">日期</th><th class="ta-l">触点</th>
+                  <th class="ta-l">策略大类</th><th class="ta-l">策略小类</th>
+                  <th class="ta-l">策略名称</th>
+                  <th class="ta-r">推送量</th><th class="ta-r">使用量</th><th class="ta-r">使用率</th><th class="ta-r">触达量</th>
+                  <th class="ta-r">目标转化量</th><th class="ta-r">目标转化率</th>
+                  <th class="ta-r">全产品转化量</th><th class="ta-r">全产品转化率</th>
+                  <th class="ta-r">预期收入(元)</th><th class="ta-r">实际收入(元)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">存量经营</td><td class="ta-l">高饱和关怀</td><td class="ta-l"><span class="strategy-name-link">高饱和策略</span></td><td class="ta-r">12,845,203</td><td class="ta-r">11,141,727</td><td class="ta-r">86.7%</td><td class="ta-r">10,214,386</td><td class="ta-r">1,327,870</td><td class="ta-r">13.0%</td><td class="ta-r">2,461,852</td><td class="ta-r">24.1%</td><td class="ta-r">5,933,063,320</td><td class="ta-r">5,221,095,722</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">存量经营</td><td class="ta-l">到期关怀</td><td class="ta-l"><span class="strategy-name-link">到期关怀-P1</span></td><td class="ta-r">11,236,540</td><td class="ta-r">9,842,186</td><td class="ta-r">87.6%</td><td class="ta-r">8,951,382</td><td class="ta-r">1,074,166</td><td class="ta-r">12.0%</td><td class="ta-r">2,148,332</td><td class="ta-r">24.0%</td><td class="ta-r">5,155,996,800</td><td class="ta-r">4,537,277,184</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">存量经营</td><td class="ta-l">套餐焕新</td><td class="ta-l"><span class="strategy-name-link">套餐焕新挽留</span></td><td class="ta-r">10,428,915</td><td class="ta-r">9,073,155</td><td class="ta-r">87.0%</td><td class="ta-r">8,311,297</td><td class="ta-r">997,356</td><td class="ta-r">12.0%</td><td class="ta-r">1,994,711</td><td class="ta-r">24.0%</td><td class="ta-r">4,787,306,400</td><td class="ta-r">4,212,829,632</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">存量经营</td><td class="ta-l">流量经营</td><td class="ta-l"><span class="strategy-name-link">流量包续订提醒</span></td><td class="ta-r">9,316,204</td><td class="ta-r">8,105,097</td><td class="ta-r">87.0%</td><td class="ta-r">7,218,536</td><td class="ta-r">934,410</td><td class="ta-r">13.0%</td><td class="ta-r">1,732,449</td><td class="ta-r">24.0%</td><td class="ta-r">4,157,877,600</td><td class="ta-r">3,658,932,288</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">存量经营</td><td class="ta-l">宽带经营</td><td class="ta-l"><span class="strategy-name-link">宽带提速推荐</span></td><td class="ta-r">8,427,310</td><td class="ta-r">7,331,760</td><td class="ta-r">87.0%</td><td class="ta-r">6,532,264</td><td class="ta-r">849,194</td><td class="ta-r">13.0%</td><td class="ta-r">1,568,143</td><td class="ta-r">24.0%</td><td class="ta-r">3,763,543,200</td><td class="ta-r">3,311,918,016</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">热线</td><td class="ta-l">咨询挽留</td><td class="ta-l">套餐咨询</td><td class="ta-l"><span class="strategy-name-link">套餐咨询挽留-C1</span></td><td class="ta-r">7,658,142</td><td class="ta-r">6,661,584</td><td class="ta-r">87.0%</td><td class="ta-r">5,937,812</td><td class="ta-r">712,537</td><td class="ta-r">12.0%</td><td class="ta-r">1,424,075</td><td class="ta-r">24.0%</td><td class="ta-r">3,417,780,000</td><td class="ta-r">3,007,646,400</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">存量经营</td><td class="ta-l">亲情网</td><td class="ta-l"><span class="strategy-name-link">亲情网升级</span></td><td class="ta-r">6,934,275</td><td class="ta-r">6,032,819</td><td class="ta-r">87.0%</td><td class="ta-r">5,374,807</td><td class="ta-r">644,977</td><td class="ta-r">12.0%</td><td class="ta-r">1,289,953</td><td class="ta-r">24.0%</td><td class="ta-r">3,095,887,200</td><td class="ta-r">2,724,380,736</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">App推送</td><td class="ta-l">存量经营</td><td class="ta-l">5G升级</td><td class="ta-l"><span class="strategy-name-link">5G套餐升级</span></td><td class="ta-r">6,215,880</td><td class="ta-r">5,409,815</td><td class="ta-r">87.0%</td><td class="ta-r">4,818,748</td><td class="ta-r">578,250</td><td class="ta-r">12.0%</td><td class="ta-r">1,156,499</td><td class="ta-r">24.0%</td><td class="ta-r">2,775,597,600</td><td class="ta-r">2,442,525,888</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">在线外呼</td><td class="ta-l">权益运营</td><td class="ta-l">权益运营</td><td class="ta-l"><span class="strategy-name-link">权益包领取提醒</span></td><td class="ta-r">5,543,120</td><td class="ta-r">4,822,514</td><td class="ta-r">87.0%</td><td class="ta-r">4,303,837</td><td class="ta-r">516,460</td><td class="ta-r">12.0%</td><td class="ta-r">1,032,921</td><td class="ta-r">24.0%</td><td class="ta-r">2,479,010,400</td><td class="ta-r">2,181,529,152</td></tr>
+                <tr><td class="ck-col"><span class="checkbox"></span></td><td class="ta-l">2026-09</td><td class="ta-l">短信PUSH</td><td class="ta-l">服务提醒</td><td class="ta-l">服务提醒</td><td class="ta-l"><span class="strategy-name-link">话费余额提醒</span></td><td class="ta-r">4,982,340</td><td class="ta-r">4,334,636</td><td class="ta-r">87.0%</td><td class="ta-r">3,868,026</td><td class="ta-r">464,163</td><td class="ta-r">12.0%</td><td class="ta-r">928,325</td><td class="ta-r">24.0%</td><td class="ta-r">2,227,980,000</td><td class="ta-r">1,960,622,400</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span>共 15 条，每页 10 条</span>
+            <div class="pagination">
+              <span class="pg-btn">‹</span><span class="pg-num active">1</span><span class="pg-num">2</span><span class="pg-btn">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<div id="spec-ui">
+  <div id="spec-bar">
+    <span class="spec-title">UI 标注</span>
+    <button data-act="inspect" id="spec-btn-inspect">标注检查</button>
+    <button data-act="colors">色值清单</button>
+    <button data-act="fonts">字号清单</button>
+    <span class="spec-tip">Esc 退出</span>
+  </div>
+  <div id="spec-hover-box"></div>
+  <div id="spec-hover-tag"></div>
+  <div id="spec-panel"></div>
+  <div id="spec-list-panel"></div>
+  <div id="spec-note">
+    <span class="sn-close" title="关闭">×</span>
+    <b>UI 设计稿 · 使用说明</b>
+    ① 点「标注检查」后，鼠标悬停任意元素即可查看 尺寸 / 字号 / 字重 / 文字色 / 背景色 / 圆角 / 内边距；<br>
+    ② 「色值清单」「字号清单」汇总全页用到的色值与字号及出现次数；<br>
+    ③ 数据均为随机演示数据，不代表真实业务。
+  </div>
+</div>
+
+<script src="lib/echarts.min.js"></script>
+<script>
+/**
+ * 策略整体情况 StrategyOverview —— 趋势图
+ * 复刻自 StrategyOverview.vue 的 chartOption（双 Y 轴：柱状图 + 环比折线），
+ * 数据为写死的 9 条随机策略数据（推送量千万级，环比含 +475% 极端值）。
+ * 依赖：全局 echarts（页面先加载 lib/echarts.min.js）
+ */
+(function () {
+  function render () {
+    var chartEl = document.getElementById('chart-overview-trend')
+    if (!chartEl || typeof echarts === 'undefined') return
+
+    var activeMetric = '推送量'
+    var unit = '次'
+
+    // 9 条随机策略数据
+    var strategyNames = ['流失预警唤回', '高价值客户续约', '沉默用户唤醒', '合约到期挽留', '新客首购转化', '流量包升档推荐', '5G套餐升级', '宽带融合礼包', '权益积分推送']
+    var values = [17280000, 15364200, 12856400, 11032800, 9675000, 8412600, 6538200, 5124800, 3986500]
+    var qoq = [12.0, 8.6, -8.5, 475.0, 23.6, -15.2, 9.8, 31.4, -5.6]
+
+    // 千分位格式化
+    function fmtNum (val) {
+      return String(val).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    }
+    // 万级紧凑格式（柱内标签/坐标轴用，避免长数字溢出）
+    function fmtWan (val) {
+      return fmtNum(Math.round(val / 10000)) + '万'
+    }
+
+    // 柱状图Y轴自然范围
+    var barMax = Math.max.apply(null, values) * 1.05
+
+    // 环比Y轴：按数据实际范围自适应，上下各留25%标签余量，0必须在区间内
+    var qoqMax = Math.max.apply(null, [0].concat(qoq))
+    var qoqMin = Math.min.apply(null, [0].concat(qoq))
+    var qoqPadding = Math.max(8, (qoqMax - qoqMin) * 0.25)
+    var rightMax = qoqMax + qoqPadding
+    var rightMin = qoqMin - qoqPadding
+
+    var chart = echarts.init(chartEl, null, { renderer: 'svg' })
+
+    var option = {
+      animation: false,
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        textStyle: { color: '#374151', fontSize: 12 },
+        formatter: function (params) {
+          var idx = params[0].dataIndex
+          var html = '<div style="font-weight:500;margin-bottom:4px;">' + strategyNames[idx] + '</div>'
+          params.forEach(function (p) {
+            var val = p.seriesName === '环比' ? p.value.toFixed(1) + '%' : fmtNum(p.value) + unit
+            html += '<div style="display:flex;justify-content:space-between;gap:16px;"><span>' + p.marker + p.seriesName + '</span><span style="font-weight:600;">' + val + '</span></div>'
+          })
+          return html
+        }
+      },
+      legend: { show: false },
+      grid: { left: 40, right: 50, bottom: 24, top: 40, containLabel: false },
+      xAxis: {
+        type: 'category',
+        data: strategyNames,
+        axisLine: { lineStyle: { color: '#e5e7eb' } },
+        axisLabel: { color: '#9ca3af', fontSize: 11, interval: 0 },
+        axisTick: { show: false }
+      },
+      yAxis: [
+        {
+          type: 'value',
+          name: activeMetric,
+          nameTextStyle: { color: '#9ca3af', fontSize: 10, padding: [0, 30, 0, 0] },
+          max: barMax,
+          axisLine: { show: false },
+          axisLabel: {
+            color: '#9ca3af',
+            fontSize: 10,
+            formatter: function (val) {
+              return fmtWan(val)
+            }
+          },
+          splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+        },
+        {
+          type: 'value',
+          name: '环比',
+          nameTextStyle: { color: '#9ca3af', fontSize: 10, padding: [0, 0, 0, 10] },
+          axisLine: { show: false },
+          axisLabel: { color: '#9ca3af', fontSize: 10, formatter: '{value}%' },
+          splitLine: { show: false },
+          min: rightMin,
+          max: rightMax
+        }
+      ],
+      series: [
+        {
+          name: activeMetric,
+          type: 'bar',
+          data: values,
+          itemStyle: { color: '#3b82f6', borderRadius: [3, 3, 0, 0] },
+          barWidth: '40%',
+          label: {
+            show: true,
+            // 数值放柱内顶部（白字），柱外空间留给环比标签，避免两者重叠
+            position: 'insideTop',
+            distance: 4,
+            color: '#fff',
+            fontSize: 10,
+            formatter: function (p) {
+              return fmtWan(p.value)
+            }
+          }
+        },
+        {
+          name: '环比',
+          type: 'line',
+          yAxisIndex: 1,
+          data: qoq,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 5,
+          lineStyle: { color: '#0ea5e9', width: 2 },
+          itemStyle: { color: '#0ea5e9', borderWidth: 2, borderColor: '#fff' },
+          label: {
+            show: true,
+            position: 'top',
+            distance: 8,
+            color: '#0369a1',
+            fontSize: 10,
+            fontWeight: 600,
+            // 白色描边：标签落在蓝色柱子上时依然清晰可读
+            textBorderColor: '#fff',
+            textBorderWidth: 3,
+            formatter: function (p) {
+              return (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + '%'
+            }
+          },
+          // 环比标签与柱内数值标签重叠时自动隐藏（tooltip 仍可查看），兜底保护
+          labelLayout: { hideOverlap: true }
+        }
+      ]
+    }
+
+    chart.setOption(option)
+
+    // 防抖 resize（与组件内 EChart 包装行为一致）
+    var resizeTimer = null
+    window.addEventListener('resize', function () {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(function () { chart.resize() }, 150)
+    })
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render)
+  } else {
+    render()
+  }
+})()
+
+</script>
+<script>
+(function () {
+  /* ================= 设计标注工具 ================= */
+  var bar = document.getElementById('spec-bar')
+  var btnInspect = document.getElementById('spec-btn-inspect')
+  var listBox = document.getElementById('spec-list-panel')
+  var hoverBox = document.getElementById('spec-hover-box')
+  var hoverTag = document.getElementById('spec-hover-tag')
+  var panel = document.getElementById('spec-panel')
+  var note = document.getElementById('spec-note')
+  var inspectOn = false
+
+  document.querySelector('#spec-note .sn-close').onclick = function () { note.style.display = 'none' }
+
+  function rgbToHex (c) {
+    if (!c || c === 'transparent' || c === 'rgba(0, 0, 0, 0)') return ''
+    var m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+    if (!m) return c
+    var hex = '#' + [m[1], m[2], m[3]].map(function (n) { return ('0' + (+n).toString(16)).slice(-2) }).join('')
+    return m[4] && m[4] !== '1' ? hex + ' @' + Math.round(m[4] * 100) + '%' : hex
+  }
+  function shortNum (v) { return Math.round(v * 100) / 100 + 'px' }
+
+  function selOf (el) {
+    var parts = [], e = el, depth = 0
+    while (e && e.nodeType === 1 && depth < 3) {
+      var s = e.tagName.toLowerCase()
+      if (e.id && e.id !== 'spec-ui') s += '#' + e.id
+      else if (e.className && typeof e.className === 'string') {
+        var cls = e.className.trim().split(/\s+/).slice(0, 2).join('.')
+        if (cls) s += '.' + cls
+      }
+      parts.unshift(s); e = e.parentElement; depth++
+    }
+    return parts.join(' > ')
+  }
+
+  function isOurUI (el) {
+    while (el) { if (el.id === 'spec-ui') return true; el = el.parentElement }
+    return false
+  }
+
+  /* ---- 标注检查 ---- */
+  function onMove (ev) {
+    var t = ev.target
+    if (isOurUI(t) || t === document.body || t === document.documentElement) { hideHover(); return }
+    var r = t.getBoundingClientRect()
+    hoverBox.style.display = 'block'
+    hoverBox.style.left = r.left + 'px'; hoverBox.style.top = r.top + 'px'
+    hoverBox.style.width = r.width + 'px'; hoverBox.style.height = r.height + 'px'
+    hoverTag.style.display = 'block'
+    hoverTag.textContent = Math.round(r.width) + ' × ' + Math.round(r.height)
+    hoverTag.style.left = Math.max(2, r.left) + 'px'
+    hoverTag.style.top = Math.max(2, r.top - 18) + 'px'
+    var cs = getComputedStyle(t)
+    var rows = [
+      ['尺寸', Math.round(r.width) + ' × ' + Math.round(r.height) + ' px'],
+      ['字号', cs.fontSize + ' / 行高 ' + cs.lineHeight + ' / 字重 ' + cs.fontWeight],
+      ['文字色', rgbToHex(cs.color)],
+      ['背景色', rgbToHex(cs.backgroundColor)],
+      ['圆角', cs.borderRadius === '0px' ? '-' : cs.borderRadius],
+      ['内边距', cs.padding],
+      ['外边距', cs.margin]
+    ]
+    panel.innerHTML = '<div class="sp-sel">' + selOf(t) + '</div>' + rows.map(function (p) {
+      return '<div class="sp-row"><b>' + p[0] + '</b>　' +
+        (p[0] === '文字色' && p[1] ? '<span class="sp-sw" style="background:' + p[1].split(' ')[0] + '"></span>' : '') +
+        (p[0] === '背景色' && p[1] ? '<span class="sp-sw" style="background:' + p[1].split(' ')[0] + '"></span>' : '') +
+        p[1] + '</div>'
+    }).join('')
+    var px = Math.min(ev.clientX + 16, window.innerWidth - 320)
+    var py = Math.min(ev.clientY + 16, window.innerHeight - 240)
+    panel.style.display = 'block'; panel.style.left = px + 'px'; panel.style.top = py + 'px'
+  }
+  function hideHover () {
+    hoverBox.style.display = 'none'; hoverTag.style.display = 'none'; panel.style.display = 'none'
+  }
+
+  btnInspect.onclick = function () {
+    inspectOn = !inspectOn
+    btnInspect.classList.toggle('on', inspectOn)
+    if (!inspectOn) hideHover()
+  }
+  document.addEventListener('mousemove', function (ev) {
+    if (inspectOn) onMove(ev)
+  })
+  document.addEventListener('scroll', function () { if (inspectOn) hideHover() }, true)
+
+  /* ---- 色值 / 字号清单 ---- */
+  function scan (kind) {
+    var map = {}
+    document.querySelectorAll('body *').forEach(function (el) {
+      if (isOurUI(el)) return
+      var cs = getComputedStyle(el)
+      var v
+      if (kind === 'colors') {
+        v = rgbToHex(cs.color); if (v) bump(v + '|文字', el)
+        v = rgbToHex(cs.backgroundColor); if (v) bump(v + '|背景', el)
+      } else {
+        v = cs.fontSize; if (v) bump(v, el)
+      }
+    })
+    function bump (key, el) {
+      if (!map[key]) map[key] = { cnt: 0, sample: (el.textContent || '').trim().slice(0, 12) }
+      map[key].cnt++
+    }
+    var rows = Object.keys(map).sort(function (a, b) { return map[b].cnt - map[a].cnt }).map(function (k) {
+      var p = k.split('|')
+      var sw = p.length > 1 ? '<span class="slp-sw" style="background:' + p[0].split(' ')[0] + '"></span>' : '<span class="slp-sw" style="background:transparent;border:0"></span>'
+      var label = p.length > 1 ? p[0] + ' · ' + p[1] : p[0]
+      return '<div class="slp-row">' + sw + '<span class="slp-val">' + label + '</span>' +
+        '<span class="slp-sample">' + map[k].sample + '</span><span class="slp-cnt">×' + map[k].cnt + '</span></div>'
+    }).join('')
+    listBox.innerHTML = '<div class="slp-head"><span>' + (kind === 'colors' ? '全页色值清单' : '全页字号清单') +
+      '</span><span id="slp-close">关闭 ✕</span></div>' + rows
+    listBox.style.display = 'block'
+    document.getElementById('slp-close').onclick = function () { listBox.style.display = 'none' }
+  }
+
+  bar.addEventListener('click', function (ev) {
+    var act = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-act')
+    if (!act || act === 'inspect') return
+    if (act === 'colors') scan('colors')
+    if (act === 'fonts') scan('fonts')
+  })
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      inspectOn = false; btnInspect.classList.remove('on'); hideHover(); listBox.style.display = 'none'
+    }
+  })
+})()
+</script>
+</body>
+</html>

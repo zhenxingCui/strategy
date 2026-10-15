@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-18
+completed: 2026-09-18
+description: 性能优化与依赖修复 - SVG 渲染器切换、策略名称远程搜索、hutool-json 依赖补全

@@ -1,0 +1,31 @@
+server:
+  port: 8080
+  servlet:
+    # 与前端接口前缀 /plan-svc-lj/strategyReview 保持一致，可按部署环境调整
+    context-path: /plan-svc-lj
+
+spring:
+  application:
+    name: strategy-review
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/strategy_review?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    hikari:
+      # 数据库暂时不可用时也允许应用启动，避免启动即失败
+      initialization-fail-timeout: -1
+      connection-timeout: 30000
+      minimum-idle: 1
+      maximum-pool-size: 10
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.asiainfo.biapp.pec.plan.jx.strategyreview.model
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper: debug

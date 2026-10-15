@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrFavoriteMapper">
+
+    <!-- ==================== 收藏列表 ==================== -->
+
+    <sql id="favoriteListJoinAp">
+        LEFT JOIN t_sr_strategy_period_summary_ap s
+            ON s.strategy_id = f.strategy_id
+           AND s.tab_type = f.tab_type
+           AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
+           AND s.is_deleted = 0
+        LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
+    </sql>
+
+    <sql id="favoriteListJoinCtrl">
+        LEFT JOIN t_sr_strategy_period_summary_ctrl s
+            ON s.strategy_id = f.strategy_id
+           AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
+           AND s.is_deleted = 0
+        LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
+    </sql>
+
+    <select id="selectFavoriteList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
+        <choose>
+            <when test="tabType == 'control'">
+                SELECT f.id           AS id,
+                       f.strategy_id  AS strategyId,
+                       f.strategy_name AS strategyName,
+                       f.channel      AS channel,
+                       d.key_name     AS channelName,
+                       DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
+                       f.source       AS source,
+                       s.consult_count      AS consultCount,
+                       s.consult_count_qoq  AS consultCountQoQ,
+                       s.retain_count       AS retainCount,
+                       s.retain_count_qoq   AS retainCountQoQ,
+                       s.retain_rate        AS retainRate,
+                       s.retain_rate_qoq    AS retainRateQoQ,
+                       s.dispatch_count     AS dispatchCount,
+                       s.dispatch_count_qoq AS dispatchCountQoQ,
+                       s.success_count      AS successCount,
+                       s.success_count_qoq  AS successCountQoQ,
+                       s.success_rate       AS successRate,
+                       s.success_rate_qoq   AS successRateQoQ,
+                       s.income             AS income,
+                       s.income_qoq         AS incomeQoQ,
+                       DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
+                FROM t_sr_favorite f
+                <include refid="favoriteListJoinCtrl"/>
+                WHERE f.user_id = #{userId}
+                  AND f.tab_type = #{tabType}
+                  AND f.is_deleted = 0
+                ORDER BY f.create_time DESC
+                LIMIT #{limit} OFFSET #{offset}
+            </when>
+            <otherwise>
+                SELECT f.id           AS id,
+                       f.strategy_id  AS strategyId,
+                       f.strategy_name AS strategyName,
+                       f.channel      AS channel,
+                       d.key_name     AS channelName,
+                       DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
+                       f.source       AS source,
+                       s.original_cust        AS originalCust,
+                       s.original_cust_qoq    AS originalCustQoQ,
+                       s.push_count           AS pushCount,
+                       s.push_count_qoq       AS pushCountQoQ,
+                       s.usage_count          AS usageCount,
+                       s.usage_count_qoq      AS usageCountQoQ,
+                       s.usage_rate           AS usageRate,
+                       s.usage_rate_qoq       AS usageRateQoQ,
+                       s.reach_count          AS reachCount,
+                       s.reach_count_qoq      AS reachCountQoQ,
+                       s.target_conv_num      AS targetConvNum,
+                       s.target_conv_num_qoq  AS targetConvNumQoQ,
+                       s.target_conv_rate     AS targetConvRate,
+                       s.target_conv_rate_qoq AS targetConvRateQoQ,
+                       s.product_conv_num     AS productConvNum,
+                       s.product_conv_num_qoq AS productConvNumQoQ,
+                       s.product_conv_rate    AS productConvRate,
+                       s.product_conv_rate_qoq AS productConvRateQoQ,
+                       s.expected_income      AS expectedIncome,
+                       s.expected_income_qoq  AS expectedIncomeQoQ,
+                       s.actual_income        AS actualIncome,
+                       s.actual_income_qoq    AS actualIncomeQoQ,
+                       DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
+                FROM t_sr_favorite f
+                <include refid="favoriteListJoinAp"/>
+                WHERE f.user_id = #{userId}
+                  AND f.tab_type = #{tabType}
+                  AND f.is_deleted = 0
+                ORDER BY f.create_time DESC
+                LIMIT #{limit} OFFSET #{offset}
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="countFavoriteList" resultType="long">
+        SELECT COUNT(1)
+        FROM t_sr_favorite f
+        WHERE f.user_id = #{userId}
+          AND f.tab_type = #{tabType}
+          AND f.is_deleted = 0
+    </select>
+
+    <select id="selectExistFavoriteIds" resultType="java.lang.Long">
+        SELECT f.strategy_id
+        FROM t_sr_favorite f
+        WHERE f.user_id = #{userId}
+          AND f.tab_type = #{tabType}
+          AND f.is_deleted = 0
+          AND f.strategy_id IN
+        <foreach collection="strategyIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+    </select>
+
+    <insert id="upsertFavorite" parameterType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrFavorite">
+        <!-- 注意：GreatDB 不支持 INSERT ... ON DUPLICATE KEY UPDATE。
+             调用方必须保证先调用 deleteFavorite 物理删除（含逻辑删除历史行，避免唯一索引占用）后再插入。
+             唯一索引 uk_fav_user_tab_str(user_id, tab_type, strategy_id) 保证同一用户同一页签同一策略仅一条。 -->
+        INSERT INTO t_sr_favorite
+            (user_id, tab_type, strategy_id, strategy_name, channel, rule_id, source, create_time, update_time, is_deleted)
+        VALUES
+            (#{userId}, #{tabType}, #{strategyId}, #{strategyName}, #{channel}, #{ruleId}, #{source}, NOW(), NOW(), 0)
+    </insert>
+
+    <delete id="deleteFavorite">
+        DELETE FROM t_sr_favorite
+        WHERE user_id = #{userId}
+          AND tab_type = #{tabType}
+          AND strategy_id = #{strategyId}
+    </delete>
+
+    <update id="removeFavorites">
+        UPDATE t_sr_favorite
+        SET is_deleted = 1, update_time = NOW()
+        WHERE user_id = #{userId}
+          AND tab_type = #{tabType}
+          AND is_deleted = 0
+          AND strategy_id IN
+        <foreach collection="strategyIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+    </update>
+
+    <select id="selectStrategyBaseInfo" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrFavorite">
+        SELECT s.strategy_id   AS strategyId,
+               MAX(s.strategy_name) AS strategyName,
+               MIN(s.channel)       AS channel
+        FROM t_sr_strategy_period_summary_ap s
+        WHERE s.tab_type = #{tabType}
+          AND s.is_deleted = 0
+          AND s.strategy_id IN
+        <foreach collection="strategyIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+        GROUP BY s.strategy_id
+    </select>
+
+    <select id="selectStrategyBaseInfoCtrl" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrFavorite">
+        SELECT s.strategy_id   AS strategyId,
+               MAX(s.strategy_name) AS strategyName,
+               MIN(s.channel)       AS channel
+        FROM t_sr_strategy_period_summary_ctrl s
+        WHERE s.is_deleted = 0
+          AND s.strategy_id IN
+        <foreach collection="strategyIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+        GROUP BY s.strategy_id
+    </select>
+
+</mapper>

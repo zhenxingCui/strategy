@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrWarningMapper">
+
+    <!-- ==================== 规则维护 ==================== -->
+
+    <sql id="ruleListWhere">
+        WHERE r.tab_type = #{tabType}
+          AND r.is_deleted = 0
+        <if test="ruleName != null and ruleName != ''">
+            AND r.rule_name LIKE CONCAT('%', #{ruleName}, '%')
+        </if>
+        <if test="ruleId != null and ruleId != ''">
+            AND r.id= #{ruleId}
+        </if>
+        <if test="userCode != null and userCode != ''">
+            AND r.create_by = #{userCode}
+        </if>
+        <if test="status != null and status != ''">
+            <choose>
+                <when test="status == '已过期'">
+                    AND r.status = '生效中' AND r.end_date &lt; CURDATE()
+                </when>
+                <otherwise>
+                    AND r.status = #{status}
+                    <if test="status == '生效中'">
+                        AND r.end_date &gt;= CURDATE()
+                    </if>
+                </otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="selectRuleList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
+        SELECT r.id                              AS id,
+               r.rule_name                       AS ruleName,
+               r.rule_desc                       AS `desc`,
+               r.status                          AS status,
+               DATE_FORMAT(r.start_date, '%Y-%m-%d') AS startDate,
+               DATE_FORMAT(r.end_date, '%Y-%m-%d')   AS endDate,
+               DATE_FORMAT(r.data_start_date, '%Y-%m-%d')  AS dataStartDate,
+               DATE_FORMAT(r.data_end_date, '%Y-%m-%d')  AS dataEndDate,
+               r.create_by                       AS createBy,
+               DATE_FORMAT(r.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+               (SELECT COUNT(1) FROM t_sr_warning_hit h
+                WHERE h.rule_id = r.id AND h.is_deleted = 0) AS hitCount,
+               r.channels                        AS channelsStr,
+               r.strategies                      AS strategiesStr,
+               r.logic                           AS logic
+        FROM t_sr_warning_rule r
+        <include refid="ruleListWhere"/>
+        ORDER BY r.create_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="queryRuleById" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
+        SELECT r.id                              AS id,
+        r.rule_name                       AS ruleName,
+        r.rule_desc                       AS `desc`,
+        r.status                          AS status,
+        DATE_FORMAT(r.start_date, '%Y-%m-%d') AS startDate,
+        DATE_FORMAT(r.end_date, '%Y-%m-%d')   AS endDate,
+        DATE_FORMAT(r.data_start_date, '%Y-%m-%d')            AS dataStartDate,
+        DATE_FORMAT(r.data_end_date, '%Y-%m-%d')            AS dataEndDate,
+        r.create_by                       AS createBy,
+        DATE_FORMAT(r.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+        r.channels                        AS channelsStr,
+        r.strategies                      AS strategiesStr,
+        r.logic                           AS logic
+        FROM t_sr_warning_rule r where 1=1
+        <if test="ruleId != null and ruleId != ''">
+            AND r.id= #{ruleId}
+        </if>
+        <if test="status != null and status != ''">
+            <choose>
+                <when test="status == '已过期'">
+                    AND r.status = '生效中' AND r.end_date &lt; CURDATE()
+                </when>
+                <otherwise>
+                    AND r.status = #{status}
+                    <if test="status == '生效中'">
+                        AND r.end_date &gt;= CURDATE()
+                    </if>
+                </otherwise>
+            </choose>
+        </if>
+        ORDER BY r.create_time DESC
+
+    </select>
+    <select id="countRuleList" resultType="long">
+        SELECT COUNT(1)
+        FROM t_sr_warning_rule r
+        <include refid="ruleListWhere"/>
+    </select>
+
+    <select id="selectRuleDetail" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
+        SELECT r.id                              AS id,
+               r.rule_name                       AS ruleName,
+               r.rule_desc                       AS `desc`,
+               r.status                          AS status,
+               DATE_FORMAT(r.start_date, '%Y-%m-%d') AS startDate,
+               DATE_FORMAT(r.end_date, '%Y-%m-%d')   AS endDate,
+               DATE_FORMAT(r.data_start_date, '%Y-%m-%d')            AS dataStartDate,
+               DATE_FORMAT(r.data_end_date, '%Y-%m-%d')            AS dataEndDate,
+               r.create_by                       AS createBy,
+               DATE_FORMAT(r.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+               (SELECT COUNT(1) FROM t_sr_warning_hit h
+                WHERE h.rule_id = r.id AND h.is_deleted = 0) AS hitCount,
+               r.channels                        AS channelsStr,
+               r.strategies                      AS strategiesStr,
+               r.logic                           AS logic
+        FROM t_sr_warning_rule r
+        WHERE r.id = #{id}
+          AND r.is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectRuleConditions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO$WarningRuleConditionVO">
+        SELECT c.metric_code  AS metricCode,
+               c.metric_name  AS metricName,
+               c.operator     AS operator,
+               c.threshold    AS threshold,
+               c.unit         AS unit,
+               c.sort_no      AS sortNo
+        FROM t_sr_warning_rule_condition c
+        WHERE c.rule_id = #{ruleId}
+          AND c.is_deleted = 0
+        ORDER BY c.sort_no, c.id
+    </select>
+
+    <insert id="insertRule" parameterType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrWarningRule"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_sr_warning_rule
+            (rule_name, rule_desc, tab_type, status, start_date, end_date, data_start_date,data_end_date,
+             channels, strategies, logic, create_by, creator, create_time, update_time, is_deleted)
+        VALUES
+            (#{ruleName}, #{ruleDesc}, #{tabType}, #{status}, #{startDate}, #{endDate}, #{dataStartDate}, #{dataEndDate},
+             #{channels}, #{strategies}, #{logic}, #{createBy}, #{creator}, NOW(), NOW(), 0)
+    </insert>
+
+    <update id="updateRule" parameterType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrWarningRule">
+        UPDATE t_sr_warning_rule
+        SET rule_name    = #{ruleName},
+            rule_desc    = #{ruleDesc},
+            status       = #{status},
+            start_date   = #{startDate},
+            end_date     = #{endDate},
+            data_start_date    = #{dataStartDate},
+            data_end_date    = #{dataEndDate},
+            channels     = #{channels},
+            strategies   = #{strategies},
+            logic        = #{logic},
+            update_by    = #{updateBy},
+            update_time  = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <update id="deleteRuleById">
+        UPDATE t_sr_warning_rule
+        SET is_deleted = 1, update_by = #{updateBy}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateRuleStatus">
+        UPDATE t_sr_warning_rule
+        SET status = #{status}, update_by = #{updateBy}, update_time = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <insert id="insertRuleCondition" parameterType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrWarningRuleCondition">
+        INSERT INTO t_sr_warning_rule_condition
+            (rule_id, metric_code, metric_name, operator, threshold, unit, sort_no, create_time, update_time, is_deleted)
+        VALUES
+            (#{ruleId}, #{metricCode}, #{metricName}, #{operator}, #{threshold}, #{unit}, #{sortNo}, NOW(), NOW(), 0)
+    </insert>
+
+    <update id="deleteRuleConditions">
+        UPDATE t_sr_warning_rule_condition
+        SET is_deleted = 1, update_time = NOW()
+        WHERE rule_id = #{ruleId}
+          AND is_deleted = 0
+    </update>
+
+    <select id="selectChannelNamesByCodes" resultType="java.lang.String">
+        SELECT d.key_name
+        FROM t_sr_dim_channel d
+        WHERE d.status = 1
+          AND d.is_deleted = 0
+          AND d.key_code IN
+        <foreach collection="channels" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+    </select>
+
+    <!-- ==================== 命中策略 ==================== -->
+
+    <sql id="hitStrategyWhere">
+        WHERE s.tab_type = #{tabType}
+          AND s.is_deleted = 0
+        <if test="cityId != null and cityId != ''">
+            AND s.city_id = #{cityId}
+        </if>
+    </sql>
+
+    <!-- control 汇总表无 tab_type 列，仅按逻辑删除过滤 -->
+    <sql id="hitStrategyWhereCtrl">
+        WHERE s.is_deleted = 0
+        <if test="cityId != null and cityId != ''">
+            AND s.city_id = #{cityId}
+        </if>
+    </sql>
+
+    <select id="selectHitStrategyList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
+            <choose>
+                <when test="tabType == 'control'">
+                    SELECT s.strategy_id        AS strategyId,
+                    s.strategy_code      AS strategyCode,
+                    s.channel            AS channel,
+                    d.key_name           AS channelName,
+                    s.big_category       AS bigCategory,
+                    s.small_category     AS smallCategory,
+                    s.consult_count      AS consultCount,
+                    s.consult_count_qoq  AS consultCountQoQ,
+                    s.retain_count       AS retainCount,
+                    s.retain_count_qoq   AS retainCountQoQ,
+                    s.retain_rate        AS retainRate,
+                    s.retain_rate_qoq    AS retainRateQoQ,
+                    s.dispatch_count     AS dispatchCount,
+                    s.dispatch_count_qoq AS dispatchCountQoQ,
+                    s.success_count      AS successCount,
+                    s.success_count_qoq  AS successCountQoQ,
+                    s.success_rate       AS successRate,
+                    s.success_rate_qoq   AS successRateQoQ,
+                    s.income             AS income,
+                    s.income_qoq         AS incomeQoQ,
+                    DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
+                    FROM t_sr_strategy_period_summary_ctrl s
+                    LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
+                    <include refid="hitStrategyWhereCtrl"/>
+                        and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
+                    <![CDATA[${conditionSQL}]]>
+                    ORDER BY s.success_count DESC
+                    LIMIT #{limit} OFFSET #{offset}
+                </when>
+                <otherwise>
+                    SELECT s.strategy_id          AS strategyId,
+                    s.strategy_name        AS strategyName,
+                    s.channel              AS channel,
+                    d.key_name             AS channelName,
+                    s.big_category         AS bigCategory,
+                    s.small_category       AS smallCategory,
+                    s.original_cust        AS originalCust,
+                    s.original_cust_qoq    AS originalCustQoQ,
+                    s.push_count           AS pushCount,
+                    s.push_count_qoq       AS pushCountQoQ,
+                    s.usage_count          AS usageCount,
+                    s.usage_count_qoq      AS usageCountQoQ,
+                    s.usage_rate           AS usageRate,
+                    s.usage_rate_qoq       AS usageRateQoQ,
+                    s.reach_count          AS reachCount,
+                    s.reach_count_qoq      AS reachCountQoQ,
+                    s.target_conv_num      AS targetConvNum,
+                    s.target_conv_num_qoq  AS targetConvNumQoQ,
+                    s.target_conv_rate     AS targetConvRate,
+                    s.target_conv_rate_qoq AS targetConvRateQoQ,
+                    s.product_conv_num     AS productConvNum,
+                    s.product_conv_num_qoq AS productConvNumQoQ,
+                    s.product_conv_rate    AS productConvRate,
+                    s.product_conv_rate_qoq AS productConvRateQoQ,
+                    s.expected_income      AS expectedIncome,
+                    s.expected_income_qoq  AS expectedIncomeQoQ,
+                    s.actual_income        AS actualIncome,
+                    s.actual_income_qoq    AS actualIncomeQoQ,
+                    s.reject_rate          AS rejectRate,
+                    s.reject_rate_qoq      AS rejectRateQoQ,
+                    s.reject_count         AS rejectCount,
+                    DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
+                    FROM t_sr_strategy_period_summary_ap s
+                    LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
+                    <include refid="hitStrategyWhere"/>
+                        and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
+                    <![CDATA[${conditionSQL}]]>
+                    ORDER BY
+                      s.product_conv_num DESC
+                    LIMIT #{limit} OFFSET #{offset}
+                </otherwise>
+            </choose>
+    </select>
+
+    <select id="countHitStrategyList" resultType="long">
+        <choose>
+            <when test="tabType == 'control'">
+                SELECT COUNT(1)
+                FROM t_sr_strategy_period_summary_ctrl s
+                <include refid="hitStrategyWhereCtrl"/>
+                and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
+                <![CDATA[${conditionSQL}]]>
+            </when>
+            <otherwise>
+                SELECT COUNT(1)
+                FROM t_sr_strategy_period_summary_ap s
+                <include refid="hitStrategyWhere"/>
+                and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
+                <![CDATA[${conditionSQL}]]>
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="updateHitFollowed">
+        UPDATE t_sr_warning_hit
+        SET followed = #{followed}, update_time = NOW()
+        WHERE strategy_id = #{strategyId}
+          AND tab_type = #{tabType}
+          AND is_deleted = 0
+    </update>
+
+</mapper>

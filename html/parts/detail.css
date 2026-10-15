@@ -1,0 +1,453 @@
+/* ===== 执行明细 ExecutionDetail ===== */
+#sec-detail {
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+#sec-detail .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+#sec-detail .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+#sec-detail .card-title-dot {
+  width: 3px;
+  height: 12px;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+#sec-detail .strategy-tag {
+  padding: 1px 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+#sec-detail .card-body {
+  padding: 10px 12px;
+}
+
+#sec-detail .three-col-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 2fr;
+  gap: 10px;
+  min-width: 0;
+  align-items: stretch;
+}
+
+#sec-detail .col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+#sec-detail .detail-card {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+/* 上排卡片统一固定高度，与组件一致 */
+#sec-detail .info-card,
+#sec-detail .trend-card {
+  height: 228px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+#sec-detail .reject-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .biz-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .exec-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 10px;
+}
+
+#sec-detail .detail-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+#sec-detail .detail-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#sec-detail .detail-dot.blue {
+  background: #2563eb;
+}
+
+#sec-detail .detail-dot.orange {
+  background: #f59e0b;
+}
+
+/* ===== 策略详情 ===== */
+#sec-detail .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed #f3f4f6;
+}
+
+#sec-detail .info-row:last-child {
+  border-bottom: none;
+}
+
+#sec-detail .info-lbl {
+  color: #6b7280;
+}
+
+#sec-detail .info-val {
+  color: #111827;
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sec-detail .info-val.bold {
+  font-weight: 700;
+  font-size: 14px;
+  color: #111827;
+}
+
+#sec-detail .info-val.blue {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* ===== 图表占位 ===== */
+#sec-detail .reject-chart-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#sec-detail .chart-placeholder {
+  height: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+#sec-detail .trend-placeholder {
+  height: 180px;
+  min-height: 0;
+}
+
+/* ===== 业务产能明细表 ===== */
+#sec-detail .biz-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#sec-detail .biz-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#sec-detail .biz-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: left;
+}
+
+#sec-detail .biz-table td {
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  border-bottom: 1px solid #ebeef5;
+}
+
+#sec-detail .biz-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-detail .ta-r {
+  text-align: right !important;
+}
+
+#sec-detail .ta-l {
+  text-align: left !important;
+}
+
+#sec-detail .biz-table td.biz-name {
+  color: #111827;
+  font-weight: 500;
+  padding-left: 6px;
+}
+
+#sec-detail .biz-table td.num {
+  color: #374151;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+#sec-detail .qoq-badge {
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+#sec-detail .qoq-badge.up {
+  color: #10b981;
+}
+
+#sec-detail .qoq-badge.down {
+  color: #ef4444;
+}
+
+/* ===== 执行明细 ===== */
+#sec-detail .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+#sec-detail .exec-title {
+  margin-bottom: 0;
+}
+
+#sec-detail .exec-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#sec-detail .exec-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+#sec-detail .exec-action-btn svg {
+  display: block;
+}
+
+#sec-detail .exec-tabs-wrap {
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+}
+
+#sec-detail .exec-tabs {
+  display: flex;
+  gap: 0;
+}
+
+#sec-detail .exec-tab-item {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+}
+
+#sec-detail .exec-tab-item:first-child {
+  padding-left: 0;
+}
+
+#sec-detail .exec-tab-item.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+#sec-detail .exec-tab-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #2563eb;
+}
+
+#sec-detail .exec-table-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#sec-detail .exec-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+/* 分日明细表 */
+#sec-detail .daily-table {
+  border-collapse: collapse;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  width: max-content;
+  min-width: 100%;
+}
+
+#sec-detail .daily-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#sec-detail .daily-table td {
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #606266;
+  border-bottom: 1px solid #ebeef5;
+  border-right: 1px solid #ebeef5;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#sec-detail .daily-table td:last-child,
+#sec-detail .daily-table th:last-child {
+  border-right: none;
+}
+
+#sec-detail .daily-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#sec-detail .daily-table th:nth-child(1) { width: 90px; }
+#sec-detail .daily-table th:nth-child(2) { width: 90px; }
+#sec-detail .daily-table th:nth-child(3) { width: 90px; }
+#sec-detail .daily-table th:nth-child(4) { width: 130px; }
+#sec-detail .daily-table th:nth-child(5) { width: 75px; }
+#sec-detail .daily-table th:nth-child(6) { width: 75px; }
+#sec-detail .daily-table th:nth-child(7) { width: 75px; }
+#sec-detail .daily-table th:nth-child(8) { width: 75px; }
+#sec-detail .daily-table th:nth-child(9) { width: 90px; }
+#sec-detail .daily-table th:nth-child(10) { width: 90px; }
+#sec-detail .daily-table th:nth-child(11) { width: 100px; }
+#sec-detail .daily-table th:nth-child(12) { width: 100px; }
+#sec-detail .daily-table th:nth-child(13) { width: 100px; }
+#sec-detail .daily-table th:nth-child(14) { width: 100px; }
+
+/* ===== 底部分页 ===== */
+#sec-detail .biz-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+#sec-detail .biz-total {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+#sec-detail .exec-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+
+#sec-detail .exec-total {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+#sec-detail .pagination {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+#sec-detail .pg-btn,
+#sec-detail .pg-num {
+  min-width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  background: #f4f4f5;
+  color: #606266;
+  border-radius: 2px;
+  margin-left: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#sec-detail .pg-num.active {
+  background: #409eff;
+  color: #fff;
+  font-weight: 600;
+}

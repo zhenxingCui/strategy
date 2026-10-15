@@ -1,0 +1,45 @@
+package com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotBlank;
+
+/**
+ * 历史预警规则查询请求（规则列表/命中策略列表）
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@ApiModel("历史预警规则查询请求")
+public class WarningRuleQueryReq extends BaseRegionReq {
+
+    @ApiModelProperty(value = "策略类型：active/passive/control", required = true)
+    @NotBlank(message = "策略类型tabType不能为空")
+    private String tabType;
+
+    @ApiModelProperty(value = "规则名称，模糊查询")
+    private String ruleName;
+
+    @ApiModelProperty(value = "规则状态：生效中/已过期/已停用")
+    private String status;
+
+    @ApiModelProperty(value = "规则ID（t_sr_warning_rule.id），命中策略列表使用")
+    private Long ruleId;
+
+    @ApiModelProperty(value = "预警策略收藏标识不为空则为收藏查询")
+    private String favorite;
+
+    @ApiModelProperty(value = "用户编码，按创建人过滤")
+    private String userCode;
+
+    @ApiModelProperty(value = "账期月份，格式 yyyy-MM，命中策略列表使用", example = "2026-08")
+    private String statMonth;
+
+    @ApiModelProperty(value = "页码，从1开始", example = "1")
+    private Integer pageNum = 1;
+
+    @ApiModelProperty(value = "每页条数", example = "10")
+    private Integer pageSize = 10;
+}

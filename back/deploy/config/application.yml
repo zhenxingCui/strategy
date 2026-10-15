@@ -1,0 +1,28 @@
+# =====================================================================
+# 策略复盘 外部配置（优先级高于 jar 内置 application.yml）
+# 将本文件放在部署目录 config/ 下，修改后重启服务生效
+# =====================================================================
+
+server:
+  port: 8080
+  servlet:
+    # 与前端接口前缀 /plan-svc-lj/strategyReview 保持一致
+    context-path: /plan-svc-lj
+
+spring:
+  application:
+    name: strategy-review
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/strategy_review?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    hikari:
+      initialization-fail-timeout: -1
+      connection-timeout: 30000
+      minimum-idle: 1
+      maximum-pool-size: 10
+
+logging:
+  level:
+    com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper: info

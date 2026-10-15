@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略复盘与预警 - UI 设计稿（静态数据）</title>
+<style>
+/* ===== 页面基础（与 Vue 版全局一致） ===== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; }
+body {
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", SimSun, sans-serif;
+  font-size: 14px;
+  color: #303133;
+  background: #f5f6fa;
+  -webkit-font-smoothing: antialiased;
+}
+.page-main { padding: 10px 14px 20px; }
+.page-main > section { min-height: 120px; }
+
+/* ===== 设计标注工具（spec-ui，不属于页面本身） ===== */
+#spec-ui { position: fixed; z-index: 2147483000; }
+#spec-bar {
+  position: fixed; top: 12px; right: 12px; display: flex; align-items: center; gap: 8px;
+  background: #111827; color: #fff; padding: 6px 10px; border-radius: 8px;
+  font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25); font-family: Consolas, "Microsoft YaHei", monospace;
+}
+#spec-bar .spec-title { font-weight: 700; letter-spacing: 1px; margin-right: 2px; }
+#spec-bar button {
+  background: #374151; color: #e5e7eb; border: 0; border-radius: 4px; padding: 4px 10px;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+}
+#spec-bar button:hover { background: #4b5563; color: #fff; }
+#spec-bar button.on { background: #2563eb; color: #fff; }
+#spec-bar .spec-tip { color: #9ca3af; font-size: 11px; }
+
+/* 标注检查：悬浮高亮 + 信息面板 */
+#spec-hover-box {
+  position: fixed; display: none; pointer-events: none;
+  outline: 2px solid #ff4d4f; outline-offset: -2px; background: rgba(255,77,79,.06);
+}
+#spec-hover-tag {
+  position: fixed; display: none; pointer-events: none;
+  background: #ff4d4f; color: #fff; font-size: 11px; line-height: 16px;
+  padding: 1px 6px; border-radius: 3px; font-family: Consolas, monospace; white-space: nowrap;
+}
+#spec-panel {
+  position: fixed; display: none; pointer-events: none; width: 300px;
+  background: rgba(17,24,39,.96); color: #e5e7eb; border-radius: 8px; padding: 10px 12px;
+  font-family: Consolas, "Microsoft YaHei", monospace; font-size: 12px; line-height: 1.7;
+  box-shadow: 0 6px 24px rgba(0,0,0,.35);
+}
+#spec-panel .sp-sel { color: #93c5fd; font-weight: 700; word-break: break-all; margin-bottom: 4px; }
+#spec-panel .sp-row b { color: #fbbf24; font-weight: 600; }
+#spec-panel .sp-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(255,255,255,.35); }
+
+/* 清单面板（色值/字号） */
+#spec-list-panel {
+  position: fixed; top: 52px; right: 12px; width: 340px; max-height: 70vh; overflow: auto;
+  background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.25); display: none;
+  font-size: 12px; font-family: Consolas, "Microsoft YaHei", monospace;
+}
+#spec-list-panel .slp-head { padding: 10px 14px; font-weight: 700; color: #111827; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+#spec-list-panel .slp-head span:last-child { cursor: pointer; color: #9ca3af; font-weight: 400; }
+#spec-list-panel .slp-head span:last-child:hover { color: #374151; }
+#spec-list-panel .slp-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid #f9fafb; color: #374151; }
+#spec-list-panel .slp-row:hover { background: #f9fafb; }
+#spec-list-panel .slp-sw { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #e5e7eb; flex: none; }
+#spec-list-panel .slp-val { flex: 1; }
+#spec-list-panel .slp-cnt { color: #9ca3af; }
+#spec-list-panel .slp-sample { color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+
+/* 设计说明横幅 */
+#spec-note {
+  position: fixed; left: 12px; bottom: 12px; width: 300px; background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #92400e; line-height: 1.7;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 2147483000; font-family: "Microsoft YaHei", sans-serif;
+}
+#spec-note b { display: block; margin-bottom: 2px; color: #78350f; }
+#spec-note .sn-close { position: absolute; top: 6px; right: 8px; cursor: pointer; color: #b45309; font-weight: 700; }
+</style>
+<!--CSS_PARTS-->
+</head>
+<body>
+
+<!--HTML_PARTS-->
+
+<div id="spec-ui">
+  <div id="spec-bar">
+    <span class="spec-title">UI 标注</span>
+    <button data-act="inspect" id="spec-btn-inspect">标注检查</button>
+    <button data-act="colors">色值清单</button>
+    <button data-act="fonts">字号清单</button>
+    <span class="spec-tip">Esc 退出</span>
+  </div>
+  <div id="spec-hover-box"></div>
+  <div id="spec-hover-tag"></div>
+  <div id="spec-panel"></div>
+  <div id="spec-list-panel"></div>
+  <div id="spec-note">
+    <span class="sn-close" title="关闭">×</span>
+    <b>UI 设计稿 · 使用说明</b>
+    ① 点「标注检查」后，鼠标悬停任意元素即可查看 尺寸 / 字号 / 字重 / 文字色 / 背景色 / 圆角 / 内边距；<br>
+    ② 「色值清单」「字号清单」汇总全页用到的色值与字号及出现次数；<br>
+    ③ 数据均为随机演示数据，不代表真实业务。
+  </div>
+</div>
+
+<script src="lib/echarts.min.js"></script>
+<!--JS_PARTS-->
+<script>
+(function () {
+  /* ================= 设计标注工具 ================= */
+  var bar = document.getElementById('spec-bar')
+  var btnInspect = document.getElementById('spec-btn-inspect')
+  var listBox = document.getElementById('spec-list-panel')
+  var hoverBox = document.getElementById('spec-hover-box')
+  var hoverTag = document.getElementById('spec-hover-tag')
+  var panel = document.getElementById('spec-panel')
+  var note = document.getElementById('spec-note')
+  var inspectOn = false
+
+  document.querySelector('#spec-note .sn-close').onclick = function () { note.style.display = 'none' }
+
+  function rgbToHex (c) {
+    if (!c || c === 'transparent' || c === 'rgba(0, 0, 0, 0)') return ''
+    var m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+    if (!m) return c
+    var hex = '#' + [m[1], m[2], m[3]].map(function (n) { return ('0' + (+n).toString(16)).slice(-2) }).join('')
+    return m[4] && m[4] !== '1' ? hex + ' @' + Math.round(m[4] * 100) + '%' : hex
+  }
+  function shortNum (v) { return Math.round(v * 100) / 100 + 'px' }
+
+  function selOf (el) {
+    var parts = [], e = el, depth = 0
+    while (e && e.nodeType === 1 && depth < 3) {
+      var s = e.tagName.toLowerCase()
+      if (e.id && e.id !== 'spec-ui') s += '#' + e.id
+      else if (e.className && typeof e.className === 'string') {
+        var cls = e.className.trim().split(/\s+/).slice(0, 2).join('.')
+        if (cls) s += '.' + cls
+      }
+      parts.unshift(s); e = e.parentElement; depth++
+    }
+    return parts.join(' > ')
+  }
+
+  function isOurUI (el) {
+    while (el) { if (el.id === 'spec-ui') return true; el = el.parentElement }
+    return false
+  }
+
+  /* ---- 标注检查 ---- */
+  function onMove (ev) {
+    var t = ev.target
+    if (isOurUI(t) || t === document.body || t === document.documentElement) { hideHover(); return }
+    var r = t.getBoundingClientRect()
+    hoverBox.style.display = 'block'
+    hoverBox.style.left = r.left + 'px'; hoverBox.style.top = r.top + 'px'
+    hoverBox.style.width = r.width + 'px'; hoverBox.style.height = r.height + 'px'
+    hoverTag.style.display = 'block'
+    hoverTag.textContent = Math.round(r.width) + ' × ' + Math.round(r.height)
+    hoverTag.style.left = Math.max(2, r.left) + 'px'
+    hoverTag.style.top = Math.max(2, r.top - 18) + 'px'
+    var cs = getComputedStyle(t)
+    var rows = [
+      ['尺寸', Math.round(r.width) + ' × ' + Math.round(r.height) + ' px'],
+      ['字号', cs.fontSize + ' / 行高 ' + cs.lineHeight + ' / 字重 ' + cs.fontWeight],
+      ['文字色', rgbToHex(cs.color)],
+      ['背景色', rgbToHex(cs.backgroundColor)],
+      ['圆角', cs.borderRadius === '0px' ? '-' : cs.borderRadius],
+      ['内边距', cs.padding],
+      ['外边距', cs.margin]
+    ]
+    panel.innerHTML = '<div class="sp-sel">' + selOf(t) + '</div>' + rows.map(function (p) {
+      return '<div class="sp-row"><b>' + p[0] + '</b>　' +
+        (p[0] === '文字色' && p[1] ? '<span class="sp-sw" style="background:' + p[1].split(' ')[0] + '"></span>' : '') +
+        (p[0] === '背景色' && p[1] ? '<span class="sp-sw" style="background:' + p[1].split(' ')[0] + '"></span>' : '') +
+        p[1] + '</div>'
+    }).join('')
+    var px = Math.min(ev.clientX + 16, window.innerWidth - 320)
+    var py = Math.min(ev.clientY + 16, window.innerHeight - 240)
+    panel.style.display = 'block'; panel.style.left = px + 'px'; panel.style.top = py + 'px'
+  }
+  function hideHover () {
+    hoverBox.style.display = 'none'; hoverTag.style.display = 'none'; panel.style.display = 'none'
+  }
+
+  btnInspect.onclick = function () {
+    inspectOn = !inspectOn
+    btnInspect.classList.toggle('on', inspectOn)
+    if (!inspectOn) hideHover()
+  }
+  document.addEventListener('mousemove', function (ev) {
+    if (inspectOn) onMove(ev)
+  })
+  document.addEventListener('scroll', function () { if (inspectOn) hideHover() }, true)
+
+  /* ---- 色值 / 字号清单 ---- */
+  function scan (kind) {
+    var map = {}
+    document.querySelectorAll('body *').forEach(function (el) {
+      if (isOurUI(el)) return
+      var cs = getComputedStyle(el)
+      var v
+      if (kind === 'colors') {
+        v = rgbToHex(cs.color); if (v) bump(v + '|文字', el)
+        v = rgbToHex(cs.backgroundColor); if (v) bump(v + '|背景', el)
+      } else {
+        v = cs.fontSize; if (v) bump(v, el)
+      }
+    })
+    function bump (key, el) {
+      if (!map[key]) map[key] = { cnt: 0, sample: (el.textContent || '').trim().slice(0, 12) }
+      map[key].cnt++
+    }
+    var rows = Object.keys(map).sort(function (a, b) { return map[b].cnt - map[a].cnt }).map(function (k) {
+      var p = k.split('|')
+      var sw = p.length > 1 ? '<span class="slp-sw" style="background:' + p[0].split(' ')[0] + '"></span>' : '<span class="slp-sw" style="background:transparent;border:0"></span>'
+      var label = p.length > 1 ? p[0] + ' · ' + p[1] : p[0]
+      return '<div class="slp-row">' + sw + '<span class="slp-val">' + label + '</span>' +
+        '<span class="slp-sample">' + map[k].sample + '</span><span class="slp-cnt">×' + map[k].cnt + '</span></div>'
+    }).join('')
+    listBox.innerHTML = '<div class="slp-head"><span>' + (kind === 'colors' ? '全页色值清单' : '全页字号清单') +
+      '</span><span id="slp-close">关闭 ✕</span></div>' + rows
+    listBox.style.display = 'block'
+    document.getElementById('slp-close').onclick = function () { listBox.style.display = 'none' }
+  }
+
+  bar.addEventListener('click', function (ev) {
+    var act = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-act')
+    if (!act || act === 'inspect') return
+    if (act === 'colors') scan('colors')
+    if (act === 'fonts') scan('fonts')
+  })
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      inspectOn = false; btnInspect.classList.remove('on'); hideHover(); listBox.style.display = 'none'
+    }
+  })
+})()
+</script>
+</body>
+</html>
