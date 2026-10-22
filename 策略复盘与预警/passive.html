@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>策略复盘与预警 · 增量策略</title>
+  <!-- TODO(frontend): prototype.css 仅按现有系统设计语言落地布局，上线替换为正式设计系统 -->
+  <link rel="stylesheet" href="assets/prototype.css?v=20261019-trend-layout-12" />
+</head>
+<body data-page="increment">
+  <!-- Lucide (ISC) 内联图标 sprite · 反 emoji · file:// 自包含；用法 <svg class="icon"><use href="#i-xxx"/></svg> -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4m0 4h.01"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14m-7-7v14"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+    <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrow-up-down" viewBox="0 0 24 24"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0m-10.47-5.674A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+  </svg>
+
+  <!-- 主导航：以简洁的横向页签呈现三类策略 -->
+  <header class="app-bar">
+    <nav class="app-nav" aria-label="主导航">
+      <a href="index.html" data-nav="stock">存量策略</a>
+      <a href="passive.html" data-nav="increment">增量策略</a>
+      <a href="control-loss.html" data-nav="product">重点产品</a>
+    </nav>
+    <span class="spacer"></span>
+    <button class="icon-btn" data-action="切换主题" title="切换主题" aria-label="切换主题">
+      <svg class="icon theme-to-dark"><use href="#i-moon"/></svg>
+      <svg class="icon theme-to-light"><use href="#i-sun"/></svg>
+    </button>
+  </header>
+
+  <main class="page-main">
+    <!-- ══ 模块一 · 策略整体情况（左右分栏）〔R01-R11〕════════════ -->
+    <section class="section" data-section="stockOverview">
+      <h2 class="section-title"><span data-title>策略整体情况</span><span class="spacer"></span>
+        <span class="muted filter-note" data-combo-note></span>
+      </h2>
+      <div class="card">
+
+        <div data-statewrap>
+          <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+          <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>该分类暂无指标数据，请切换策略分类</p></div>
+          <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+          <div class="state state-data" hidden data-swap-target>
+            <div class="split split--m1">
+              <!-- 左栏 · 表格1.png 结构：左指标块 + 中部指标块 + 漏斗 + 右率值块 -->
+              <div class="split-main">
+                <div class="overview-panel-head overview-panel-head--tabs">
+                  <div class="seg" data-seg="category" role="group" aria-label="策略分类筛选"></div>
+                </div>
+                <div class="mt1" aria-label="指标快照（表格1）">
+                  <div class="mt1-col mt1-col--left" data-metric-group="left"></div>
+                  <div class="mt1-col mt1-col--mid" data-metric-group="mid"></div>
+                  <div class="funnel-wrap mt1-funnel">
+                    <svg class="chart chart-funnel" data-chart="metricFunnel" role="img" aria-label="指标漏斗图"></svg>
+                  </div>
+                  <div class="mt1-col mt1-col--rate" data-metric-group="rate"></div>
+                </div>
+              </div>
+              <!-- 右栏 · 柱线组合图（折线绘制在柱体上方，与柱体不重叠） -->
+              <div class="split-side">
+                <div class="overview-panel-head overview-panel-head--filters">
+                  <label class="overview-select" data-key-crowd-field>
+                    <span data-key-crowd-label>重点客群</span>
+                    <select data-key-crowd aria-label="重点客群"></select>
+                    <svg class="icon"><use href="#i-chevron-down"/></svg>
+                  </label>
+                  <label class="overview-select">
+                    <span data-touch-switch-label>触点切换</span>
+                    <select data-action="切换触点" data-filter="touchSwitch" aria-label="触点切换"></select>
+                    <svg class="icon"><use href="#i-chevron-down"/></svg>
+                  </label>
+                </div>
+                <div class="chart-legend">
+                  <span><span class="sw bar"></span><span data-dim-label>策略数</span></span>
+                  <span><span class="sw round"></span>环比</span>
+                </div>
+                <svg class="chart" data-chart="stockTrend" role="img" aria-label="历史趋势柱线组合图"></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 模块二 · 策略执行情况（左右分栏）〔R12-R13〕════════════ -->
+    <section class="section" data-section="stockExec">
+      <h2 class="section-title"><span data-title>策略执行情况</span><span class="spacer"></span>
+        <button class="btn" data-action="导出"><svg class="icon"><use href="#i-download"/></svg>导出</button>
+      </h2>
+      <div class="split split--m2">
+        <!-- 左栏 · 策略分类执行情况（复刻 页面2） -->
+        <div class="card" data-section="categoryExec">
+          <div class="sub-title">策略分类执行情况
+            <span class="spacer"></span>
+            <button class="btn" data-action="列表全屏" data-target="categoryExec"><svg class="icon"><use href="#i-maximize"/></svg>全屏</button>
+            <button class="btn" data-action="导出"><svg class="icon"><use href="#i-download"/></svg>导出</button>
+          </div>
+          <div class="toolbar">
+            <select class="select" data-filter="month" aria-label="选择月份"></select>
+            <select class="select" data-filter="big" aria-label="策略大类"></select>
+            <select class="select" data-filter="sub" aria-label="策略小类"></select>
+            <select class="select" data-filter="touch" aria-label="渠道"></select>
+            <button class="btn btn-primary" data-action="搜索" data-scope="categoryExec"><svg class="icon"><use href="#i-search"/></svg>搜索</button>
+            <button class="btn" data-action="重置" data-scope="categoryExec"><svg class="icon"><use href="#i-refresh"/></svg>重置</button>
+          </div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无执行数据</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden>
+              <div class="table-wrap">
+                <table class="data-table" data-table="categoryExec"><thead></thead><tbody data-rows></tbody></table>
+              </div>
+              <div class="table-note"><span data-note></span><nav class="pagination" data-pager="categoryExec" aria-label="分页"></nav></div>
+            </div>
+          </div>
+        </div>
+        <!-- 中栏 · 触点产能趋势 -->
+        <div class="card" data-section="touchCapacity">
+          <div class="sub-title">触点产能趋势
+            <span class="spacer"></span>
+            <span class="muted" style="font-size:12px">当前触点：<b data-cap-touch>全部渠道</b></span>
+          </div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无产能数据</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden>
+              <div class="chart-legend">
+                <span><span class="sw bar"></span>产能</span>
+                <span><span class="sw round"></span>环比</span>
+              </div>
+              <svg class="chart" data-chart="touchCapacity" role="img" aria-label="触点产能趋势图"></svg>
+            </div>
+          </div>
+        </div>
+        <!-- 右栏 · 业务产能明细 -->
+        <div class="card" data-section="bizCapacity2">
+          <div class="sub-title">业务产能明细</div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无业务产能数据</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden>
+              <div class="table-wrap">
+                <table class="data-table" data-table="bizCapacity2"><thead></thead><tbody data-rows></tbody></table>
+              </div>
+              <div class="table-note"><span data-note></span><nav class="pagination" data-pager="bizCapacity2" aria-label="分页"></nav></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 模块三 · 重点关注策略（左右分栏）〔R14-R15〕════════════ -->
+    <section class="section" data-section="stockFocus">
+      <h2 class="section-title"><span data-title>重点关注策略</span><span class="spacer"></span>
+        <span class="badge" data-alert-count>—</span>
+      </h2>
+      <div class="split split--m3">
+        <!-- 左栏 · 历史预警规则（复刻 页面4） -->
+        <div class="card" data-section="alertRules">
+          <div class="sub-title">历史预警规则
+            <span class="spacer"></span>
+            <button class="btn btn-primary" data-action="新增预警规则"><svg class="icon"><use href="#i-plus"/></svg>新增规则</button>
+          </div>
+          <div class="toolbar">
+            <input class="input" id="rule-search" type="search" placeholder="请输入预警规则名称" aria-label="请输入预警规则名称" style="min-width:170px" />
+            <select class="select" aria-label="范围"><option value="">全部</option><option>生效中</option><option>已过期</option></select>
+            <button class="btn" data-action="搜索" data-scope="alertRules"><svg class="icon"><use href="#i-search"/></svg>搜索</button>
+            <button class="btn" data-action="重置" data-scope="alertRules"><svg class="icon"><use href="#i-refresh"/></svg>重置</button>
+          </div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无预警规则，点击「新增规则」创建第一条</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden><div class="rule-list" data-rules></div></div>
+          </div>
+        </div>
+        <!-- 右栏 · 预警策略（列头 100% 对齐 页面4，已删除「严重程度」列，表头不可排序） -->
+        <div class="card" data-section="alerts">
+          <div class="sub-title">预警策略
+            <span class="spacer"></span>
+            <span class="muted" style="font-size:12px" data-selected>已选 0 项</span>
+            <button class="btn" data-action="列表全屏" data-target="alerts"><svg class="icon"><use href="#i-maximize"/></svg>全屏</button>
+          </div>
+          <div class="alert-categories" data-alert-categories role="group" aria-label="预警策略分类"></div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>当前无触发预警的策略</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden>
+              <div class="table-wrap">
+                <table class="data-table" data-table="alerts"><thead></thead><tbody data-rows></tbody></table>
+              </div>
+              <div class="table-note"><span data-note></span><nav class="pagination" data-pager="alerts" aria-label="分页"></nav></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 模块四 · 策略执行明细（左右分栏 + 底部通栏）〔R16-R21〕══ -->
+    <section class="section" data-section="stockDetail">
+      <h2 class="section-title"><span data-title>策略执行明细</span><span class="spacer"></span></h2>
+      <div class="split split--m4">
+        <!-- 左栏 · 策略执行情况（逐策略；排序 / 筛选 / 导出） -->
+        <div class="card" data-section="execTable">
+          <div class="sub-title">策略执行情况（逐策略）
+            <span class="spacer"></span>
+            <span class="muted" style="font-size:12px" data-picked-note hidden>已选策略：<b data-picked-name></b><button class="btn-link" data-action="查看全部" hidden>查看全部</button></span>
+            <button class="btn" data-action="列表全屏" data-target="execTable"><svg class="icon"><use href="#i-maximize"/></svg>全屏</button>
+            <button class="btn" data-action="收藏"><svg class="icon"><use href="#i-star"/></svg>收藏</button>
+          </div>
+          <div class="toolbar">
+            <select class="select" data-filter="month" aria-label="选择月份"></select>
+            <input class="input" type="search" data-filter="name" placeholder="请输入策略名" aria-label="策略名称" style="min-width:150px" />
+            <select class="select" data-filter="touch" aria-label="渠道"></select>
+            <button class="btn btn-primary" data-action="搜索" data-scope="execTable"><svg class="icon"><use href="#i-search"/></svg>搜索</button>
+            <button class="btn" data-action="重置" data-scope="execTable"><svg class="icon"><use href="#i-refresh"/></svg>重置</button>
+            <button class="btn" data-action="导出"><svg class="icon"><use href="#i-download"/></svg>导出</button>
+          </div>
+          <div data-statewrap>
+            <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+            <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>没有符合筛选条件的策略</p></div>
+            <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+            <div class="state state-data" hidden>
+              <div class="table-wrap">
+                <table class="data-table" data-table="execTable"><thead></thead><tbody data-rows></tbody></table>
+              </div>
+              <div class="table-note"><span data-note></span><nav class="pagination" data-pager="execTable" aria-label="分页"></nav></div>
+            </div>
+          </div>
+        </div>
+        <!-- 右栏 · 策略详情 / 策略产能 / 策略拒绝原因 / 业务产能明细 -->
+        <div class="split-side">
+<div class="card" data-section="strategyInfo">
+            <div class="sub-title">策略详情
+              <span class="spacer"></span>
+              <span class="muted" style="font-size:12px" data-detail-name></span>
+            </div>
+            <div data-statewrap>
+              <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+              <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>请在左侧「策略执行情况」中选择一条策略</p></div>
+              <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+              <div class="state state-data" hidden>
+                <dl class="detail-list" data-detail-list></dl>
+              </div>
+            </div>
+          </div>
+          <div class="card" data-section="capacity">
+            <div class="sub-title">策略产能</div>
+            <div data-statewrap>
+              <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+              <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无产能数据</p></div>
+              <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+              <div class="state state-data" hidden>
+                <div class="chart-legend">
+                  <span><span class="sw bar"></span>产能</span>
+                  <span><span class="sw round"></span>环比</span>
+                </div>
+                <svg class="chart" data-chart="capacity" role="img" aria-label="策略产能趋势图"></svg>
+              </div>
+            </div>
+          </div>
+          <div class="card" data-section="rejectReason">
+            <div class="sub-title">策略拒绝原因</div>
+            <div data-statewrap>
+              <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+              <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无拒绝原因数据</p></div>
+              <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+              <div class="state state-data" hidden>
+                <div class="donut-wrap">
+                  <svg class="chart" data-chart="rejectReasons" role="img" aria-label="策略拒绝原因环形图"></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" data-section="bizCapacity4">
+            <div class="sub-title">业务产能明细</div>
+            <div data-statewrap>
+              <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+              <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无业务产能数据</p></div>
+              <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+              <div class="state state-data" hidden>
+                <div class="table-wrap">
+                  <table class="data-table" data-table="bizCapacity4"><thead></thead><tbody data-rows></tbody></table>
+                </div>
+                <div class="table-note"><span data-note></span><nav class="pagination" data-pager="bizCapacity4" aria-label="分页"></nav></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部通栏 · 策略执行情况（分日）/ 对照执行情况（非上线） -->
+      <div class="card" data-section="dailyExec">
+        <div class="sub-title">执行明细
+          <span class="spacer"></span>
+          <div class="tabs" role="tablist" aria-label="执行明细标签">
+            <button role="tab" aria-selected="true" data-action="执行明细标签切换" data-tab="daily">策略执行情况（分日）</button>
+            <button role="tab" aria-selected="false" data-action="执行明细标签切换" data-tab="nononline">对照执行情况（非上线）</button>
+          </div>
+          <button class="btn" data-action="导出"><svg class="icon"><use href="#i-download"/></svg>导出</button>
+        </div>
+        <div data-statewrap>
+          <p class="state state-loading" hidden><span class="spinner"></span>加载中…</p>
+          <div class="state state-empty" hidden><svg class="icon"><use href="#i-inbox"/></svg><p>暂无分日执行数据</p></div>
+          <div class="state state-error" hidden role="alert"><svg class="icon"><use href="#i-triangle-alert"/></svg><p class="error-msg">加载失败</p><button class="btn" data-action="加载列表"><svg class="icon"><use href="#i-refresh"/></svg>重试</button></div>
+          <div class="state state-data" hidden>
+            <div class="table-wrap">
+              <table class="data-table" data-table="dailyExec"><thead></thead><tbody data-rows></tbody></table>
+            </div>
+            <div class="table-note"><span data-note></span><nav class="pagination" data-pager="dailyExec" aria-label="分页"></nav></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 新增/编辑预警规则 对话框 -->
+  <dialog id="rule-dialog" class="dialog">
+    <form method="dialog">
+      <div class="dlg-head">
+        <h2 data-dialog-title>新增预警规则</h2>
+        <button type="button" class="dlg-close" data-action="取消" aria-label="关闭"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dlg-body">
+        <label class="field"><span>规则名称 *</span><input class="input" name="name" placeholder="如：低效策略预警" /><span class="err"></span></label>
+        <div class="row">
+          <label class="field"><span>指标条件 *</span><select class="select" name="metric" aria-label="指标条件"></select><span class="err"></span></label>
+          <label class="field"><span>条件</span><select class="select" name="operator" aria-label="条件"></select><span class="err"></span></label>
+        </div>
+        <label class="field"><span>阈值 *</span><input class="input" name="threshold" placeholder="如：5" inputmode="decimal" /><span class="err"></span></label>
+        <div class="row">
+          <label class="field"><span>开始时间</span><input class="input" name="start" type="date" /><span class="err"></span></label>
+          <label class="field"><span>结束时间</span><input class="input" name="end" type="date" /><span class="err"></span></label>
+        </div>
+        <p class="hint">触发条件：当「指标条件」满足「条件 + 阈值」时命中告警；时间范围内生效。</p>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn" value="cancel" data-action="取消">取消</button>
+        <button class="btn btn-primary" value="submit" data-action="提交规则">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 二次确认对话框（原生 <dialog>） -->
+  <dialog id="confirm-dialog" class="dialog">
+    <form method="dialog">
+      <p data-confirm-text>确认执行该操作？</p>
+      <menu class="dialog-actions">
+        <button class="btn" value="cancel" data-action="取消">取消</button>
+        <button class="btn btn-danger" value="confirm" data-action="确认删除">确认</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div class="toast" data-toast role="status" aria-live="polite" hidden></div>
+
+  <!-- 数据源：<script> 注入 window.__PROTO_DATA__（file:// 双击即开，无需 http server）。上线改 assets/app.js 走 fetch。 -->
+  <script src="data/stock.js"></script>
+  <script src="data/overview.js"></script>
+  <script src="data/detail.js"></script>
+  <script src="data/alert.js"></script>
+  <script src="data/state.js"></script>
+  <script src="assets/app.js?v=20261019-alert-layout-1"></script>
+</body>
+</html>

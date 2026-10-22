@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "backend": "host-browser-chrome-mcp (static server http://127.0.0.1:8765, file:// blocked by tool policy)",
+  "dir": "e:\\亚信\\亚信IOP\\2026功能\\策略评估\\openspec\\sdlc-agent\\原型设计分身\\策略复盘与预警",
+  "indexUrl": "http://127.0.0.1:8765/index.html",
+  "trigger": "ask (user chose 启动复验)",
+  "scope": "targeted-round4 + cascade regression",
+  "states": {
+    "loading": { "visibleStateClass": "state-loading", "wrapCount": 12, "screenshot": "browser-verify/__verify_full.jpg" },
+    "empty": { "visibleStateClass": "state-empty", "wrapCount": 12, "screenshot": null },
+    "error": { "visibleStateClass": "state-error", "wrapCount": 12, "errorMsg": "数据服务暂不可用，请稍后重试", "screenshot": null },
+    "data": { "visibleStateClass": "state-data", "wrapCount": 12, "screenshot": "browser-verify/__verify_full.jpg" }
+  },
+  "actions": {
+    "切换策略分类(升接)": {
+      "status": "passed",
+      "comboNote": "分类：升接 · 触点：全部渠道",
+      "metricBlocks": { "策略数": "326个", "推送量": "438.66万" },
+      "categoryExecRows": 2,
+      "bizCapacity2Rows": 4,
+      "alertRows": 2,
+      "alertCount": "预警规则 7 条 · 触发 2 条",
+      "execTableRows": 2,
+      "bizCapacity4Rows": 4,
+      "dailyExecRows": 6
+    },
+    "切换触点(热线-瞬时)": {
+      "status": "passed",
+      "comboNote": "分类：升接 · 触点：热线-瞬时",
+      "capTouchLabel": "热线-瞬时",
+      "selectValue": "热线-瞬时",
+      "metricBlocks": { "策略数": "365个" },
+      "alertRows": 1,
+      "execTableRows": 1,
+      "dailyExecRows": 6
+    },
+    "切换指标(推送量)": {
+      "status": "passed",
+      "before": { "dimLabel": "策略数", "firstBar": "策略数 361.27" },
+      "after": { "dimLabel": "推送量", "firstBar": "推送量 467.71", "activeMetric": "推送量 491.30万 环比 +8.3%" }
+    },
+    "指标下钻": { "status": "passed", "note": "柱体带 data-action=指标下钻 + data-month/data-dim，事件委托分支存在" },
+    "展开策略详情": { "status": "passed" },
+    "执行明细标签切换": { "status": "passed" },
+    "搜索/重置/翻页": { "status": "passed", "note": "本轮代码未改动该路径，回归无异常" },
+    "新增预警规则/提交规则": { "status": "passed", "note": "第 3 轮已走查，本轮未改动" },
+    "删除规则/确认删除": { "status": "passed", "note": "第 3 轮已走查，本轮未改动" },
+    "列表全屏": { "status": "passed", "note": "第 3 轮已走查，本轮未改动" }
+  },
+  "round4Checks": {
+    "globalCascade": { "pass": true, "detail": "分类与触点切换刷新整页四大模块数据（模块一指标块/漏斗/趋势、模块二左中右、模块三预警、模块四逐策略/业务产能/分日）" },
+    "barLineCombo": { "pass": true, "detail": "模块二 3 rect(bars) + 1 polyline(line)，lineAbove=true 折线独占顶部 30% 带，无重叠" },
+    "overviewSelectsRemoved": { "pass": true, "count": 1, "detail": "仅剩 touchSwitch；metricDim/period 已移除" },
+    "capTouchLabelShown": { "pass": true, "text": "热线-瞬时" },
+    "alertSeverityColumnRemoved": { "pass": true, "headers": ["", "日期", "触点", "策略大类", "策略小类", "策略名称", "推送量", "使用量", "使用率", "触达量", "目标转化量", "目标转化率", "全产品转化量", "全产品转化率", "预期收入(元)", "实际收入(元)"], "sortable": false },
+    "alertDateFormat": { "pass": true, "firstRowDate": "202610" },
+    "execChannelColumnRemoved": { "pass": true, "headers": ["策略大类", "策略小类", "策略名称", "推送量", "使用量", "使用率", "触达量", "目标转化量", "目标转化率", "全产品转化量", "全产品转化率"] },
+    "detailFiveFields": { "pass": true, "keys": ["策略名称", "所属渠道", "策略级别", "客群口径", "创建时间"] },
+    "donutLegendRemoved": { "pass": true, "legendNodes": 0 },
+    "donutRingLabels": { "pass": true, "labels": ["价格贵", "无需求", "套餐够用", "不够用", "服务不满", "有他网", "资费不清", "再考虑", "拒营销", "其他"], "center": "10 类原因" },
+    "donutHoverTooltip": { "pass": true, "hidden": false, "text": "表示价格太贵不划算 / 拒绝占比 23%", "pos": "left:275.3px top:62.1px" },
+    "columnNoClipping": { "pass": true, "execTableClippedHeaders": 0, "alertTableClippedHeaders": 0 }
+  },
+  "consoleMsgs": [
+    { "type": "error", "text": "net::ERR_ABORTED http://127.0.0.1:8765/index.html", "origin": "host-runner artifact (extension-driven reload of hash-only navigation attempt), not page defect" },
+    { "type": "warning", "text": "MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 vscode:icube:webview:browserUse listeners added.", "origin": "host IDE (vscode icube webview), not page defect" }
+  ],
+  "pageErrors": [],
+  "cleanTabConsole": "Console messages: (none)",
+  "evidence": {
+    "screenshots": [
+      "browser-verify/__verify_full.jpg",
+      "browser-verify/__verify_module2.jpg",
+      "browser-verify/__verify_module3.jpg",
+      "browser-verify/__verify_module4.jpg"
+    ]
+  },
+  "summary": { "ok": true }
+}
