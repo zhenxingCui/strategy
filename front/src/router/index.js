@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import { isLogin, isActivityExpired, touchActivity, clearAuth } from '@/utils/auth'
+import { isLogin, isActivityExpired, touchActivity, clearAuth, ensureLocalDevelopmentAuth } from '@/utils/auth'
 
 Vue.use(VueRouter)
 
@@ -29,6 +29,10 @@ const router = new VueRouter({
 
 // 路由守卫：未登录（sessionStorage 无身份）或超过 10 分钟无操作，一律引导回登录提示页
 router.beforeEach((to, from, next) => {
+  if ((to.path !== '/login' || !to.query.signToken) && ensureLocalDevelopmentAuth()) {
+    next(to.path === '/login' ? '/strategyReview' : undefined)
+    return
+  }
   if (to.path === '/login') {
     next()
     return

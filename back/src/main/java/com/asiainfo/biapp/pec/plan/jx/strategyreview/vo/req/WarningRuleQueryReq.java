@@ -31,6 +31,12 @@ public class WarningRuleQueryReq extends BaseRegionReq {
     @ApiModelProperty(value = "预警策略收藏标识不为空则为收藏查询")
     private String favorite;
 
+    @ApiModelProperty("触点渠道编码，空=全部渠道")
+    private String channel;
+
+    @ApiModelProperty("策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，空=全部")
+    private String strategyClass;
+
     @ApiModelProperty(value = "用户编码，按创建人过滤")
     private String userCode;
 

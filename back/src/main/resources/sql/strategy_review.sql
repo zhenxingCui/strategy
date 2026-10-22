@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
     strategy_code  VARCHAR(64)  DEFAULT NULL COMMENT '策略编码',
     strategy_name  VARCHAR(255) DEFAULT NULL COMMENT '策略名称',
     tab_type       VARCHAR(32)  DEFAULT NULL COMMENT '策略类型：active/passive/control',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN',
     channel        VARCHAR(64)  DEFAULT NULL COMMENT '触点渠道编码',
     strategy_level VARCHAR(32)  DEFAULT NULL COMMENT '策略级别',
     caliber        VARCHAR(512) DEFAULT NULL COMMENT '客群口径描述',
@@ -59,7 +60,8 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
     is_deleted     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删1已删',
     PRIMARY KEY (id),
     KEY idx_strategy_code (strategy_code),
-    KEY idx_strategy_tab (tab_type)
+    KEY idx_strategy_tab (tab_type),
+    KEY idx_strategy_class (tab_type, strategy_class, is_deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略主表';
 
 -- ---------------------------------------------------------------------
@@ -70,6 +72,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
 CREATE TABLE IF NOT EXISTS t_sr_kpi_summary (
     id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type    VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class VARCHAR(16) DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
     metric_code VARCHAR(64)   DEFAULT NULL COMMENT '指标编码',
     metric_name VARCHAR(128)  DEFAULT NULL COMMENT '指标名称',
     value       DECIMAL(20,4) DEFAULT NULL COMMENT '当期值',
@@ -122,6 +125,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ap (
     id                   BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type             VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
     stat_month           DATE          DEFAULT NULL COMMENT '账期',
     channel              VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     strategy_count       BIGINT        DEFAULT NULL COMMENT '策略量',
@@ -195,6 +199,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ap (
     id                   BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type             VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
     strategy_id          VARCHAR(64)  DEFAULT NULL COMMENT '策略ID',
     strategy_name        VARCHAR(255)  DEFAULT NULL COMMENT '策略名称',
     channel              VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
@@ -256,6 +261,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ap (
     id            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type      VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
     stat_month    DATE          DEFAULT NULL COMMENT '账期',
     channel       VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     big_category  VARCHAR(128)  DEFAULT NULL COMMENT '业务大类',
@@ -288,6 +294,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ap (
     id            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type      VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
     stat_month    DATE          DEFAULT NULL COMMENT '账期',
     channel       VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     big_category  VARCHAR(128)  DEFAULT NULL COMMENT '业务大类',
@@ -307,6 +314,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ap (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity (
     id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    tab_type    VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '策略类型：active/passive/control',
     strategy_id VARCHAR(64)  DEFAULT NULL COMMENT '策略ID',
     stat_date   DATE          DEFAULT NULL COMMENT '统计日期',
     biz_code    VARCHAR(64)   DEFAULT NULL COMMENT '业务编码',
@@ -318,7 +326,8 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity (
     county_id   VARCHAR(64)   DEFAULT NULL COMMENT '区县',
     is_deleted  TINYINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删1已删',
     PRIMARY KEY (id),
-    KEY idx_sbc_strategy_date (strategy_id, stat_date)
+    KEY idx_sbc_strategy_date (strategy_id, stat_date),
+    KEY idx_sbc_tab_strategy_date (tab_type, strategy_id, stat_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略业务产能';
 
 -- ---------------------------------------------------------------------
@@ -348,6 +357,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ap (
     id               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type         VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
+    strategy_class   VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN',
     strategy_id      VARCHAR(64)  DEFAULT NULL COMMENT '策略ID',
     stat_date        DATE          DEFAULT NULL COMMENT '统计日期',
     channel          VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',

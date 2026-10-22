@@ -117,8 +117,39 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 return new ArrayList<>();
             }
         }
+        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getChannel())) {
+            List<ChannelSummaryRowVO> rows = reviewMapper.selectChannelSummaryList(
+                    req.getTabType(), toYearMonth(statMonth), req.getCityId(), req.getCountyId(),
+                    "c.strategy_count DESC", req.getChannel(), req.getStrategyClass());
+            if (rows == null || rows.isEmpty()) return new ArrayList<>();
+            // 沿用渠道汇总的真实值和环比，不用原型的缩放系数推算指标。
+            org.springframework.beans.BeanWrapper bean = new org.springframework.beans.BeanWrapperImpl(rows.get(0));
+            String[][] metrics = {
+                    {"strategyCount", "strategy_count", "策略数", "个"},
+                    {"originalCust", "original_cust", "客群", "人"},
+                    {"pushCount", "push_count", "推送量", "次"},
+                    {"usageCount", "usage_count", "使用量", "次"},
+                    {"reachCount", "reach_count", "触达量", "次"},
+                    {"productConvNum", "product_conv_num", "全产品转化量", "次"},
+                    {"usageRate", "usage_rate", "使用率", "%"},
+                    {"productConvRate", "product_conv_rate", "全产品转化率", "%"},
+                    {"actualIncome", "actual_income", "收入", "元"}
+            };
+            List<KpiCardVO> cards = new ArrayList<>();
+            for (String[] metric : metrics) {
+                Object value = bean.getPropertyValue(metric[0]);
+                if (value == null) continue;
+                KpiCardVO card = new KpiCardVO();
+                card.setMetricCode(metric[1]); card.setLabel(metric[2]); card.setUnit(metric[3]);
+                card.setValue(new BigDecimal(value.toString()));
+                Object qoq = bean.getPropertyValue(metric[0] + "QoQ");
+                if (qoq != null) card.setTrendQoQ(new BigDecimal(qoq.toString()));
+                cards.add(card);
+            }
+            return cards;
+        }
         List<KpiCardVO> list = reviewMapper.selectKpiCard(req.getTabType(), statMonth,
-                req.getCityId(), req.getCountyId());
+                req.getCityId(), req.getCountyId(), req.getStrategyClass());
         return list == null ? new ArrayList<>() : list;
     }
 
@@ -127,8 +158,23 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         if (StringUtils.isBlank(req.getMetricCode())) {
             throw new BaseException("指标编码metricCode不能为空");
         }
-        List<KpiTrendItemVO> rows = reviewMapper.selectKpiTrend(req.getTabType(), req.getMetricCode(),
-                req.getCityId(), req.getCountyId());
+        List<KpiTrendItemVO> rows;
+        String statMonth = normalizeStatMonth(req.getStatMonth());
+        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getChannel())) {
+            String metricColumn = AP_SORT_MAP.get(req.getMetricCode());
+            if (metricColumn == null && AP_SORT_MAP.containsValue(req.getMetricCode())) {
+                metricColumn = req.getMetricCode();
+            }
+            if (metricColumn == null || "channel".equals(metricColumn)) {
+                throw new BaseException("不支持的渠道指标编码");
+            }
+            rows = reviewMapper.selectChannelKpiTrend(req.getTabType(), req.getChannel(), metricColumn,
+                    req.getCityId(), req.getCountyId(), StringUtils.isBlank(statMonth)
+                            ? java.time.YearMonth.now().toString() : toYearMonth(statMonth), req.getStrategyClass());
+        } else {
+            rows = reviewMapper.selectKpiTrend(req.getTabType(), req.getMetricCode(),
+                    req.getCityId(), req.getCountyId(), statMonth, req.getStrategyClass());
+        }
         KpiTrendVO resp = new KpiTrendVO();
         List<String> months = new ArrayList<>();
         List<BigDecimal> values = new ArrayList<>();
@@ -161,9 +207,9 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 "c.", "c.strategy_count DESC");
         List<ChannelSummaryRowVO> list =
                 reviewMapper.selectChannelSummaryList(req.getTabType(), statMonth,
-                        req.getCityId(), req.getCountyId(), orderBy,req.getChannel());
+                        req.getCityId(), req.getCountyId(), orderBy,req.getChannel(),req.getStrategyClass());
         List<ChannelSummaryRowVO> calculate = reviewMapper.selectChannelSummaryList(req.getTabType(), statMonth,
-                req.getCityId(), req.getCountyId(),orderBy,StringUtils.isBlank(req.getChannel())?"全部":req.getChannel());
+                req.getCityId(), req.getCountyId(),orderBy,StringUtils.isBlank(req.getChannel())?"全部":req.getChannel(),req.getStrategyClass());
         ChannelSummaryRespVO resp = new ChannelSummaryRespVO();
         resp.setList(list == null ? new ArrayList<>() : list);
         resp.setCalculate(calculate == null || calculate.size()==0 ? new ChannelSummaryRowVO() : calculate.get(0));
@@ -182,18 +228,18 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         int pageSize = normalizePageSize(req.getPageSize());
         long total = reviewMapper.countStrategyList(req.getTabType(), statMonth,
                 req.getCityId(), req.getCountyId(), req.getChannel(),
-                req.getBigCategory(), req.getSmallCategory(), req.getStrategyName());
+                req.getBigCategory(), req.getSmallCategory(), req.getStrategyClass(), req.getStrategyName());
         List<StrategyRowVO> list = total == 0 ? new ArrayList<>() : reviewMapper.selectStrategyList(
                 req.getTabType(), statMonth, req.getCityId(), req.getCountyId(),
                 req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
-                req.getStrategyName(), orderBy, (pageNum - 1) * pageSize, pageSize,"0");
+                req.getStrategyClass(), req.getStrategyName(), orderBy, (pageNum - 1) * pageSize, pageSize,"0");
         String channel=StringUtils.isBlank(req.getChannel())?"全部":req.getChannel();
         String bigCategory=StringUtils.isBlank(req.getBigCategory())?"全部":req.getBigCategory();
         String smallCategory=StringUtils.isBlank(req.getSmallCategory())?"全部":req.getSmallCategory();
         List<StrategyRowVO> calculate = total == 0 ? new ArrayList<>() : reviewMapper.selectStrategyList(
                 req.getTabType(), statMonth, req.getCityId(), req.getCountyId(),
                 channel, bigCategory,smallCategory,
-                req.getStrategyName(), orderBy, (pageNum - 1) * pageSize, pageSize,"1");
+                req.getStrategyClass(), req.getStrategyName(), orderBy, (pageNum - 1) * pageSize, pageSize,"1");
 
         return PageResultVO.of(list, total,calculate==null||calculate.size()==0?new StrategyRowVO():calculate.get(0), pageNum, pageSize);
     }
@@ -203,7 +249,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         List<ChannelTrendVO> list = reviewMapper.selectChannelCapacityTrend(
                 req.getTabType(), req.getChannel(),
                 req.getBigCategory(), req.getSmallCategory(),
-                req.getCityId(), req.getCountyId());
+                req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())), req.getStrategyClass());
         if (list != null) {
             Collections.reverse(list);
             for (ChannelTrendVO vo : list) {
@@ -218,7 +264,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         String statMonth = requireStatMonth(req.getStatMonth());
         List<ChannelBizVO> list = reviewMapper.selectChannelBizCapacity(
                 req.getTabType(), statMonth, req.getCityId(), req.getCountyId(),
-                req.getChannel(), req.getBigCategory(), req.getSmallCategory());
+                req.getChannel(), req.getBigCategory(), req.getSmallCategory(), req.getStrategyClass());
         return list == null ? new ArrayList<>() : list;
     }
 
@@ -226,11 +272,11 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
     public CategoryRespVO queryCategorySummary(TouchpointQueryReq req) {
         String statMonth = requireStatMonth(req.getStatMonth());
         List<CategoryRowVO> list = reviewMapper.selectCategorySummary(
-                req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), req.getChannel(),req.getBigCategory(),req.getSmallCategory(),"0");
+                req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), req.getChannel(),req.getBigCategory(),req.getSmallCategory(),req.getStrategyClass(),"0");
         String channel=StringUtils.isBlank(req.getChannel())?"全部":req.getChannel();
         String bigCategory=StringUtils.isBlank(req.getBigCategory())?"全部":req.getBigCategory();
         String smallCategory=StringUtils.isBlank(req.getSmallCategory())?"全部":req.getSmallCategory();
-        List<CategoryRowVO> calculate=reviewMapper.selectCategorySummary(req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), channel,bigCategory,smallCategory,"1");
+        List<CategoryRowVO> calculate=reviewMapper.selectCategorySummary(req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), channel,bigCategory,smallCategory,req.getStrategyClass(),"1");
         CategoryRespVO res=new CategoryRespVO();
         res.setList(list == null ? new ArrayList<>():list);
         res.setCalculate(calculate==null||calculate.size()==0?new CategoryRowVO():calculate.get(0));
@@ -257,7 +303,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         }
         List<StrategyTrendItemVO> rows = reviewMapper.selectStrategyCapacityTrend(
                 req.getTabType(), req.getStrategyId(), metricColumn,
-                req.getCityId(), req.getCountyId());
+                req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())));
         StrategyTrendVO resp = new StrategyTrendVO();
         List<String> months = new ArrayList<>();
         List<BigDecimal> capacity = new ArrayList<>();

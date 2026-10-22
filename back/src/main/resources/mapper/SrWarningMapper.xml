@@ -66,7 +66,7 @@
         r.channels                        AS channelsStr,
         r.strategies                      AS strategiesStr,
         r.logic                           AS logic
-        FROM t_sr_warning_rule r where 1=1
+        FROM t_sr_warning_rule r WHERE r.tab_type = #{tabType} AND r.is_deleted = 0
         <if test="ruleId != null and ruleId != ''">
             AND r.id= #{ruleId}
         </if>
@@ -201,6 +201,7 @@
         <if test="cityId != null and cityId != ''">
             AND s.city_id = #{cityId}
         </if>
+        <include refid="hitStrategyFilters"/>
     </sql>
 
     <!-- control 汇总表无 tab_type 列，仅按逻辑删除过滤 -->
@@ -208,6 +209,28 @@
         WHERE s.is_deleted = 0
         <if test="cityId != null and cityId != ''">
             AND s.city_id = #{cityId}
+        </if>
+        <include refid="hitStrategyFilters"/>
+    </sql>
+
+    <sql id="hitStrategyFilters">
+        AND s.strategy_id != '999'
+        <if test="channel != null and channel != ''">AND s.channel = #{channel}</if>
+        <if test="tabType != 'control' and strategyClass != null and strategyClass != ''">AND s.strategy_class = #{strategyClass}</if>
+        <if test="countyId != null and countyId != ''">AND s.county_id = #{countyId}</if>
+        <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}</if>
+        AND DATE_FORMAT(s.stat_month, '%Y-%m') BETWEEN LEFT(#{rule.dataStartDate}, 7) AND LEFT(#{rule.dataEndDate}, 7)
+        AND CURDATE() BETWEEN #{rule.startDate} AND #{rule.endDate}
+        <if test="rule.channels != null and rule.channels.size() > 0">
+            AND s.channel IN <foreach collection="rule.channels" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="rule.strategies != null and rule.strategies.size() > 0">
+            AND s.strategy_id IN <foreach collection="rule.strategies" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="favorite">
+            AND EXISTS (SELECT 1 FROM t_sr_favorite f WHERE f.strategy_id = s.strategy_id
+                AND f.user_id = #{userId} AND f.tab_type = #{tabType} AND f.source = 'follow'
+                AND f.rule_id = #{ruleId} AND f.is_deleted = 0)
         </if>
     </sql>
 
@@ -246,6 +269,7 @@
                 <otherwise>
                     SELECT s.strategy_id          AS strategyId,
                     s.strategy_name        AS strategyName,
+                    s.strategy_class       AS strategyClass,
                     s.channel              AS channel,
                     d.key_name             AS channelName,
                     s.big_category         AS bigCategory,

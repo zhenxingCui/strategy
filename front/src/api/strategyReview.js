@@ -1,11 +1,13 @@
 import { postAction, getAction } from './manage'
 import api from './StrategyReviewApi'
+import { getCityId, getUserId } from '@/utils/auth'
 
 // 公共参数（城市/区县）合并
 const formatParams = (params) => {
   if (typeof params !== 'object') return params
   return {
-    cityId: sessionStorage.getItem('cityId') || '',
+    cityId: getCityId() || sessionStorage.getItem('cityId') || '',
+    userId: getUserId(),
     countyId: sessionStorage.getItem('countyId') || '',
     ...params
   }

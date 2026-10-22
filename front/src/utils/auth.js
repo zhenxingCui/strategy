@@ -9,6 +9,17 @@ const LAST_ACTIVE_KEY = 'sr_lastActive'
 /** 登录后无操作有效期（毫秒）：10 分钟，超时需从 IOP 重新登录 */
 export const ACTIVITY_TTL = 10 * 60 * 1000
 
+/** 本机开发免登录：生产构建和非 loopback 域名不启用。 */
+export function ensureLocalDevelopmentAuth () {
+  if (process.env.NODE_ENV !== 'development' || process.env.VUE_APP_LOCAL_LOGIN !== 'true') return false
+  if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname)) return false
+  if (!isLogin() || isActivityExpired()) {
+    setAuth(process.env.VUE_APP_LOCAL_CITY_ID || '001', process.env.VUE_APP_LOCAL_USER_ID || 'local-review')
+  }
+  touchActivity()
+  return true
+}
+
 export function setAuth (cityId, userId) {
   sessionStorage.setItem(CITY_KEY, cityId || '')
   sessionStorage.setItem(USER_KEY, userId || '')

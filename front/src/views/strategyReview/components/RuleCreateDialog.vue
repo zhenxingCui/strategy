@@ -2,8 +2,8 @@
   <div>
     <!-- ===== 新增规则弹窗 ===== -->
     <el-dialog
-      v-if="isCreate"
-      title="新增预警规则"
+      v-if="isCreate || fullEdit"
+      :title="isCreate ? '新增预警规则' : '编辑预警规则'"
       :visible.sync="dialogVisible"
       width="460px"
       :close-on-click-modal="false"
@@ -33,6 +33,13 @@
         </div>
         <div class="form-divider"></div>
         <div class="form-section-title">筛选条件</div>
+        <div v-if="!isCreate" class="form-group">
+          <label class="form-label">规则状态</label>
+          <el-select v-model="editStatus" size="small">
+            <el-option label="生效中" value="生效中" /><el-option label="已停用" value="已停用" />
+            <el-option v-if="rule.status === '已过期'" label="已过期" value="已过期" disabled />
+          </el-select>
+        </div>
         <div class="form-group">
           <label class="form-label"><span class="required">*</span>数据日期</label>
           <el-date-picker
@@ -110,7 +117,7 @@
       </div>
       <div slot="footer">
         <el-button size="small" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" size="small" @click="submitCreate">提交</el-button>
+        <el-button type="primary" size="small" :loading="submitting" @click="submitCreate">{{ isCreate ? '提交' : '保存' }}</el-button>
       </div>
     </el-dialog>
 
@@ -169,6 +176,7 @@ import {
   toggleWarningRuleStatus,
   getDim
 } from '@/api/strategyReview'
+import { monthRange } from '../active/reviewData'
 
 // 百分比类指标（单位为 %）
 const RATE_METRICS = ['挽留率', '成功率', '使用率', '目标转化率', '全产品转化率']
@@ -178,6 +186,7 @@ export default {
   props: {
     // create 新增 / edit 编辑
     mode: { type: String, default: 'create' },
+    fullEdit: Boolean,
     // 编辑时的规则对象
     rule: { type: Object, default: null },
     // tab 类型：active / passive / control
@@ -190,6 +199,7 @@ export default {
     return {
       dialogVisible: true,
       strategyLoading: false,
+      submitting: false,
       searchStrategyOptions: [],
       form: {
         ruleName: '',
@@ -216,6 +226,17 @@ export default {
       this.editDesc = this.rule.desc || ''
       this.editDateRange = [this.rule.startDate || '', this.rule.endDate || '']
       this.editStatus = this.rule.status || '生效中'
+      if (this.fullEdit) {
+        this.form = {
+          ruleName: this.rule.ruleName || '', sceneDesc: this.rule.desc || '',
+          dateRange: [this.rule.startDate, this.rule.endDate],
+          dataDate: [String(this.rule.dataStartDate || '').slice(0, 7), String(this.rule.dataEndDate || '').slice(0, 7)],
+          channels: [...(this.rule.channels || [])], strategies: [...(this.rule.strategies || [])],
+          logic: this.rule.logic || 'and',
+          metrics: (this.rule.conditions || []).map((condition, index) => ({ ...condition, id: index + 1, value: condition.threshold }))
+        }
+        this.searchStrategyOptions = this.form.strategies.map(id => ({ keyCode: id, keyName: String(id) }))
+      }
     }
   },
   methods: {
@@ -287,6 +308,7 @@ export default {
       return RATE_METRICS.indexOf(metricName) !== -1
     },
     async submitCreate () {
+      if (this.submitting) return
       if (!this.form.ruleName.trim()) {
         this.$message.warning('请输入场景指标名称')
         return
@@ -306,26 +328,36 @@ export default {
         threshold: Number(m.value),
         unit: m.unit
       }))
+      if (!conditions.length || this.form.metrics.some(m => !m.metricCode || m.value === '' || m.value == null || !Number.isFinite(Number(m.value)))) {
+        this.$message.warning('请为每条规则选择指标并填写有效阈值')
+        return
+      }
+      this.submitting = true
       try {
-        const res = await createWarningRule({
+        const payload = {
+          ...(this.isCreate ? {} : { id: this.rule.id }),
           tabType: this.tabType,
           ruleName: this.form.ruleName.trim(),
           desc: this.form.sceneDesc || undefined,
           startDate: this.form.dateRange[0],
           endDate: this.form.dateRange[1],
-          dataStartDate: this.form.dataDate[0],
-          dataEndDate: this.form.dataDate[1],
+          dataStartDate: monthRange(this.form.dataDate[0])[0],
+          dataEndDate: monthRange(this.form.dataDate[1])[1],
           channels: this.form.channels,
           strategies: this.form.strategies,
           logic: this.form.logic,
           conditions
-        })
+        }
+        const res = this.isCreate ? await createWarningRule(payload) : await updateWarningRule(payload)
+        if (!this.isCreate && this.editStatus !== this.rule.status) {
+          await toggleWarningRuleStatus({ id: this.rule.id, status: this.editStatus })
+        }
         this.dialogVisible = false
-        this.$message.success('新增预警规则成功')
-        this.$emit('created', res)
+        this.$message.success(this.isCreate ? '新增预警规则成功' : '保存成功')
+        this.$emit(this.isCreate ? 'created' : 'saved', res)
       } catch (e) {
-        this.$message.error('新增规则失败')
-      }
+        // 请求拦截器统一显示后端错误，保留表单以便重试。
+      } finally { this.submitting = false }
     },
     async saveEdit () {
       if (!this.rule) return

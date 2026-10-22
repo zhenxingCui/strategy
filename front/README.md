@@ -1,5 +1,7 @@
 # 策略复盘 前端工程（web-front）
 
+存量策略原型迁移、本地 MySQL 数据初始化及开发免登录说明见 [ACTIVE_REVIEW_MIGRATION.md](./ACTIVE_REVIEW_MIGRATION.md)。
+
 基于 Vue 2 + Element UI 的策略复盘前端工程，提供策略整体情况、策略触点执行、策略执行明细、历史预警规则、策略收藏等页面。
 
 ## 技术栈

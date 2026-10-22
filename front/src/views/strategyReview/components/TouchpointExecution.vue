@@ -531,6 +531,7 @@
 <script>
 import { getChannelSummary, getStrategyList, getDim, getChannelCapacityTrend, getChannelBizCapacity, getCategorySummary, addFavorite } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
+import { chartRows } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 import EChart from '@/components/EChart.vue'
 
@@ -860,11 +861,17 @@ export default {
       return opt ? opt.label : this.activeChannel
     },
     channelChartOption () {
-      const months = this.channelTrendMonths
-      const values = this.channelTrendValues
-      const qoq = this.channelTrendQoq
-      if (!months.length) return {}
-      const maxQoQ = Math.max(...(qoq.map(v => Math.abs(v || 0))), 1)
+      const points = chartRows(this.channelTrendMonths, this.channelTrendValues, this.channelTrendQoq)
+      const months = points.months
+      const values = points.values
+      const qoq = points.comparison
+      if (!months.length) {
+        return {
+          title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#9ca3af', fontSize: 13, fontWeight: 400 } },
+          series: []
+        }
+      }
+      const maxQoQ = Math.max(...(qoq.map(v => Math.abs(Number(v) || 0))), 1)
       const yAxisMax = Math.max(20, Math.ceil(maxQoQ * 1.2))
       return {
         tooltip: {

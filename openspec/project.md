@@ -8,6 +8,7 @@
 
 - **后端** `back/`：Spring Boot，提供 REST 接口，返回平台统一响应结构 `ActionResponse`。
 - **前端** `front/`：Vue 2 单页应用，Element UI + ECharts 展示，Axios 调用后端。
+- 2026-10-22：active（存量策略）界面迁至 `front/src/views/strategyReview/active/`，参考 `策略复盘与预警/` 静态原型；开发运行及范围见 `front/ACTIVE_REVIEW_MIGRATION.md`。
 
 核心业务按“策略形态”三分：`active`（主动策略）、`passive`（被动策略）、`control`（控损策略）。
 
@@ -66,10 +67,10 @@ npm run serve
 ```
 
 ### 数据库
-- 库：`strategy_review`（utf8mb4）
+- 本地联调库：`strategy_review_active_class_local`（utf8mb4）；存量策略样例在 `t_sr_strategy.strategy_class` 中均分为 `UPSELL`、`STABLE`、`DOWNGRADE`、`CHURN`；原始 SQL 脚本中的库名为 `strategy_review`。
 - 建表：`back/src/main/resources/sql/strategy_review.sql`
 - 测试数据：`back/src/main/resources/sql/strategy_review_data.sql`
-- 连接：`root` / `123456`，`url` 见 `application.yml`；`hikari.initialization-fail-timeout: -1`（库暂不可用也允许启动）
+- 默认连接本机 MySQL，支持 `SR_DB_URL` / `SR_DB_USER` / `SR_DB_PASSWORD` 环境变量。初始化本地联调数据：在 `front/` 执行 `npm run db:init-local`，拒绝覆盖已有库。`hikari.initialization-fail-timeout: -1`（库暂不可用也允许启动）。
 
 ## 5. 后端接口清单
 

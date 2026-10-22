@@ -1,0 +1,86 @@
+# 存量策略页面迁移与本地联调
+
+2026-10-22：将 `策略复盘与预警/` 原型的四模块布局迁入 Vue，存量策略、增量策略和重点产品共用入口 `/strategyReview`。
+
+## 运行
+
+- 后端：在 `back/` 执行 `mvn spring-boot:run`，端口 8080。
+- 前端：在 `front/` 执行 `npm run serve`，端口 8081。
+- 本机直接打开 `http://127.0.0.1:8081/strategyReview`。
+
+`.env.development` 开启本机开发免登录，默认身份为 `cityId=001`、`userId=local-review`。
+仅 `development` 构建且域名为 `localhost` / `127.0.0.1` / IPv6 loopback 时生效。
+生产构建继续要求 IOP 登录。关闭开发入口：将 `VUE_APP_LOCAL_LOGIN` 改为 `false`，重启前端服务。
+
+## MySQL
+
+默认连接本机 `127.0.0.1:3306/strategy_review_active_class_local`。
+后端可通过 `SR_DB_URL`、`SR_DB_USER`、`SR_DB_PASSWORD` 覆盖连接配置。
+
+本次已创建独立联调库。页面通过 REST 接口读取 MySQL；数据为本地生成的联调样例，不代表线上业务数据。
+
+- 12 条存量策略，按策略主表中的 `strategy_class` 字段随机均分为升接、稳、降拆、离，每类 3 条；4 个触点，4 组业务大类/小类。
+- 2025-11 至 2026-10 共 12 个月，策略按不同月份上线和结束；每月策略数随活动周期变化（当前样例为 2–12 条），不再固定为 12 条。
+- 月度客群、推送、使用、触达、转化和收入之间保持漏斗及汇总关系；加入淡旺季、策略差异和稳定的轻微波动。
+- 日数据按工作日、周末和月内活动时点分配，逐月汇总仍与月度指标一致。
+- 7 条预警规则，包括生效、过期和停用示例。
+- 规则、收藏和关注通过接口写入 MySQL。
+- 增量策略和重点产品使用独立策略编码及 2025-11 至 2026-10 月度数据，不覆盖存量策略。
+- 增量策略使用 `_ap` 表并设置 `tab_type='passive'`、`strategy_class=NULL`；重点产品使用 `_ctrl` 表。
+- `t_sr_strategy_biz_capacity` 增加 `tab_type` 字段，以隔离存量、增量、重点产品的逐策略业务明细。
+- 增量策略和重点产品各生成 30+ 条策略、月度/按日指标、渠道及业务明细，以及 4 条预警规则。
+
+新环境在 `front/` 执行 `npm run db:init-local`。脚本复用后端建表 SQL，新建独立数据库；如果目标库已经存在，会拒绝覆盖。
+初始化脚本支持 `SR_DB_HOST`、`SR_DB_PORT`、`SR_DB_USER`、`SR_DB_PASSWORD`、`SR_DB_NAME`、`SR_SEED_MONTH`。
+自定义库名后，后端的 `SR_DB_URL` 也应指向同一个库。
+
+当前联调库更新样例数据时，在 `front/` 执行 `npm run db:refresh-local`。刷新脚本只允许更新 `strategy_review_active_class_local`，并要求库内策略均为本地联调样例；只替换这些样例策略和统计事实，保留收藏与预警规则。刷新前应确认该库仍仅用于本地测试。
+
+给现有联调库补充增量和重点产品数据时执行 `npm run db:seed-passive-control`。脚本只允许目标库为 `strategy_review_active_class_local`，只清理带本脚本专属标记的增量/重点产品样例，支持重复执行，不创建或删除表，也不重建存量数据。现有环境的字段迁移见 `back/src/main/resources/sql/strategy_review_add_strategy_biz_tab_type.sql`；新环境建表 DDL 已包含该字段。
+
+示例数据的使用率=使用量/推送量、触达率=触达量/使用量、转化率=全产品转化量/触达量。率值环比显示为百分点 `pp`。
+渠道汇总原有表结构不含触达率字段，切换到单个触点时该指标显示“—”，不以模拟数补齐。
+
+## 页面与接口
+
+`src/views/strategyReview/active/` 是本阶段的 Vue 实现：
+
+| 文件 | 职责 |
+| --- | --- |
+| ActiveReview.vue | 本地身份、最新账期、全局触点/月度筛选、跨模块策略联动 |
+| StockOverview.vue | 指标快照、漏斗、最近 12 期柱线趋势、月份下钻 |
+| StockExecution.vue | 分类汇总、触点产能趋势、业务产能明细 |
+| StockWarning.vue | 规则分页/搜索/新增/编辑/删除/启停、命中列表、关注 |
+| StockDetail.vue | 逐策略分页/排序/搜索/收藏、五项属性、产能、拒绝原因、业务及分日明细 |
+| ReviewTable.vue | 表格、选择、当前页 CSV 导出、全屏和 Esc 退出 |
+| ReviewState.vue | 每个区域的加载、空数据、失败及重试 |
+| reviewData.js | 数据格式、图表配置、忽略过期请求响应 |
+
+所有取数沿用 `src/api/strategyReview.js`，不加载原型 `data/*.js`，不使用按系数缩放的模拟数据。
+三个视角都使用该 Vue 实现；增量策略仅展示“全部”分类，重点产品也仅展示“全部”分类，并使用控制类指标字段。
+
+为接通实际数据补齐了后端触点 KPI、趋势截止月份、命中策略的触点/地区/账期筛选，
+修复业务产能条件冲突、分类汇总混入策略分页、规则业务 ID 类型，以及 OR 条件绕过筛选的问题。
+规则编辑使用完整字段提交，避免后端必填校验失败和条件被清空。
+
+## 当前业务边界
+
+- 存量策略分类值为 `UPSELL`、`STABLE`、`DOWNGRADE`、`CHURN`；增量策略、重点产品只展示全部。
+- “重点客群”等待用户提供字段和枚举。
+- “对照执行情况（非上线）”保留禁用标签，等待后端提供对应数据接口。
+
+## 验证
+
+在 `front/` 使用 Node 20+：
+
+```powershell
+node scripts/verify-active-api.cjs
+node scripts/verify-active-api.cjs --write-checks
+npm run build
+```
+
+默认只读检查；`--write-checks` 仅允许本地服务，创建自己的验证规则并在 finally 中删除，清理自己的收藏。
+覆盖四模块查询、分页、业务 ID、触点/地区过滤、规则编辑及启停、收藏与用户间关注隔离。
+本次 40 次 API 请求检查通过；浏览器确认免登录直达、触点联动和策略详情联动。
+
+在 `back/` 执行 `mvn -DskipTests compile` 检查 Java 与 Mapper 接口编译。

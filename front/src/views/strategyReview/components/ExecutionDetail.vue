@@ -271,6 +271,7 @@ import {
   getStrategyDailyDetail
 } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
+import { chartRows } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 const REJECT_COLORS = ['#3b6cb5', '#e67e22', '#f1c40f', '#5aad3e', '#95a5a6']
@@ -484,7 +485,8 @@ export default {
     },
     trendChartOption () {
       const { months, capacity, mom } = this.capacityTrend
-      if (!months.length) {
+      const points = chartRows(months, capacity, mom)
+      if (!points.months.length) {
         // 空态提示：区分"无数据"与渲染异常，避免白图
         return {
           title: {
@@ -499,7 +501,7 @@ export default {
         tooltip: { trigger: 'axis' },
         legend: { data: ['策略产能', '环比'], top: 0, right: 0, itemWidth: 10, itemHeight: 6, textStyle: { fontSize: 9, color: '#595959' } },
         grid: { left: 36, right: 36, top: 24, bottom: 18 },
-        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisTick: { show: false }, axisLabel: { fontSize: 9, color: '#8c8c8c' } },
+        xAxis: { type: 'category', data: points.months, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisTick: { show: false }, axisLabel: { fontSize: 9, color: '#8c8c8c' } },
         yAxis: [
           { type: 'value', position: 'left', splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } }, axisLabel: { fontSize: 9, color: '#8c8c8c' } },
           { type: 'value', position: 'right', splitLine: { show: false }, axisLabel: { fontSize: 9, color: '#8c8c8c', formatter: '{value}%' } }
@@ -508,7 +510,7 @@ export default {
           {
             name: '策略产能',
             type: 'bar',
-            data: capacity,
+            data: points.values,
             barWidth: 12,
             itemStyle: {
               color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#60a5fa' }, { offset: 1, color: '#2563eb' }] },
@@ -519,7 +521,7 @@ export default {
             name: '环比',
             type: 'line',
             yAxisIndex: 1,
-            data: mom,
+            data: points.comparison,
             smooth: true,
             symbol: 'circle',
             symbolSize: 4,

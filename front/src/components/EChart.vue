@@ -54,8 +54,13 @@ export default {
     this.init()
     this.render()
     window.addEventListener('resize', this.handleResize)
+    if (typeof ResizeObserver !== 'undefined') {
+      this.containerObserver = new ResizeObserver(this.handleResize)
+      this.containerObserver.observe(this.$el)
+    }
   },
   beforeDestroy () {
+    if (this.containerObserver) this.containerObserver.disconnect()
     if (this.chart) {
       this.chart.dispose()
       this.chart = null
@@ -66,6 +71,7 @@ export default {
   methods: {
     init () {
       this.chart = echarts.init(this.$refs.chart, null, { renderer: this.renderer })
+      this.chart.on('click', params => this.$emit('click', params))
     },
     render () {
       if (!this.chart || !this.option) return

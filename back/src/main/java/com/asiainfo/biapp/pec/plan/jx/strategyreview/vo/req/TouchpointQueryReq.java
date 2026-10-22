@@ -25,6 +25,9 @@ public class TouchpointQueryReq extends BaseRegionReq {
     @ApiModelProperty(value = "触点渠道编码（dim.keyCode），空=全部渠道")
     private String channel;
 
+    @ApiModelProperty("策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，空=全部")
+    private String strategyClass;
+
     @ApiModelProperty(value = "业务大类")
     private String bigCategory;
 

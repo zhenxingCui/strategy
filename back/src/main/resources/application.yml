@@ -9,9 +9,9 @@ spring:
     name: strategy-review
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.0.252:3306/strategy_review?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    url: ${SR_DB_URL:jdbc:mysql://127.0.0.1:3306/strategy_review_active_class_local?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${SR_DB_USER:root}
+    password: ${SR_DB_PASSWORD:123456}
     hikari:
       # 数据库暂时不可用时也允许应用启动，避免启动即失败
       initialization-fail-timeout: -1

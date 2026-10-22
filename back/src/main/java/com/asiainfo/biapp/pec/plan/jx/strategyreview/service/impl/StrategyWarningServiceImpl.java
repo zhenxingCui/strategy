@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 策略复盘-历史预警规则服务实现
@@ -70,6 +69,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
                     (pageNum - 1) * pageSize, pageSize);
         }
         for (WarningRuleVO vo : list) {
+            vo.setConditions(warningMapper.selectRuleConditions(vo.getId()));
             decorateRule(vo);
         }
         return PageResultVO.of(list, total, new WarningRuleVO(),pageNum, pageSize);
@@ -144,6 +144,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
 
     @Override
     public PageResultVO<StrategyRowVO> queryHitStrategyList(WarningRuleQueryReq req) {
+        if (req.getRuleId() == null) throw new BaseException("请选择预警规则");
         int pageNum = req.getPageNum() == null || req.getPageNum() < 1 ? 1 : req.getPageNum();
         int pageSize = normalizePageSize(req.getPageSize());
         String statMonth = StringUtils.defaultIfBlank(req.getStatMonth(), java.time.YearMonth.now().toString());
@@ -153,43 +154,34 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
             log.warn("规则不存在或已过期: ruleId={}", req.getRuleId());
             return PageResultVO.of(new ArrayList<>(), 0L, new StrategyRowVO(), pageNum, pageSize);
         }
-        List<WarningRuleVO.WarningRuleConditionVO> warnconditionlists  =warningMapper.selectRuleConditions(warningRuleVO.getId());
+        decorateRule(warningRuleVO);
+        List<WarningRuleVO.WarningRuleConditionVO> warnconditionlists = warningMapper.selectRuleConditions(warningRuleVO.getId());
 
-        String conditionSQL="";
-        // 数据账期按月份区间匹配（dataStartDate/dataEndDate 为 yyyy-MM-dd，截取前7位为 yyyy-MM）
-        conditionSQL+=" and DATE_FORMAT(stat_month,'%Y-%m') >= '"+warningRuleVO.getDataStartDate().substring(0,7)+"' and DATE_FORMAT(stat_month,'%Y-%m') <= '"+warningRuleVO.getDataEndDate().substring(0,7)+"' and NOW() >= '"+
-                warningRuleVO.getStartDate() + "' and NOW() <= '"+warningRuleVO.getEndDate()+"'";
-        if(warningRuleVO.getChannels()!=null && warningRuleVO.getChannels().size()>0){
-
-            conditionSQL+=" and channel in(" +warningRuleVO.getChannels().stream()
-                    .map(s -> "'" + s + "'")
-                    .collect(Collectors.joining(",")) +")";
-        }
-        if(warningRuleVO.getStrategies() !=null && warningRuleVO.getStrategies().size()>0){
-            conditionSQL+=" and strategy_id in ("+warningRuleVO.getStrategies().stream()
-                    .map(s -> "'" + s + "'")
-                    .collect(Collectors.joining(",")) +")";
-        }
+        String conditionSQL = "";
+        List<String> metricConditions = new ArrayList<>();
+        // 限定事实表列名；OR 条件必须加括号，避免绕过账期、地区和触点过滤。
+        List<String> allowedMetrics = "control".equals(req.getTabType())
+                ? Arrays.asList("consult_count", "retain_count", "retain_rate", "dispatch_count", "success_count", "success_rate", "income")
+                : Arrays.asList("strategy_count", "original_cust", "push_count", "usage_count", "usage_rate", "reach_count", "target_conv_num", "target_conv_rate", "product_conv_num", "product_conv_rate", "expected_income", "actual_income", "reject_count", "reject_rate");
         for (WarningRuleVO.WarningRuleConditionVO vo : warnconditionlists) {
-            conditionSQL+= " "+warningRuleVO.getLogic() +" " +vo.getMetricCode()+" " +getOption(vo.getOperator()) +vo.getThreshold();
+            if (!allowedMetrics.contains(vo.getMetricCode()) || StringUtils.isBlank(getOption(vo.getOperator())) || vo.getThreshold() == null) {
+                throw new BaseException("预警规则指标或操作符无效");
+            }
+            metricConditions.add("s." + vo.getMetricCode() + getOption(vo.getOperator()) + vo.getThreshold().toPlainString());
         }
+        if (metricConditions.isEmpty()) throw new BaseException("预警规则未配置指标条件");
+        conditionSQL += " AND (" + StringUtils.join(metricConditions, "or".equalsIgnoreCase(warningRuleVO.getLogic()) ? " OR " : " AND ") + ")";
 
-        if(StringUtils.isNotBlank(req.getFavorite())){
-
-            conditionSQL+=" and strategy_id in (select strategy_id from t_sr_favorite where source='follow' and rule_id='"+req.getRuleId()+"' and is_deleted=0) ";
-
-        }
-
-        log.info("组装后sql:{}",conditionSQL);
-
-
-        long total = warningMapper.countHitStrategyList(req.getTabType(), req.getRuleId(), statMonth,conditionSQL, req.getCityId());
+        boolean favorite = StringUtils.isNotBlank(req.getFavorite());
+        String userId = StringUtils.defaultIfBlank(req.getUserId(), "admin");
+        long total = warningMapper.countHitStrategyList(req.getTabType(), req.getRuleId(), statMonth, conditionSQL,
+                req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), warningRuleVO, favorite, userId);
         List<StrategyRowVO> list;
         if (total == 0) {
             list = new ArrayList<>();
         } else {
             list = warningMapper.selectHitStrategyList(req.getTabType(), req.getRuleId(), statMonth,conditionSQL,
-                    req.getCityId(), (pageNum - 1) * pageSize, pageSize);
+                    req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), warningRuleVO, favorite, userId, (pageNum - 1) * pageSize, pageSize);
         }
         return PageResultVO.of(list, total,new StrategyRowVO(), pageNum, pageSize);
     }
@@ -328,7 +320,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         }
         vo.setChannels(splitToList(vo.getChannelsStr()));
         vo.setChannelNames(queryChannelNames(vo.getChannels()));
-        vo.setStrategies(splitToLongList(vo.getStrategiesStr()));
+        vo.setStrategies(splitToList(vo.getStrategiesStr()));
     }
 
     private List<String> queryChannelNames(List<String> channels) {
@@ -343,21 +335,6 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
             return new ArrayList<>();
         }
         return new ArrayList<>(Arrays.asList(str.split(",")));
-    }
-
-    private List<Long> splitToLongList(String str) {
-        List<Long> list = new ArrayList<>();
-        if (StringUtils.isBlank(str)) {
-            return list;
-        }
-        for (String s : str.split(",")) {
-            try {
-                list.add(Long.parseLong(s.trim()));
-            } catch (NumberFormatException ignore) {
-                // 非法值跳过
-            }
-        }
-        return list;
     }
 
     private int normalizePageSize(Integer pageSize) {

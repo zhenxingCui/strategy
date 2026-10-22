@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "db:init-local": "node scripts/init-local-db.cjs",
+    "db:refresh-local": "node scripts/refresh-local-db.cjs",
+    "db:seed-passive-control": "node scripts/seed-passive-control-local.cjs",
     "serve": "node scripts/run-cli.js serve",
     "build": "node scripts/run-cli.js build"
   },

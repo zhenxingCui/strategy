@@ -75,6 +75,12 @@ public interface SrWarningMapper {
                                               @Param("statMonth") String statMonth,
                                               @Param("conditionSQL") String conditionSQL,
                                               @Param("cityId") String cityId,
+                                              @Param("countyId") String countyId,
+                                              @Param("channel") String channel,
+                                              @Param("strategyClass") String strategyClass,
+                                              @Param("rule") WarningRuleVO rule,
+                                              @Param("favorite") boolean favorite,
+                                              @Param("userId") String userId,
                                               @Param("offset") int offset,
                                               @Param("limit") int limit);
 
@@ -83,7 +89,13 @@ public interface SrWarningMapper {
                               @Param("ruleId") Long ruleId,
                               @Param("statMonth") String statMonth,
                               @Param("conditionSQL") String conditionSQL,
-                              @Param("cityId") String cityId
+                              @Param("cityId") String cityId,
+                              @Param("countyId") String countyId,
+                              @Param("channel") String channel,
+                              @Param("strategyClass") String strategyClass,
+                              @Param("rule") WarningRuleVO rule,
+                              @Param("favorite") boolean favorite,
+                              @Param("userId") String userId
     );
 
     /** 切换命中记录关注状态 */

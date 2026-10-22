@@ -36,9 +36,9 @@ export default {
   data () {
     return {
       tabs: [
-        { key: 'active', label: '主动策略（我找客户）' },
-        { key: 'passive', label: '被动策略（客户找我）' },
-        { key: 'control', label: '控损策略（控损挽留）' }
+        { key: 'active', label: '存量策略' },
+        { key: 'passive', label: '增量策略' },
+        { key: 'control', label: '重点产品' }
       ],
       innerRange: []
     }

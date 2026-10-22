@@ -24,4 +24,10 @@ public class OverviewQueryReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "对比指标编码（t_sr_dim_metric.metric_code），仅 trend 接口使用")
     private String metricCode;
+
+    @ApiModelProperty("触点渠道编码，空=全部渠道")
+    private String channel;
+
+    @ApiModelProperty("策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，空=全部")
+    private String strategyClass;
 }

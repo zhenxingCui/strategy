@@ -63,7 +63,7 @@ public class WarningRuleVO {
     private List<String> channelNames;
 
     @ApiModelProperty("适用策略ID集合，空=全部策略")
-    private List<Long> strategies;
+    private List<String> strategies;
 
     @ApiModelProperty("条件间逻辑关系：and/or")
     private String logic;

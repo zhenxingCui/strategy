@@ -52,7 +52,7 @@ public class WarningRuleSaveReq extends BaseRegionReq {
     private List<String> channels;
 
     @ApiModelProperty(value = "适用策略ID数组，空=全部策略")
-    private List<Long> strategies;
+    private List<String> strategies;
 
     @ApiModelProperty(value = "条件间逻辑关系：and/or，默认and")
     private String logic = "and";

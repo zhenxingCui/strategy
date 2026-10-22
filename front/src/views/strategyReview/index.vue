@@ -1,5 +1,12 @@
 <template>
-  <div class="strategy-review-page">
+  <div>
+    <active-review
+      v-if="['active', 'passive', 'control'].includes(activeTab)"
+      :tab-type="activeTab"
+      @tabChange="handleTabChange"
+      @dateRangeChange="handleDateRangeChange"
+    />
+    <div v-else class="strategy-review-page">
     <app-header
       :active-tab="activeTab"
       :date-range="dateRange"
@@ -43,11 +50,13 @@
         />
       </section>
     </main>
+    </div>
   </div>
 </template>
 
 <script>
 import AppHeader from './components/AppHeader.vue'
+import ActiveReview from './active/ActiveReview.vue'
 import StrategyOverview from './components/StrategyOverview.vue'
 import TouchpointExecution from './components/TouchpointExecution.vue'
 import ExecutionDetail from './components/ExecutionDetail.vue'
@@ -58,6 +67,7 @@ import { getCityId, getUserId } from '@/utils/auth'
 export default {
   name: 'strategyReview',
   components: {
+    ActiveReview,
     AppHeader,
     StrategyOverview,
     TouchpointExecution,
@@ -118,6 +128,7 @@ export default {
   },
   created () {
     this.initDateRangeFromUrl()
+    if (this.activeTab === 'active') return
     // 优先从后端获取最新数据日期，失败时使用本地默认范围
     this.fetchLatestDate().then(() => {
       // 首屏第一个区块立即渲染
@@ -151,7 +162,7 @@ export default {
     async fetchLatestDate () {
       try {
         const res = await getLatestDate({ tabType: 'active', cityId: getCityId(), userId: getUserId() })
-        const latestDate = Array.isArray(res) ? res[0] : (res && res.data)
+        const latestDate = typeof res === 'string' ? res : (Array.isArray(res) ? res[0] : (res && res.data))
         if (latestDate && typeof latestDate === 'string') {
           // latestDate 格式为 yyyy-MM-01，提取年月
           const ym = latestDate.substring(0, 7)

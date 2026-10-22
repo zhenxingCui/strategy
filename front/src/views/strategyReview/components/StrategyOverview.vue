@@ -69,6 +69,7 @@
 import EChart from '@/components/EChart.vue'
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
+import { chartRows } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 // 默认高亮指标从 KPI 卡片第一条数据获取，不再写死
@@ -169,7 +170,16 @@ export default {
   computed: {
     chartOption () {
       const { months, values, qoq, unit } = this.trendData
-      if (!months.length) return {}
+      const points = chartRows(months, values, qoq)
+      const chartMonths = points.months
+      const chartValues = points.values
+      const chartQoq = points.comparison
+      if (!chartMonths.length) {
+        return {
+          title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#9ca3af', fontSize: 13, fontWeight: 400 } },
+          series: []
+        }
+      }
 
       const formatVal = (val) => {
         if (unit === '个') return String(val)
@@ -178,18 +188,19 @@ export default {
       }
 
       // 柱状图Y轴自然范围
-      const barMax = Math.max(...values) * 1.05
+      const maxValue = Math.max(...chartValues.map(Number))
+      const barMax = (maxValue || 1) * 1.05
 
       // 环比Y轴：按数据实际范围自适应，上下各留25%标签余量，0必须在区间内
       // 不再用"固定0%线位置"的魔法常数，避免大环比量级下正区间被压缩、标签被裁剪
-      const qoqMax = Math.max(0, ...(qoq.map(v => v || 0)))
-      const qoqMin = Math.min(0, ...(qoq.map(v => v || 0)))
+      const qoqMax = Math.max(0, ...(chartQoq.map(v => Number(v) || 0)))
+      const qoqMin = Math.min(0, ...(chartQoq.map(v => Number(v) || 0)))
       const qoqPadding = Math.max(8, (qoqMax - qoqMin) * 0.25)
       const rightMax = qoqMax + qoqPadding
       const rightMin = qoqMin - qoqPadding
 
       // 将月份统一格式化为 "X月"
-      const monthLabels = months.map(m => formatMonthLabel(m))
+      const monthLabels = chartMonths.map(m => formatMonthLabel(m))
 
       return {
         tooltip: {
@@ -200,10 +211,10 @@ export default {
           textStyle: { color: '#374151', fontSize: 12 },
           formatter: (params) => {
             const idx = params[0].dataIndex
-            const monthStr = months[idx] || monthLabels[idx]
+            const monthStr = chartMonths[idx] || monthLabels[idx]
             let html = `<div style="font-weight:500;margin-bottom:4px;">${monthStr}</div>`
             params.forEach(p => {
-              const val = p.seriesName === '环比' ? p.value + '%' : formatVal(p.value)
+              const val = p.seriesName === '环比' ? (p.value == null ? '—' : p.value + '%') : formatVal(p.value)
               html += `<div style="display:flex;justify-content:space-between;gap:16px;"><span>${p.marker}${p.seriesName}</span><span style="font-weight:600;">${val}</span></div>`
             })
             return html
@@ -251,7 +262,7 @@ export default {
           {
             name: this.activeMetric,
             type: 'bar',
-            data: values,
+            data: chartValues,
             itemStyle: { color: '#3b82f6', borderRadius: [3, 3, 0, 0] },
             barWidth: '40%',
             label: {
@@ -268,7 +279,7 @@ export default {
             name: '环比',
             type: 'line',
             yAxisIndex: 1,
-            data: qoq,
+            data: chartQoq,
             smooth: true,
             symbol: 'circle',
             symbolSize: 5,
