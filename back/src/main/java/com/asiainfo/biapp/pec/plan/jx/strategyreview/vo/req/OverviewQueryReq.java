@@ -28,6 +28,6 @@ public class OverviewQueryReq extends BaseRegionReq {
     @ApiModelProperty("触点渠道编码，空=全部渠道")
     private String channel;
 
-    @ApiModelProperty("策略分类：升接/稳/降拆/离，空=全部")
+    @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群，空=全部")
     private String strategyClass;
 }

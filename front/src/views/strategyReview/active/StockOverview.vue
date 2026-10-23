@@ -15,7 +15,6 @@
           >
             {{ category.label }}
           </button>
-          <button v-if="query.tabType === 'active'" class="seg-btn" disabled title="待配置客群字段或映射">重点客群</button>
         </div>
         <review-state
           :state="panels.kpi"
@@ -187,6 +186,7 @@ export default {
             { label: '稳', value: '稳' },
             { label: '降拆', value: '降拆' },
             { label: '离', value: '离' },
+            { label: '重点客群', value: '重点客群' },
           ]
         : [{ label: '全部', value: '全部' }]
     },

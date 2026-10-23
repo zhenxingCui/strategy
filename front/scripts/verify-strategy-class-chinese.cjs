@@ -22,21 +22,23 @@ function load(relative) {
 function frontend() {
   const data = load('src/views/strategyReview/active/reviewData.js')
   const format = data.strategyColumns.find(c => c.prop === 'strategyClass').format
-  for (const value of ['全部', '升接', '稳', '降拆', '离']) assert.equal(format(value), value)
+  for (const value of ['全部', '升接', '稳', '降拆', '离', '重点客群']) assert.equal(format(value), value)
   const entry = load('src/views/strategyReview/active/ActiveReview.vue').default
-  for (const strategyClass of ['', '全部', '升接', '稳', '降拆', '离']) {
+  for (const strategyClass of ['', '全部', '升接', '稳', '降拆', '离', '重点客群']) {
     assert.equal(entry.computed.query.call({ tabType: 'active', strategyClass }).strategyClass, strategyClass || '全部')
     assert.equal(entry.computed.query.call({ tabType: 'passive', strategyClass }).strategyClass, '全部')
   }
   for (const name of ['StockOverview', 'StockExecution']) {
     const component = load(`src/views/strategyReview/active/${name}.vue`).default
-    for (const strategyClass of ['全部', '升接', '稳', '降拆', '离']) {
+    for (const strategyClass of ['全部', '升接', '稳', '降拆', '离', '重点客群']) {
       assert.equal(component.computed.isDowngrade.call({ query: { tabType: 'active', strategyClass } }), strategyClass === '降拆')
     }
     assert.equal(component.computed.isDowngrade.call({ query: { tabType: 'passive', strategyClass: '降拆' } }), false)
     if (name === 'StockOverview') {
       const categories = component.computed.categories.call({ query: { tabType: 'active' } })
-      assert.equal(categories.map(c => c.value).join(','), '全部,升接,稳,降拆,离')
+      assert.equal(categories.map(c => c.value).join(','), '全部,升接,稳,降拆,离,重点客群')
+      const groups = strategyClass => component.computed.groups.call({ query: { tabType: 'active', strategyClass }, isDowngrade: false })
+      assert.equal(JSON.stringify(groups('重点客群')), JSON.stringify(groups('升接')))
     }
   }
   const columns = [{ prop: 'bigCategory', label: '策略大类' }]

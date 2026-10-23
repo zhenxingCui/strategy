@@ -160,8 +160,7 @@ async function main() {
     if (!bizColumns.length) await conn.query("ALTER TABLE t_sr_strategy_biz_capacity ADD COLUMN tab_type VARCHAR(32) NOT NULL DEFAULT 'active' COMMENT '策略类型：active/passive/control' AFTER id")
     const [indexRows] = await conn.query("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=? AND TABLE_NAME='t_sr_strategy_biz_capacity' AND INDEX_NAME='idx_sbc_tab_strategy_date'", [database])
     if (!indexRows.length) await conn.query('ALTER TABLE t_sr_strategy_biz_capacity ADD INDEX idx_sbc_tab_strategy_date (tab_type, strategy_id, stat_date)')
-    await conn.query("UPDATE t_sr_strategy_biz_capacity b JOIN t_sr_strategy s ON s.strategy_code=b.strategy_id SET b.tab_type=s.tab_type WHERE s.tab_type IN ('active','passive','control')")
-    await conn.query("UPDATE t_sr_strategy_biz_capacity SET tab_type='active' WHERE tab_type IS NULL OR tab_type=''")
+    await conn.query("UPDATE t_sr_strategy_biz_capacity b LEFT JOIN t_sr_strategy s ON s.strategy_code=b.strategy_id SET b.tab_type=COALESCE(s.tab_type,'active') WHERE b.tab_type IS NULL OR b.tab_type=''")
 
     const passCodes = PASS_NAMES.map((_, i) => `PAS${String(i + 1).padStart(3, '0')}`)
     const ctrlCodes = CTRL_NAMES.map((_, i) => `CTL${String(i + 1).padStart(3, '0')}`)
@@ -189,7 +188,6 @@ async function main() {
         await conn.query('DELETE FROM t_sr_warning_hit WHERE rule_id IN (?)', [ruleIds])
       }
       await conn.query('DELETE FROM t_sr_warning_rule WHERE create_by=?', [RULE_CREATOR])
-      await conn.query("DELETE FROM t_sr_dim_channel WHERE key_code IN ('PCH01','PCH02','PCH03','PCH04','PCH05','PCH06','CCH01','CCH02','CCH03','CCH04','CCH05','CCH06') AND tab_type IN ('passive','control')")
       await conn.query('DELETE FROM t_sr_strategy_biz_capacity WHERE county_id IN (?,?)', [PASS_MARK, CTRL_MARK])
       await conn.query('DELETE FROM t_sr_strategy_reject_reason WHERE county_id IN (?,?)', [PASS_MARK, CTRL_MARK])
       await conn.query('DELETE FROM t_sr_strategy_daily_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
@@ -297,9 +295,6 @@ async function main() {
         const passiveTotal = apMetrics(passiveRows)
         const priorTotal = mi ? apMetrics(passPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
         for (const [index, [code, label, unit]] of PASS_KPIS.entries()) passKpis.push({ tab_type: 'passive', strategy_class: '全部', metric_code: code, metric_name: label, value: passiveTotal[code], unit, qoq: qoq(passiveTotal, priorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
-        const passAllPrior = passPriorChannel.get('全部')
-        passMonthlyCapacity.push({ tab_type: 'passive', strategy_class: '全部', stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: passiveTotal.product_conv_num, qoq: qoq(passiveTotal, passAllPrior, 'product_conv_num'), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
-        passPriorChannel.set('全部', passiveTotal)
         for (const [channelCode] of CHANNELS.passive) {
           const rows = passiveRows.filter((r) => r.channel === channelCode)
           if (!rows.length) continue
@@ -353,9 +348,8 @@ async function main() {
         const total = ctrlMetrics(controlRows)
         const ctrlPriorTotal = mi ? ctrlMetrics(ctrlPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
         for (const [index, [code, label, unit]] of CTRL_KPIS.entries()) ctrlKpis.push({ tab_type: 'control', strategy_class: '全部', metric_code: code, metric_name: label, value: total[code], unit, qoq: qoq(total, ctrlPriorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
-        const allSuccessPrior = ctrlPriorChannel.get('全部')
-        ctrlMonthlyCapacity.push({ stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: total.success_count, qoq: qoq(total, allSuccessPrior, 'success_count'), city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
-        ctrlPriorChannel.set('全部', total)
+        const allSuccessPrior = mi ? ctrlPriorChannel.get('全部') : null
+        ctrlMonthlyCapacity.push({ stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: total.success_count, qoq: qoq(total, ctrlPriorTotal, 'success_count'), city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
         for (const [channelCode] of CHANNELS.control) {
           const rows = controlRows.filter((r) => r.channel === channelCode)
           if (!rows.length) continue

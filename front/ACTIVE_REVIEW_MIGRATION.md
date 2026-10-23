@@ -21,8 +21,8 @@
 
 本次已创建独立联调库。页面通过 REST 接口读取 MySQL；数据为本地生成的联调样例，不代表线上业务数据。
 
-- 12 条存量策略，按策略主表中的 `strategy_class` 字段随机均分为升接、稳、降拆、离，每类 3 条；4 个触点，4 组业务大类/小类。
-- 2025-11 至 2026-10 共 12 个月，策略按不同月份上线和结束；每月策略数随活动周期变化（当前样例为 2–12 条），不再固定为 12 条。
+- 20 条存量策略：8 条重点客群独立样例（`strategy_class=重点客群`），另 12 条按策略主表中的 `strategy_class` 字段随机均分为升接、稳、降拆、离，每类 3 条；4 个触点，4 组业务大类/小类。
+- 2025-11 至 2026-10 共 12 个月，策略按不同月份上线和结束；每月策略数随活动周期变化。
 - 月度客群、推送、使用、触达、转化和收入之间保持漏斗及汇总关系；加入淡旺季、策略差异和稳定的轻微波动。
 - 日数据按工作日、周末和月内活动时点分配，逐月汇总仍与月度指标一致。
 - 7 条预警规则，包括生效、过期和停用示例。
@@ -67,8 +67,8 @@
 
 ## 当前业务边界
 
-- 存量策略分类值为 `升接`、`稳`、`降拆`、`离`；增量策略、重点产品只展示全部。
-- “重点客群”等待用户提供字段和枚举。
+- 存量策略分类值为 `升接`、`稳`、`降拆`、`离`、`重点客群`；增量策略、重点产品只展示全部。
+- “重点客群”与“升接”共用界面和指标口径，通过 `strategy_class=重点客群` 联动查询四个模块，具备独立的月度、日明细、渠道及业务产能数据；已计入“全部”汇总。
 - “对照执行情况（非上线）”保留禁用标签，等待后端提供对应数据接口。
 
 ## 验证
@@ -77,6 +77,10 @@
 
 ```powershell
 node scripts/verify-active-api.cjs
+node scripts/verify-key-audience-data.cjs
+$env:SR_VERIFY_STRATEGY_CLASS='重点客群'
+node scripts/verify-active-api.cjs
+Remove-Item Env:SR_VERIFY_STRATEGY_CLASS
 node scripts/verify-active-api.cjs --write-checks
 npm run build
 ```
@@ -87,6 +91,6 @@ npm run build
 
 在 `back/` 执行 `mvn -DskipTests compile` 检查 Java 与 Mapper 接口编译。
 
-存量 strategy_class 直接存“升接/稳/降拆/离”，预计算汇总存“全部”。已有英文分类数据执行 back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql。
+存量 strategy_class 直接存“升接/稳/降拆/离/重点客群”，预计算汇总存“全部”。已有英文分类数据执行 back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql。
 
 增量和重点产品的已有 `strategy_class` 字段统一为“全部”（包括主表和明细）；执行 `back/src/main/resources/sql/strategy_review_non_active_class_all.sql`。不带该字段的 `_ctrl` 专用表无需加列。汇总查询未传分类或传空串均读取“全部”。

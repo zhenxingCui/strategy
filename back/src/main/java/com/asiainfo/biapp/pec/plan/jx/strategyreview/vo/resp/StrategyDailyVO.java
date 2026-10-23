@@ -28,7 +28,7 @@ public class StrategyDailyVO {
     @ApiModelProperty("策略名称（冗余，与 name 一致）")
     private String strategyName;
 
-    @ApiModelProperty("策略分类：升接/稳/降拆/离")
+    @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群")
     private String strategyClass;
 
     // ============ active/passive 指标 ============

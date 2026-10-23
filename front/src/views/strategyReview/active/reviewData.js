@@ -92,7 +92,7 @@ export const strategyColumns = [
     prop: 'strategyClass',
     label: '策略分类',
     text: true,
-    format: (value) => ({ 全部: '全部', 升接: '升接', 稳: '稳', 降拆: '降拆', 离: '离' })[value] || '—',
+    format: (value) => ({ 全部: '全部', 升接: '升接', 稳: '稳', 降拆: '降拆', 离: '离', 重点客群: '重点客群' })[value] || '—',
   },
   { prop: 'bigCategory', label: '策略大类', text: true },
   { prop: 'smallCategory', label: '策略小类', text: true },

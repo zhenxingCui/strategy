@@ -4,7 +4,7 @@ const base = process.env.SR_API_BASE || 'http://127.0.0.1:8080/plan-svc-lj/strat
 const writes = process.argv.includes('--write-checks')
 if (writes && !['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('写入检查仅允许本地服务')
 const userId = `active-verify-${Date.now()}`
-const defaults = { tabType: 'active', cityId: '001', userId }
+const defaults = { tabType: 'active', cityId: '001', userId, strategyClass: process.env.SR_VERIFY_STRATEGY_CLASS || '全部' }
 let checks = 0
 async function api(endpoint, params = {}) {
   const response = await fetch(base + endpoint, {
@@ -37,6 +37,7 @@ async function main() {
   })
   assert.equal(list.list.length, Math.min(list.total, 5))
   assert.ok(list.list.every((row) => row.strategyId !== '999'))
+  if (defaults.strategyClass !== '全部') assert.ok(list.list.every(row => row.strategyClass === defaults.strategyClass))
   assert.equal(kpis.find((row) => row.metricCode === 'strategy_count').value, list.total)
   const trend = await api('/overview/trend', { ...scope, metricCode: kpis[0].metricCode })
   assert.ok(trend.months.length > 1 && trend.months.length <= 12)
@@ -152,6 +153,7 @@ async function main() {
         passed: true,
         checks,
         statMonth,
+        strategyClass: defaults.strategyClass,
         strategies: list.total,
         rules: rules.total,
         mode: writes ? 'read-and-write' : 'read-only',

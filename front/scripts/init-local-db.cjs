@@ -2,6 +2,11 @@
 const fs = require('fs')
 const path = require('path')
 const mysql = require('mysql2/promise')
+const keyAudienceNames = [
+  '高价值客户专属权益推荐', '校园客群流量升级', '家庭主账户融合经营', '银龄客户关怀服务',
+  '商旅客群漫游权益推荐', '高流量客群套餐优化', '合约到期重点客户续约', '宽带高潜客群提速推荐',
+]
+const activeClasses = ['升接', '稳', '降拆', '离', '重点客群']
 
 const database = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
 if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(database)) throw new Error('数据库名仅支持字母、数字和下划线')
@@ -166,7 +171,7 @@ async function main() {
     }
     await connection.beginTransaction()
     if (refreshExisting) {
-      const generatedStrategyIds = Array.from({ length: 12 }, (_, index) => `STR${String(index + 1).padStart(3, '0')}`)
+      const generatedStrategyIds = Array.from({ length: 12 + keyAudienceNames.length }, (_, index) => `STR${String(index + 1).padStart(3, '0')}`)
       const deletes = [
         ['t_sr_strategy_reject_reason', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '001']],
         ['t_sr_strategy_biz_capacity', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '001']],
@@ -220,15 +225,16 @@ async function main() {
       '亲情网拓展',
       '宽带提速推荐',
       '重点客户关怀',
+      ...keyAudienceNames,
     ]
-    const launchOffsets = [0, 0, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8]
-    const endOffsets = [11, 11, 8, 11, 11, 9, 11, 10, 11, 11, 11, 11]
-    const monthlyPushBases = [72000, 128000, 54000, 91000, 67000, 145000, 48000, 112000, 83000, 59000, 101000, 76000]
-    const strategyClasses = seededClassShuffle(names.length)
+    const launchOffsets = [0, 0, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 0, 0, 1, 2, 3, 4, 5, 6]
+    const endOffsets = [11, 11, 8, 11, 11, 9, 11, 10, 11, 11, 11, 11, ...keyAudienceNames.map(() => 11)]
+    const monthlyPushBases = [72000, 128000, 54000, 91000, 67000, 145000, 48000, 112000, 83000, 59000, 101000, 76000, 86000, 113000, 98000, 62000, 74000, 132000, 89000, 105000]
+    // 保留原有四类分组，重点客群使用独立策略和独立指标。
+    const strategyClasses = seededClassShuffle(12).concat(keyAudienceNames.map(() => '重点客群'))
     const big = ['套餐运营', '权益运营', '增值业务', '家庭业务']
     const small = ['套餐升档', '权益领取', '彩铃体验', '宽带续约']
     const strategies = names.map((name, i) => ({
-      id: i + 1,
       strategy_code: `STR${String(i + 1).padStart(3, '0')}`,
       strategy_name: name,
       tab_type: 'active',
@@ -273,6 +279,7 @@ async function main() {
           稳: { usage: 0.49, reach: 0.76, target: 0.078, product: 0.128 },
           降拆: { usage: 0.45, reach: 0.68, target: 0.071, product: 0.112 },
           离: { usage: 0.39, reach: 0.63, target: 0.058, product: 0.094 },
+          重点客群: { usage: 0.61, reach: 0.79, target: 0.108, product: 0.172 },
         }[s.strategy_class]
         const push = Math.round(monthlyPushBases[i] * seasonalFactor * trendFactor * noise)
         const originalCust = Math.round(push * stableNoise(`${s.strategy_code}:${month}:audience`, 1.04, 1.28))
@@ -350,7 +357,7 @@ async function main() {
           capacity: sum.product_conv_num,
           qoq: channelRows[channelRows.length - 1].product_conv_num_qoq,
         })
-        for (const strategyClass of ['升接', '稳', '降拆', '离']) {
+        for (const strategyClass of activeClasses) {
           const classRows = rows.filter((row) => row.strategy_class === strategyClass)
           if (!classRows.length) continue
           const classSum = aggregate(classRows)
@@ -400,7 +407,7 @@ async function main() {
         stat_month: month + '-01',
         ...total,
       })
-      for (const strategyClass of ['升接', '稳', '降拆', '离']) {
+      for (const strategyClass of activeClasses) {
         const matchingClass = monthly.filter((row) => row.strategy_class === strategyClass)
         const classTotal = aggregate(matchingClass)
         const classQoq = withQoq(classTotal, previousClassTotal[strategyClass])
@@ -522,6 +529,7 @@ async function main() {
         稳: [0.22, 0.16, 0.32, 0.18, 0.12],
         降拆: [0.31, 0.21, 0.2, 0.16, 0.12],
         离: [0.36, 0.25, 0.11, 0.17, 0.11],
+        重点客群: [0.21, 0.23, 0.26, 0.19, 0.11],
       }[row.strategy_class]
       const reasonWeights = classRejectWeights.map((weight, i) => weight * stableNoise(`${row.strategy_id}:reason:${i}`, 0.82, 1.18))
       const reasonWeightTotal = reasonWeights.reduce((sum, weight) => sum + weight, 0)
