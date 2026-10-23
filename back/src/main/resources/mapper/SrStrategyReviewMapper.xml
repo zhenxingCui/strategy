@@ -557,7 +557,7 @@
                 <include refid="strategyListApWhere"/>
                 <if test="queryList !=null and queryList == 0" >
                     and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部' and s.strategy_id!='999'
-                    <if test="strategyClass == null or strategyClass == '' or strategyClass == '全部'">
+                    <if test="tabType == 'active' and (strategyClass == null or strategyClass == '' or strategyClass == '全部')">
                         AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
                     </if>
                 </if>
@@ -584,7 +584,7 @@
                 FROM t_sr_strategy_period_summary_ap s
                 <include refid="strategyListApWhere"/>
                 AND s.channel != '全部' AND s.big_category != '全部' AND s.small_category != '全部' AND s.strategy_name != '全部' AND s.strategy_id != '999'
-                <if test="strategyClass == null or strategyClass == '' or strategyClass == '全部'">
+                <if test="tabType == 'active' and (strategyClass == null or strategyClass == '' or strategyClass == '全部')">
                     AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
                 </if>
             </otherwise>
@@ -928,7 +928,9 @@
                     WHERE strategy_id = #{strategyId} AND is_deleted = 0
                       AND (tab_type = #{tabType} OR tab_type IS NULL)
                       AND channel != '全部' AND big_category != '全部' AND small_category != '全部'
+                    <if test="tabType == 'active'">
                       AND (strategy_class IS NULL OR strategy_class != '全部')
+                    </if>
                     <if test="channel != null and channel != ''">
                       AND channel = #{channel}
                     </if>
@@ -977,7 +979,9 @@
                 WHERE s.strategy_id = #{strategyId}
                   AND (s.tab_type = #{tabType} OR s.tab_type IS NULL)
                   AND s.is_deleted = 0
+                <if test="tabType == 'active'">
                   AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
+                </if>
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') &lt;= #{statMonth}</if>    and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部'
                 <if test="channel != null and channel != ''">
                     AND s.channel = #{channel}
