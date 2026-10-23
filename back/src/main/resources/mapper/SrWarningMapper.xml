@@ -33,6 +33,7 @@
 
     <select id="selectRuleList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
         SELECT r.id                              AS id,
+               r.tab_type                        AS tabType,
                r.rule_name                       AS ruleName,
                r.rule_desc                       AS `desc`,
                r.status                          AS status,
@@ -54,6 +55,7 @@
     </select>
     <select id="queryRuleById" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
         SELECT r.id                              AS id,
+               r.tab_type                        AS tabType,
         r.rule_name                       AS ruleName,
         r.rule_desc                       AS `desc`,
         r.status                          AS status,
@@ -94,6 +96,7 @@
 
     <select id="selectRuleDetail" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.WarningRuleVO">
         SELECT r.id                              AS id,
+               r.tab_type                        AS tabType,
                r.rule_name                       AS ruleName,
                r.rule_desc                       AS `desc`,
                r.status                          AS status,

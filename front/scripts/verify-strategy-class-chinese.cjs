@@ -64,6 +64,14 @@ function frontend() {
   }
   const columns = [{ prop: 'bigCategory', label: '策略大类' }]
   assert.equal(data.categoryLabelColumns(columns, { tabType: 'active', strategyClass: '降拆' })[0].label, '场景大类')
+  const downgrade = { tabType: 'active', strategyClass: '降拆' }
+  const names = Object.fromEntries(data.categoryLabelColumns(data.strategyColumns, downgrade).map(c => [c.prop, c.label]))
+  assert.equal(names.pushCount, '咨询量')
+  assert.equal(names.usageCount, '挽留量')
+  assert.equal(names.reachCount, '派单量')
+  assert.equal(names.productConvNum, '成功量')
+  assert.equal(data.categoryLabelColumns(data.strategyColumns, { tabType: 'active', strategyClass: '升接' }), data.strategyColumns)
+  assert.equal(data.categoryLabelColumns(data.controlStrategyColumns, { tabType: 'control', strategyClass: '降拆' }), data.controlStrategyColumns)
   console.log('PASS frontend: Chinese categories, display, default total, downgrade behavior')
 }
 

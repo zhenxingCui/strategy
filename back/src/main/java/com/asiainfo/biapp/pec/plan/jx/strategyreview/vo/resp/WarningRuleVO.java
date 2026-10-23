@@ -17,6 +17,9 @@ public class WarningRuleVO {
     @ApiModelProperty("规则ID")
     private Long id;
 
+    @ApiModelProperty("策略类型")
+    private String tabType;
+
     @ApiModelProperty("规则名称")
     private String ruleName;
 

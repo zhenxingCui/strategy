@@ -333,6 +333,12 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
 
     /** 列表行装饰：动态过期、状态徽标、日期区间、创建人展示、渠道/策略串拆分 */
     private void decorateRule(WarningRuleVO vo) {
+        if ("control".equals(vo.getTabType()) && vo.getConditions() != null) {
+            for (WarningRuleVO.WarningRuleConditionVO condition : vo.getConditions()) {
+                condition.setMetricName(ControlMetricNames.label(condition.getMetricCode(), condition.getMetricName()));
+                condition.setUnit(ControlMetricNames.unit(condition.getMetricCode(), condition.getUnit()));
+            }
+        }
         LocalDate today = LocalDate.now();
         LocalDate end;
         try {

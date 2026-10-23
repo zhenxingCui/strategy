@@ -43,12 +43,13 @@ public class StrategyScopeAggregationService {
 
     private static final String[][] CONTROL_METRICS = {
         {"strategyCount", "strategy_count", "策略数", "个"},
-        {"consultCount", "consult_count", "咨询量", "次"},
-        {"retainCount", "retain_count", "挽留量", "次"},
-        {"retainRate", "retain_rate", "挽留率", "%"},
-        {"dispatchCount", "dispatch_count", "派单量", "单"},
-        {"successCount", "success_count", "成功量", "单"},
-        {"successRate", "success_rate", "成功率", "%"},
+        {"consultCount", "consult_count", "推送量", "次"},
+        {"retainCount", "retain_count", "使用量", "次"},
+        {"retainRate", "retain_rate", "使用率", "%"},
+        {"reachRate", "reach_rate", "触达率", "%"},
+        {"dispatchCount", "dispatch_count", "触达量", "次"},
+        {"successCount", "success_count", "转化量", "次"},
+        {"successRate", "success_rate", "转化率", "%"},
         {"income", "income", "收入", "元"}
     };
 
@@ -108,6 +109,7 @@ public class StrategyScopeAggregationService {
         for (Map<String, Object> row : rows) {
             if (!"business".equals(dimension) && "control".equals(req.getTabType())) {
                 rate(row, "retainRate", "retainCount", "consultCount");
+                rate(row, "reachRate", "dispatchCount", "retainCount");
                 rate(row, "successRate", "successCount", "dispatchCount");
             } else if (!"business".equals(dimension)) {
                 rate(row, "usageRate", "usageCount", "pushCount");
@@ -176,6 +178,11 @@ public class StrategyScopeAggregationService {
         result.setQoq(latest.stream().map(row -> number(row, selected[0] + "QoQ")).collect(Collectors.toList()));
         result.setUnit(selected[3]);
         return result;
+    }
+
+    /** Historical summary tables lack this column, so derive it from strategy facts for every product scope. */
+    public KpiCardVO reachRate(OverviewQueryReq req) {
+        return kpis(req).stream().filter(card -> "reach_rate".equals(card.getMetricCode())).findFirst().orElse(null);
     }
 
     public ChannelSummaryRespVO channels(TouchpointQueryReq request) {

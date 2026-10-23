@@ -58,7 +58,14 @@
             <tr
               v-for="(row, index) in rows"
               :key="rowKey(row, index)"
-              :class="{ 'is-picked': activeId && String(row.strategyId) === String(activeId) }"
+              :class="{
+                'is-picked': rowClickable ? activeRowKey === rowKey(row, index) : activeId && String(row.strategyId) === String(activeId),
+                'is-clickable': rowClickable,
+              }"
+              :tabindex="rowClickable ? 0 : null"
+              :aria-selected="rowClickable ? activeRowKey === rowKey(row, index) : null"
+              @click="activateRow(row, $event)"
+              @keydown="activateRowByKey(row, $event)"
             >
               <td v-if="selectable" class="selection-cell">
                 <input
@@ -116,6 +123,9 @@ export default {
     pageSize: { type: Number, default: 5 },
     total: { type: Number, default: 0 },
     activeId: { type: [String, Number], default: '' },
+    rowClickable: Boolean,
+    getRowKey: { type: Function, default: null },
+    activeRowKey: { type: String, default: '' },
     pagination: { type: Boolean, default: true },
     tools: Boolean,
     selectable: Boolean,
@@ -139,7 +149,17 @@ export default {
   },
   methods: {
     rowKey(row, index) {
+      if (this.getRowKey) return this.getRowKey(row)
       return `${row.strategyId || row.bizCode || row.bigCategory || ''}-${row.channel || ''}-${index}`
+    },
+    activateRow(row, event) {
+      if (!this.rowClickable || event.target.closest('button, input, select, a')) return
+      this.$emit('row-click', row)
+    },
+    activateRowByKey(row, event) {
+      if (!this.rowClickable || event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+      event.preventDefault()
+      this.$emit('row-click', row)
     },
     cell(row, col) {
       const value = row[col.prop] == null && col.prop === 'strategyName' ? row.name : row[col.prop]

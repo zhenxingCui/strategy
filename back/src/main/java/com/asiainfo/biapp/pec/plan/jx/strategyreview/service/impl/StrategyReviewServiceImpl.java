@@ -107,7 +107,11 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             case "策略名称":
                 return reviewMapper.selectStrategyNameDims(req.getTabType(), req.getChannel(), req.getKeyword());
             case "预警指标":
-                return reviewMapper.selectMetricDims(req.getTabType());
+                List<DimItemVO> metrics = reviewMapper.selectMetricDims(req.getTabType());
+                if ("control".equals(req.getTabType())) {
+                    for (DimItemVO metric : metrics) metric.setKeyName(ControlMetricNames.label(metric.getKeyCode(), metric.getKeyName()));
+                }
+                return metrics;
             case "规则状态":
                 return buildStatusDims();
             default:
@@ -145,12 +149,12 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             };
             String[][] controlMetrics = {
                     {"strategyCount", "strategy_count", "策略数", "个"},
-                    {"consultCount", "consult_count", "咨询量", "次"},
-                    {"retainCount", "retain_count", "挽留量", "次"},
-                    {"retainRate", "retain_rate", "挽留率", "%"},
-                    {"dispatchCount", "dispatch_count", "派单量", "次"},
-                    {"successCount", "success_count", "成功量", "次"},
-                    {"successRate", "success_rate", "成功率", "%"},
+                    {"consultCount", "consult_count", "推送量", "次"},
+                    {"retainCount", "retain_count", "使用量", "次"},
+                    {"retainRate", "retain_rate", "使用率", "%"},
+                    {"dispatchCount", "dispatch_count", "触达量", "次"},
+                    {"successCount", "success_count", "转化量", "次"},
+                    {"successRate", "success_rate", "转化率", "%"},
                     {"income", "income", "收入", "元"}
             };
             List<KpiCardVO> cards = new ArrayList<>();
@@ -164,15 +168,29 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 if (qoq != null) card.setTrendQoQ(new BigDecimal(qoq.toString()));
                 cards.add(card);
             }
+            if ("control".equals(req.getTabType())) {
+                KpiCardVO reachRate = scopeAggregation.reachRate(req);
+                if (reachRate != null) cards.add(reachRate);
+            }
             return cards;
         }
         List<KpiCardVO> list = reviewMapper.selectKpiCard(req.getTabType(), statMonth,
                 req.getCityId(), req.getCountyId(), req.getStrategyClass());
+        if (list != null && "control".equals(req.getTabType())) {
+            list.removeIf(card -> "reach_rate".equals(card.getMetricCode()));
+            KpiCardVO reachRate = scopeAggregation.reachRate(req);
+            if (reachRate != null) list.add(reachRate);
+            for (KpiCardVO card : list) {
+                card.setLabel(ControlMetricNames.label(card.getMetricCode(), card.getLabel()));
+                card.setUnit(ControlMetricNames.unit(card.getMetricCode(), card.getUnit()));
+            }
+        }
         return list == null ? new ArrayList<>() : list;
     }
 
     @Override
     public KpiTrendVO queryKpiTrend(OverviewQueryReq req) {
+        if ("control".equals(req.getTabType()) && "reach_rate".equals(req.getMetricCode())) return scopeAggregation.trend(req);
         if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.trend(req);
         if (StringUtils.isBlank(req.getMetricCode())) {
             throw new BaseException("指标编码metricCode不能为空");
@@ -211,6 +229,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 }
             }
         }
+        if ("control".equals(req.getTabType())) resp.setUnit(ControlMetricNames.unit(req.getMetricCode(), resp.getUnit()));
         resp.setMonths(months);
         resp.setValues(values);
         resp.setQoq(qoq);
@@ -270,7 +289,12 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
 
     @Override
     public List<ChannelTrendVO> queryChannelCapacityTrend(TouchpointQueryReq req) {
-        if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.capacityTrend(req);
+        // Category-level history is available in strategy facts even when the channel
+        // capacity table only contains rows whose category dimensions are "全部".
+        if (req.getCustomerGroup() != null || req.getProductName() != null
+                || StringUtils.isNotBlank(req.getBigCategory()) || StringUtils.isNotBlank(req.getSmallCategory())) {
+            return scopeAggregation.capacityTrend(req);
+        }
         List<ChannelTrendVO> list = reviewMapper.selectChannelCapacityTrend(
                 req.getTabType(), req.getChannel(),
                 req.getBigCategory(), req.getSmallCategory(),

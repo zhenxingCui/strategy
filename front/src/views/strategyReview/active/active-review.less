@@ -212,6 +212,9 @@
   }
   .split--m2 {
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    &.split--without-biz {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    }
   }
   .split--m3 {
     grid-template-columns: minmax(300px, 3fr) minmax(0, 7fr);
@@ -359,6 +362,16 @@
   .data-table tbody tr:hover,
   .data-table tr.is-picked {
     background: var(--brand-weak);
+  }
+  .data-table tr.is-clickable {
+    cursor: pointer;
+  }
+  .data-table tr.is-clickable:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+  }
+  .data-table tr.is-clickable.is-picked td:first-child {
+    box-shadow: inset 3px 0 var(--brand);
   }
   .data-table .selection-cell {
     width: 28px;
@@ -969,6 +982,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: repeat(2, minmax(240px, auto));
     gap: 12px;
+    &.detail-grid--without-biz > .card:last-child {
+      grid-column-start: 1;
+      grid-column-end: 2;
+    }
     > .card {
       min-width: 0;
     }
@@ -1052,6 +1069,12 @@
     }
     .split--m2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      &.split--without-biz {
+        grid-template-columns: 1fr;
+        > .card:first-child {
+          grid-column: auto;
+        }
+      }
       > .card:first-child {
         grid-column: span 2;
       }

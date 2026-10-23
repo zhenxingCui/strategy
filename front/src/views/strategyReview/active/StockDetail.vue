@@ -39,7 +39,7 @@
           </div>
         </review-table>
       </div>
-      <div class="detail-grid">
+      <div class="detail-grid" :class="{ 'detail-grid--without-biz': isDowngrade }">
         <div class="card">
           <div class="sub-title">策略详情</div>
           <review-state
@@ -82,7 +82,7 @@
             ><e-chart :option="rejectOption" height="210px"
           /></review-state>
         </div>
-        <div class="card">
+        <div v-if="!isDowngrade" class="card">
           <review-table
             title="业务产能明细"
             :columns="bizColumns"
@@ -183,6 +183,9 @@ export default {
     }
   },
   computed: {
+    isDowngrade() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
+    },
     columns() {
       const columns = this.query.tabType === 'control'
         ? controlStrategyColumns
@@ -191,8 +194,8 @@ export default {
     },
     bizColumns() {
       return this.query.tabType === 'control'
-        ? strategyBizColumns.map(c => c.prop === 'count' ? { ...c, label: '成功量' } : c)
-        : strategyBizColumns
+        ? strategyBizColumns.map(c => c.prop === 'count' ? { ...c, label: '转化量' } : c)
+        : categoryLabelColumns(strategyBizColumns, this.query)
     },
     dailyColumns() {
       const columns = this.columns
@@ -366,6 +369,7 @@ export default {
         )
     },
     loadBiz() {
+      if (this.isDowngrade) return
       if (this.selected.strategyId)
         return this.request(
           'biz',

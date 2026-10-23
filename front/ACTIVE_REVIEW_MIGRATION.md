@@ -116,3 +116,10 @@ npm run build
 存量 strategy_class 直接存“升接/稳/降拆/离/重点客群”，预计算汇总存“全部”。已有英文分类数据执行 back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql。
 
 增量和重点产品的已有 `strategy_class` 字段统一为“全部”（包括主表和明细）；执行 `back/src/main/resources/sql/strategy_review_non_active_class_all.sql`。不带该字段的 `_ctrl` 专用表无需加列。汇总查询未传分类或传空串均读取“全部”。
+
+
+2026-10-23 指标名称修正：重点产品统一显示推送量、使用量、触达量、转化量，使用率与转化率同步更名；整体卡片、漏斗、趋势图例、分类/逐策略/分日表格、业务产能、预警指标及规则条件均使用新名称。兼容既有控损字段：consult_count→推送量、retain_count→使用量、dispatch_count→触达量、success_count→转化量；retain_rate→使用率、success_rate→转化率。数据库结构及历史数值不变，旧 KPI/指标字典/预警条件的显示名称由接口按代码规范化。本条取代上文保留咨询/挽留/派单/成功名称的约定。
+
+重点产品整体情况补齐三项比率：使用率=使用量/推送量，触达率=触达量/使用量，转化率=转化量/触达量。新增的 reach_rate 通过 dispatch_count/retain_count 聚合计算；全部产品、具体产品及触点筛选均支持，环比为相邻自然月率值之差（pp），缺少上月或分母为零时为空。点击触达率可查看近12期趋势，无需新增数据库列或重写历史汇总。
+
+存量降拆页面文案：漏斗及趋势使用咨询量、挽留量、派单量、成功量；分类汇总、预警命中、逐策略、收藏、分日表格及导出统一采用该口径，目标转化指标显示为目标成功量/目标成功率，业务产能列显示成功量。仅在 active + 降拆 生效，接口字段和数值不变。

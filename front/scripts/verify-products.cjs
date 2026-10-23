@@ -10,6 +10,7 @@ const userId = `product-verify-${Date.now()}`
 let checks = 0
 let ruleId
 let ids = []
+const metricLabels = { consult_count: '推送量', retain_count: '使用量', dispatch_count: '触达量', success_count: '转化量', retain_rate: '使用率', reach_rate: '触达率', success_rate: '转化率' }
 async function api(route, params = {}) {
   const response = await fetch(base + route, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -27,7 +28,7 @@ const pct = (a, b) => b ? round(a / b * 100) : null
 function metrics(rows) {
   const values = { strategy_count: new Set(rows.map(row => row.strategy_id)).size }
   for (const field of ['consult_count', 'retain_count', 'dispatch_count', 'success_count', 'income']) values[field] = rows.reduce((sum, row) => sum + Number(row[field]), 0)
-  for (const [name, numerator, denominator] of [['retain_rate', 'retain_count', 'consult_count'], ['success_rate', 'success_count', 'dispatch_count']]) values[name] = pct(values[numerator], values[denominator])
+  for (const [name, numerator, denominator] of [['retain_rate', 'retain_count', 'consult_count'], ['reach_rate', 'dispatch_count', 'retain_count'], ['success_rate', 'success_count', 'dispatch_count']]) values[name] = pct(values[numerator], values[denominator])
   return values
 }
 async function main() {
@@ -42,6 +43,8 @@ async function main() {
     const previousDate = new Date(year, month - 2, 1)
     const previousMonth = `${previousDate.getFullYear()}-${String(previousDate.getMonth() + 1).padStart(2, '0')}`
     const groups = await api('/dim', { type: '产品名称' })
+    const metricOptions = await api('/dim', { type: '预警指标' })
+    for (const metric of metricOptions) if (metricLabels[metric.keyCode]) assert.equal(metric.keyName, metricLabels[metric.keyCode])
     assert.ok(groups.length >= 5)
     assert.ok(groups.every(group => group.keyCode === group.keyName && group.keyName.trim() === group.keyName))
     const [facts] = await connection.query(`SELECT p.*, s.product_name FROM t_sr_strategy_period_summary_ctrl p
@@ -58,6 +61,7 @@ async function main() {
         const cards = await api('/overview/kpi', scope)
         assert.equal(cards.length > 0, current.length > 0)
         for (const card of cards) {
+          if (metricLabels[card.metricCode]) assert.equal(card.label, metricLabels[card.metricCode])
           assert.equal(card.value, expected[card.metricCode], `${group.keyCode}/${channel}/${card.metricCode}`)
           const qoq = !previous.length ? null : card.unit === '%' ? round(expected[card.metricCode] - prior[card.metricCode]) : pct(expected[card.metricCode] - prior[card.metricCode], prior[card.metricCode])
           assert.equal(card.trendQoQ, qoq, `${group.keyCode}/${channel}/${card.metricCode} qoq`)
@@ -72,7 +76,7 @@ async function main() {
         assert.equal(summaries.list.reduce((sum, row) => sum + row.successCount, 0), expected.success_count)
         const business = await api('/touchpoint/channelBizCapacity', scope)
         assert.equal(business.reduce((sum, row) => sum + row.capacity, 0), expected.success_count)
-        for (const metricCode of ['success_count', 'retain_rate', 'success_rate']) {
+        for (const metricCode of ['success_count', 'retain_rate', 'reach_rate', 'success_rate']) {
           const trend = await api('/overview/trend', { ...scope, metricCode })
           assert.ok(trend.months.length <= 12)
           if (current.length) assert.equal(trend.values.at(-1), expected[metricCode])
@@ -105,6 +109,7 @@ async function main() {
       ruleName: userId, startDate: '2000-01-01', endDate: '2099-12-31', dataStartDate: latest + '-01', dataEndDate: latest + '-28',
       channels: [], strategies: [], logic: 'or', conditions: [{ metricCode: 'consult_count', metricName: '咨询量', operator: 'gt', threshold: 0, unit: '次' }],
     })
+    assert.equal((await api('/warning/ruleDetail', { id: ruleId })).conditions[0].metricName, '推送量')
     const hits = await api('/warning/hitStrategyList', { ...scope, ruleId, pageSize: 500 })
     assert.equal(hits.total, facts.filter(row => row.product_name === group && row.stat_month.startsWith(latest)).length)
     assert.ok(hits.list.every(row => facts.some(fact => fact.strategy_id === row.strategyId && fact.product_name === group)))
@@ -118,6 +123,13 @@ async function main() {
     const [master] = await connection.execute("SELECT product_name FROM t_sr_strategy WHERE strategy_code=? AND tab_type='control'", [sample.strategy_id])
     const originalName = master[0].product_name
     const beforeAll = await api('/overview/kpi', { statMonth: latest })
+    assert.equal(beforeAll.find(card => card.metricCode === 'reach_rate').value, metrics(facts.filter(row => row.stat_month.startsWith(latest))).reach_rate)
+    for (const card of beforeAll) if (metricLabels[card.metricCode]) assert.equal(card.label, metricLabels[card.metricCode])
+    const reachTrend = await api('/overview/trend', { statMonth: latest, metricCode: 'reach_rate' })
+    assert.equal(reachTrend.values.at(-1), beforeAll.find(card => card.metricCode === 'reach_rate').value)
+    const channelCards = await api('/overview/kpi', { statMonth: latest, channel: sample.channel })
+    assert.equal(channelCards.find(card => card.metricCode === 'reach_rate').value, metrics(facts.filter(row => row.stat_month.startsWith(latest) && row.channel === sample.channel)).reach_rate)
+    for (const card of channelCards) if (metricLabels[card.metricCode]) assert.equal(card.label, metricLabels[card.metricCode])
     try {
       await connection.execute("UPDATE t_sr_strategy SET product_name=NULL WHERE strategy_code=? AND tab_type='control'", [sample.strategy_id])
       assert.deepEqual(await api('/overview/kpi', { statMonth: latest }), beforeAll)

@@ -63,7 +63,7 @@
               class="metric-funnel"
               viewBox="0 0 450 470"
               role="img"
-              :aria-label="query.tabType === 'control' ? '咨询量、挽留量、派单量、成功量四级漏斗' : isDowngrade ? '咨询量、挽留量、触达量、成功量四级漏斗' : '推送量、使用量、触达量、转化量四级漏斗'"
+              :aria-label="isDowngrade ? '咨询量、挽留量、派单量、成功量四级漏斗' : '推送量、使用量、触达量、转化量四级漏斗'"
             >
               <defs>
                 <linearGradient id="active-funnel-cyan" x1="0" y1="0" x2="0" y2="1">
@@ -219,15 +219,15 @@ export default {
     groups() {
       if (this.query.tabType === 'control') {
         return {
-          left: [item('strategy_count', '策略数'), item('success_count', '产能', '产能采用控损成功量'), item('income', '收入')],
-          mid: [item('strategy_count', '策略数'), item('consult_count', '咨询量'), item('retain_count', '挽留量'), item('dispatch_count', '派单量'), item('success_count', '成功量')],
-          rate: [item('retain_rate', '挽留率'), item('success_rate', '成功率')],
+          left: [item('strategy_count', '策略数'), item('success_count', '产能', '产能采用转化量'), item('income', '收入')],
+          mid: [item('strategy_count', '策略数'), item('consult_count', '推送量'), item('retain_count', '使用量'), item('dispatch_count', '触达量'), item('success_count', '转化量')],
+          rate: [item('retain_rate', '使用率'), item('reach_rate', '触达率'), item('success_rate', '转化率')],
         }
       }
       return {
         left: [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
         mid: this.isDowngrade
-          ? [item('push_count', '咨询量'), item('usage_count', '挽留量'), item('reach_count', '触达量'), item('product_conv_num', '成功量')]
+          ? [item('push_count', '咨询量'), item('usage_count', '挽留量'), item('reach_count', '派单量'), item('product_conv_num', '成功量')]
           : [item('original_cust', '客群'), item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')],
         rate: this.isDowngrade
           ? [item('usage_rate', '挽留率'), item('reach_rate', '派单率'), item('product_conv_rate', '成功率')]
@@ -249,11 +249,14 @@ export default {
       return this.kpis.find((k) => k.metricCode === this.activeMetric) || {}
     },
     trendOption() {
+      const metric = this.isDowngrade
+        ? this.groups.mid.concat(this.groups.rate, this.groups.left).find((item) => item.key === this.activeMetric)
+        : null
       return barLineOption(
         this.trend.months,
         this.trend.values,
         this.trend.qoq,
-        this.activeCard.label || '指标',
+        (metric && metric.label) || this.activeCard.label || '指标',
         this.trend.unit || this.activeCard.unit || '',
       )
     },

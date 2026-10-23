@@ -33,9 +33,9 @@ const PASS_KPIS = [
   ['actual_income', '收入', '元'], ['reject_rate', '拒绝率', '%'],
 ]
 const CTRL_KPIS = [
-  ['strategy_count', '策略数', '个'], ['consult_count', '咨询量', '次'], ['retain_count', '挽留量', '次'],
-  ['retain_rate', '挽留率', '%'], ['dispatch_count', '派单量', '单'], ['success_count', '成功量', '单'],
-  ['success_rate', '成功率', '%'], ['income', '收入', '元'],
+  ['strategy_count', '策略数', '个'], ['consult_count', '推送量', '次'], ['retain_count', '使用量', '次'],
+  ['retain_rate', '使用率', '%'], ['dispatch_count', '触达量', '次'], ['success_count', '转化量', '次'],
+  ['success_rate', '转化率', '%'], ['income', '收入', '元'],
 ]
 const PASS_CATEGORIES = [
   ['套餐运营', '套餐升级'], ['权益运营', '会员权益'], ['家庭业务', '融合发展'],

@@ -60,14 +60,14 @@ export const categoryColumns = [
   ...metrics,
 ]
 
-// 控损指标采用同一套分类、策略名称和交互布局，数值字段保持控损接口定义。
+// 重点产品使用存量策略指标名称，保留现有接口字段以兼容历史数据。
 export const controlMetrics = [
-  { prop: 'consultCount', label: '咨询量' },
-  { prop: 'retainCount', label: '挽留量' },
-  { prop: 'retainRate', label: '挽留率', format: percentText },
-  { prop: 'dispatchCount', label: '派单量' },
-  { prop: 'successCount', label: '成功量' },
-  { prop: 'successRate', label: '成功率', format: percentText },
+  { prop: 'consultCount', label: '推送量' },
+  { prop: 'retainCount', label: '使用量' },
+  { prop: 'retainRate', label: '使用率', format: percentText },
+  { prop: 'dispatchCount', label: '触达量' },
+  { prop: 'successCount', label: '转化量' },
+  { prop: 'successRate', label: '转化率', format: percentText },
 ]
 
 export const controlCategoryColumns = [
@@ -100,10 +100,17 @@ export const strategyColumns = [
   ...metrics,
 ]
 
-// 存量“降拆”页按场景口径展示分类列名，数据字段保持接口原样。
+// 存量“降拆”页统一场景与咨询/挽留/派单/成功文案，字段、排序和导出取值保持原样。
 export function categoryLabelColumns(columns, query) {
   if (!query || query.tabType !== 'active' || query.strategyClass !== '降拆') return columns
-  const labels = { bigCategory: '场景大类', smallCategory: '场景小类' }
+  const labels = {
+    bigCategory: '场景大类', smallCategory: '场景小类',
+    pushCount: '咨询量', usageCount: '挽留量', usageRate: '挽留率',
+    reachCount: '派单量', reachRate: '派单率',
+    targetConvNum: '目标成功量', targetConvRate: '目标成功率',
+    productConvNum: '成功量', productConvRate: '成功率',
+    capacity: '成功量', count: '成功量',
+  }
   return columns.map((column) => labels[column.prop] ? { ...column, label: labels[column.prop] } : column)
 }
 

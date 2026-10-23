@@ -1,7 +1,11 @@
 <template>
   <section class="section">
     <h2 class="section-title">策略执行情况</h2>
-    <div class="split split--m2">
+    <div class="execution-scope" role="status" aria-live="polite">
+      <span>当前联动：{{ scopeLabel }}</span>
+      <button v-if="selectedCategory" class="btn-link" @click="clearSelection">× 清除选择</button>
+    </div>
+    <div class="split split--m2" :class="{ 'split--without-biz': isDowngrade }">
       <div class="card">
         <review-table
           title="策略分类执行情况"
@@ -11,6 +15,10 @@
           :page="page"
           :total="filteredCategories.length"
           :state="panels.category"
+          row-clickable
+          :get-row-key="categoryKey"
+          :active-row-key="selectedCategory ? categoryKey(selectedCategory) : ''"
+          @row-click="selectCategory"
           @page="page = $event"
           @retry="loadCategories"
         >
@@ -36,7 +44,7 @@
           ><e-chart :option="trendOption" height="285px"
         /></review-state>
       </div>
-      <div class="card">
+      <div v-if="!isDowngrade" class="card">
         <review-table
           title="业务产能明细"
           :columns="bizColumns"
@@ -74,9 +82,21 @@ export default {
       draftSmall: '',
       big: '',
       small: '',
+      selectedCategory: null,
     }
   },
   computed: {
+    capacityQuery() {
+      return {
+        ...this.query,
+        bigCategory: this.selectedCategory ? this.selectedCategory.bigCategory : this.big,
+        smallCategory: this.selectedCategory ? this.selectedCategory.smallCategory : this.small,
+      }
+    },
+    scopeLabel() {
+      const { bigCategory, smallCategory } = this.capacityQuery
+      return [bigCategory, smallCategory].filter(Boolean).join(' / ') || `全部${this.categoryPrefix}分类`
+    },
     columns() {
       return categoryLabelColumns(this.query.tabType === 'control' ? controlCategoryColumns : categoryColumns, this.query)
     },
@@ -94,8 +114,8 @@ export default {
     },
     bizColumns() {
       return this.query.tabType === 'control'
-        ? channelBizColumns.map(c => c.prop === 'capacity' ? { ...c, label: '成功量' } : c)
-        : channelBizColumns
+        ? channelBizColumns.map(c => c.prop === 'capacity' ? { ...c, label: '转化量' } : c)
+        : categoryLabelColumns(channelBizColumns, this.query)
     },
     bigCategories() {
       return [...new Set(this.categories.map((r) => r.bigCategory).filter(Boolean))]
@@ -131,7 +151,7 @@ export default {
     query: {
       deep: true,
       handler() {
-        this.reset()
+        this.resetFilters()
         this.load()
       },
     },
@@ -142,8 +162,26 @@ export default {
   methods: {
     load() {
       this.loadCategories()
+      this.loadCapacity()
+    },
+    loadCapacity() {
+      this.bizPage = 1
+      this.trend = []
+      this.biz = []
       this.loadTrend()
       this.loadBiz()
+    },
+    categoryKey(row) {
+      return JSON.stringify([row.bigCategory || '', row.smallCategory || ''])
+    },
+    selectCategory(row) {
+      if (this.selectedCategory && this.categoryKey(row) === this.categoryKey(this.selectedCategory)) return
+      this.selectedCategory = { bigCategory: row.bigCategory || '', smallCategory: row.smallCategory || '' }
+      this.loadCapacity()
+    },
+    clearSelection() {
+      this.selectedCategory = null
+      this.loadCapacity()
     },
     loadCategories() {
       return this.request(
@@ -158,16 +196,17 @@ export default {
     loadTrend() {
       return this.request(
         'trend',
-        () => getChannelCapacityTrend(this.query),
+        () => getChannelCapacityTrend(this.capacityQuery),
         (result) => {
           this.trend = listOf(result)
         },
       )
     },
     loadBiz() {
+      if (this.isDowngrade) return
       return this.request(
         'biz',
-        () => getChannelBizCapacity(this.query),
+        () => getChannelBizCapacity(this.capacityQuery),
         (result) => {
           this.biz = listOf(result)
           this.bizPage = 1
@@ -178,8 +217,15 @@ export default {
       this.big = this.draftBig
       this.small = this.draftSmall
       this.page = 1
+      this.selectedCategory = null
+      this.loadCapacity()
     },
     reset() {
+      this.resetFilters()
+      this.loadCapacity()
+    },
+    resetFilters() {
+      this.selectedCategory = null
       this.big = ''
       this.small = ''
       this.draftBig = ''
@@ -189,3 +235,13 @@ export default {
   },
 }
 </script>
+<style scoped>
+.execution-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: -4px 0 12px;
+  font-size: 13px;
+}
+</style>

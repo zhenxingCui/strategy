@@ -31,16 +31,23 @@
         AND s.big_category != '全部' AND s.small_category != '全部'
         <choose>
             <when test="query.tabType == 'control'">
+                <if test="query.productName != null and query.productName != ''">
                 AND EXISTS (SELECT 1 FROM t_sr_strategy product
                     WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
                       AND product.is_deleted = 0 AND product.product_name = #{query.productName})
+                </if>
             </when>
             <otherwise>
-                AND s.tab_type = 'active' AND s.strategy_class = '重点客群'
+                AND s.tab_type = #{query.tabType}
+                <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+                AND s.strategy_class = #{query.strategyClass}
+                </if>
+                <if test="query.customerGroup != null and query.customerGroup != ''">
                 AND EXISTS (SELECT 1 FROM t_sr_strategy cg
                     WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                       AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                       AND cg.customer_group = #{query.customerGroup})
+                </if>
             </otherwise>
         </choose>
         <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
