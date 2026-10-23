@@ -216,7 +216,7 @@
     <sql id="hitStrategyFilters">
         AND s.strategy_id != '999'
         <if test="channel != null and channel != ''">AND s.channel = #{channel}</if>
-        <if test="tabType != 'control' and strategyClass != null and strategyClass != ''">AND s.strategy_class = #{strategyClass}</if>
+        <if test="tabType != 'control' and strategyClass != null and strategyClass != '' and strategyClass != '全部'">AND s.strategy_class = #{strategyClass}</if>
         <if test="countyId != null and countyId != ''">AND s.county_id = #{countyId}</if>
         <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}</if>
         AND DATE_FORMAT(s.stat_month, '%Y-%m') BETWEEN LEFT(#{rule.dataStartDate}, 7) AND LEFT(#{rule.dataEndDate}, 7)

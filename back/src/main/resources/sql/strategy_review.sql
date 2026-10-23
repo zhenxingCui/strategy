@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
     strategy_code  VARCHAR(64)  DEFAULT NULL COMMENT '策略编码',
     strategy_name  VARCHAR(255) DEFAULT NULL COMMENT '策略名称',
     tab_type       VARCHAR(32)  DEFAULT NULL COMMENT '策略类型：active/passive/control',
-    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：存量为升接/稳/降拆/离；增量/重点产品为全部',
     channel        VARCHAR(64)  DEFAULT NULL COMMENT '触点渠道编码',
     strategy_level VARCHAR(32)  DEFAULT NULL COMMENT '策略级别',
     caliber        VARCHAR(512) DEFAULT NULL COMMENT '客群口径描述',
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
 CREATE TABLE IF NOT EXISTS t_sr_kpi_summary (
     id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type    VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class VARCHAR(16) DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
+    strategy_class VARCHAR(16) DEFAULT NULL COMMENT '策略分类：存量为全部/升接/稳/降拆/离；增量/重点产品为全部',
     metric_code VARCHAR(64)   DEFAULT NULL COMMENT '指标编码',
     metric_name VARCHAR(128)  DEFAULT NULL COMMENT '指标名称',
     value       DECIMAL(20,4) DEFAULT NULL COMMENT '当期值',
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ap (
     id                   BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type             VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
+    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：存量为全部/升接/稳/降拆/离；增量/重点产品为全部',
     stat_month           DATE          DEFAULT NULL COMMENT '账期',
     channel              VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     strategy_count       BIGINT        DEFAULT NULL COMMENT '策略量',
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ap (
     id                   BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type             VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
+    strategy_class       VARCHAR(16)   DEFAULT NULL COMMENT '策略分类：存量为全部/升接/稳/降拆/离；增量/重点产品为全部',
     strategy_id          VARCHAR(64)  DEFAULT NULL COMMENT '策略ID',
     strategy_name        VARCHAR(255)  DEFAULT NULL COMMENT '策略名称',
     channel              VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ap (
     id            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type      VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：存量为全部/升接/稳/降拆/离；增量/重点产品为全部',
     stat_month    DATE          DEFAULT NULL COMMENT '账期',
     channel       VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     big_category  VARCHAR(128)  DEFAULT NULL COMMENT '业务大类',
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ap (
     id            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type      VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN，NULL=全部',
+    strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：存量为全部/升接/稳/降拆/离；增量/重点产品为全部',
     stat_month    DATE          DEFAULT NULL COMMENT '账期',
     channel       VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',
     big_category  VARCHAR(128)  DEFAULT NULL COMMENT '业务大类',
@@ -357,7 +357,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ctrl (
 CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ap (
     id               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     tab_type         VARCHAR(32)   DEFAULT NULL COMMENT '策略类型',
-    strategy_class   VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：UPSELL/STABLE/DOWNGRADE/CHURN',
+    strategy_class   VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：存量为升接/稳/降拆/离；增量/重点产品为全部',
     strategy_id      VARCHAR(64)  DEFAULT NULL COMMENT '策略ID',
     stat_date        DATE          DEFAULT NULL COMMENT '统计日期',
     channel          VARCHAR(64)   DEFAULT NULL COMMENT '渠道编码',

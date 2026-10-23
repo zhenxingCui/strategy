@@ -81,7 +81,7 @@ function seededClassShuffle(size) {
     const other = Math.floor(random() * (index + 1))
     ;[values[index], values[other]] = [values[other], values[index]]
   }
-  return values.map((index) => ['UPSELL', 'STABLE', 'DOWNGRADE', 'CHURN'][index])
+  return values.map((index) => ['升接', '稳', '降拆', '离'][index])
 }
 
 function stableNoise(key, min = 0.9, max = 1.1) {
@@ -246,7 +246,7 @@ async function main() {
       small_category: small[i % 4],
     }))
     await insert('t_sr_strategy', strategies)
-    const common = { tab_type: 'active', strategy_class: null, city_id: '001', is_deleted: 0 }
+    const common = { tab_type: 'active', strategy_class: '全部', city_id: '001', is_deleted: 0 }
     const periods = []
     const channelRows = []
     const categoryRows = []
@@ -269,10 +269,10 @@ async function main() {
         const noise = stableNoise(`${s.strategy_code}:${month}`, 0.88, 1.14)
         const trendFactor = 1 + index * 0.006
         const classRates = {
-          UPSELL: { usage: 0.54, reach: 0.72, target: 0.092, product: 0.146 },
-          STABLE: { usage: 0.49, reach: 0.76, target: 0.078, product: 0.128 },
-          DOWNGRADE: { usage: 0.45, reach: 0.68, target: 0.071, product: 0.112 },
-          CHURN: { usage: 0.39, reach: 0.63, target: 0.058, product: 0.094 },
+          升接: { usage: 0.54, reach: 0.72, target: 0.092, product: 0.146 },
+          稳: { usage: 0.49, reach: 0.76, target: 0.078, product: 0.128 },
+          降拆: { usage: 0.45, reach: 0.68, target: 0.071, product: 0.112 },
+          离: { usage: 0.39, reach: 0.63, target: 0.058, product: 0.094 },
         }[s.strategy_class]
         const push = Math.round(monthlyPushBases[i] * seasonalFactor * trendFactor * noise)
         const originalCust = Math.round(push * stableNoise(`${s.strategy_code}:${month}:audience`, 1.04, 1.28))
@@ -350,7 +350,7 @@ async function main() {
           capacity: sum.product_conv_num,
           qoq: channelRows[channelRows.length - 1].product_conv_num_qoq,
         })
-        for (const strategyClass of ['UPSELL', 'STABLE', 'DOWNGRADE', 'CHURN']) {
+        for (const strategyClass of ['升接', '稳', '降拆', '离']) {
           const classRows = rows.filter((row) => row.strategy_class === strategyClass)
           if (!classRows.length) continue
           const classSum = aggregate(classRows)
@@ -400,7 +400,7 @@ async function main() {
         stat_month: month + '-01',
         ...total,
       })
-      for (const strategyClass of ['UPSELL', 'STABLE', 'DOWNGRADE', 'CHURN']) {
+      for (const strategyClass of ['升接', '稳', '降拆', '离']) {
         const matchingClass = monthly.filter((row) => row.strategy_class === strategyClass)
         const classTotal = aggregate(matchingClass)
         const classQoq = withQoq(classTotal, previousClassTotal[strategyClass])
@@ -518,10 +518,10 @@ async function main() {
         qoq: row.product_conv_num_qoq,
       })
       const classRejectWeights = {
-        UPSELL: [0.27, 0.24, 0.19, 0.18, 0.12],
-        STABLE: [0.22, 0.16, 0.32, 0.18, 0.12],
-        DOWNGRADE: [0.31, 0.21, 0.2, 0.16, 0.12],
-        CHURN: [0.36, 0.25, 0.11, 0.17, 0.11],
+        升接: [0.27, 0.24, 0.19, 0.18, 0.12],
+        稳: [0.22, 0.16, 0.32, 0.18, 0.12],
+        降拆: [0.31, 0.21, 0.2, 0.16, 0.12],
+        离: [0.36, 0.25, 0.11, 0.17, 0.11],
       }[row.strategy_class]
       const reasonWeights = classRejectWeights.map((weight, i) => weight * stableNoise(`${row.strategy_id}:reason:${i}`, 0.82, 1.18))
       const reasonWeightTotal = reasonWeights.reduce((sum, weight) => sum + weight, 0)
@@ -541,7 +541,7 @@ async function main() {
         })
     }
     await insert('t_sr_strategy_biz_capacity', bizRows)
-    await insert('t_sr_channel_biz_capacity_ap', channelBiz)
+    await insert('t_sr_channel_biz_capacity_ap', channelBiz.concat(channelBiz.map(row => ({ ...row, strategy_class: '全部' }))))
     await insert('t_sr_strategy_reject_reason', reasons)
     let ruleCount = null
     if (!refreshExisting) {

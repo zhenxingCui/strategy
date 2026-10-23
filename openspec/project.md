@@ -67,7 +67,7 @@ npm run serve
 ```
 
 ### 数据库
-- 本地联调库：`strategy_review_active_class_local`（utf8mb4）；存量策略样例在 `t_sr_strategy.strategy_class` 中均分为 `UPSELL`、`STABLE`、`DOWNGRADE`、`CHURN`；原始 SQL 脚本中的库名为 `strategy_review`。
+- 本地联调库：`strategy_review_active_class_local`（utf8mb4）；存量策略样例在 `t_sr_strategy.strategy_class` 中均分为 `升接`、`稳`、`降拆`、`离`；原始 SQL 脚本中的库名为 `strategy_review`。
 - 建表：`back/src/main/resources/sql/strategy_review.sql`
 - 测试数据：`back/src/main/resources/sql/strategy_review_data.sql`
 - 默认连接本机 MySQL，支持 `SR_DB_URL` / `SR_DB_USER` / `SR_DB_PASSWORD` 环境变量。初始化本地联调数据：在 `front/` 执行 `npm run db:init-local`，拒绝覆盖已有库。`hikari.initialization-fail-timeout: -1`（库暂不可用也允许启动）。

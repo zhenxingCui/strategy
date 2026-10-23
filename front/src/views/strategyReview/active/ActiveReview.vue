@@ -96,7 +96,7 @@ export default {
         tabType: this.tabType,
         statMonth: this.month,
         channel: this.channel,
-        strategyClass: this.strategyClass,
+        strategyClass: this.tabType === 'active' ? (this.strategyClass || '全部') : '全部',
         cityId: getCityId(),
         userId: getUserId(),
       }

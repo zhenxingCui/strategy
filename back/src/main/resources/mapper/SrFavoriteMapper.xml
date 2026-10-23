@@ -33,7 +33,7 @@
         <if test="query.strategyName != null and query.strategyName != ''">
             AND f.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')
         </if>
-        <if test="tabType != 'control' and query.strategyClass != null and query.strategyClass != ''">
+        <if test="tabType != 'control' and query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
             AND EXISTS (SELECT 1 FROM t_sr_strategy_period_summary_ap p
                 WHERE p.strategy_id = f.strategy_id AND p.tab_type = f.tab_type
                 AND p.strategy_class = #{query.strategyClass} AND p.is_deleted = 0

@@ -689,3 +689,48 @@ SELECT '999', '999', '分类汇总', '全部', '全部', '全部', MAX(stat_mont
 FROM t_sr_strategy_period_summary_ctrl
 WHERE strategy_id LIKE 'STR%' AND is_deleted = 0
 GROUP BY DATE_FORMAT(stat_month, '%Y-%m');
+
+-- 存量预计算总计显式存“全部”；原始种子未提供真实策略分类，需由业务映射补齐。
+UPDATE t_sr_kpi_summary SET strategy_class = '全部'
+WHERE tab_type = 'active' AND strategy_class IS NULL;
+UPDATE t_sr_channel_summary_ap SET strategy_class = '全部'
+WHERE tab_type = 'active' AND strategy_class IS NULL;
+UPDATE t_sr_channel_monthly_capacity_ap SET strategy_class = '全部'
+WHERE tab_type = 'active' AND strategy_class IS NULL;
+UPDATE t_sr_channel_biz_capacity_ap SET strategy_class = '全部'
+WHERE tab_type = 'active' AND strategy_class IS NULL;
+UPDATE t_sr_strategy_period_summary_ap SET strategy_class = '全部'
+WHERE tab_type = 'active' AND strategy_class IS NULL AND strategy_id = '999';
+
+-- 增量及重点产品使用显式分类“全部”。
+-- 增量、重点产品已有 strategy_class 字段统一存全部；无此字段的专用表无需修改。
+-- 与新应用、ETL 一起切换；仅更新 NULL，不覆盖已有非空分类。
+SET NAMES utf8mb4;
+
+UPDATE t_sr_strategy
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_kpi_summary
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_channel_summary_ap
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_strategy_period_summary_ap
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_channel_monthly_capacity_ap
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_channel_biz_capacity_ap
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;
+
+UPDATE t_sr_strategy_daily_ap
+SET strategy_class = '全部'
+WHERE tab_type IN ('passive', 'control') AND strategy_class IS NULL;

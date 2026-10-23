@@ -28,7 +28,7 @@ public class StrategyRowVO {
     @ApiModelProperty("策略名称（control 不返回）")
     private String strategyName;
 
-    @ApiModelProperty("策略分类：UPSELL/STABLE/DOWNGRADE/CHURN")
+    @ApiModelProperty("策略分类：升接/稳/降拆/离")
     private String strategyClass;
 
     @ApiModelProperty("触点渠道编码")

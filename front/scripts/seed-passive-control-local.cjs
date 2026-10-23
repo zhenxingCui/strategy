@@ -127,7 +127,7 @@ function withQoq(m, prior) {
 }
 function apBase({ type = 'passive', month, channel, big, small, id, name, metrics, prior, marker = PASS_MARK }) {
   return {
-    tab_type: type, strategy_class: null, strategy_id: id, strategy_name: name, channel,
+    tab_type: type, strategy_class: '全部', strategy_id: id, strategy_name: name, channel,
     big_category: big, small_category: small, stat_month: `${month}-01`, ...withQoq(metrics, prior),
     city_id: CITY, county_id: marker, is_deleted: 0,
   }
@@ -236,7 +236,7 @@ async function main() {
       await insertRows('t_sr_dim_metric', metricRows)
 
       const passStrategies = PASS_NAMES.map((name, i) => ({
-        strategy_code: passCodes[i], strategy_name: name, tab_type: 'passive', strategy_class: null,
+        strategy_code: passCodes[i], strategy_name: name, tab_type: 'passive', strategy_class: '全部',
         channel: CHANNELS.passive[i % CHANNELS.passive.length][0], strategy_level: ['省级', '市级', '区县级'][i % 3],
         caliber: `近三个月符合${PASS_CATEGORIES[i % PASS_CATEGORIES.length][1]}条件且处于可触达状态的目标客户`,
         iteration: 1 + (i % 6), owner: PASS_OWNER, status: '生效中',
@@ -244,7 +244,7 @@ async function main() {
         create_time: `${shiftMonth(startMonth, i % 6)}-01 09:00:00`, is_deleted: 0,
       }))
       const ctrlStrategies = CTRL_NAMES.map((name, i) => ({
-        strategy_code: ctrlCodes[i], strategy_name: name, tab_type: 'control', strategy_class: null,
+        strategy_code: ctrlCodes[i], strategy_name: name, tab_type: 'control', strategy_class: '全部',
         channel: CHANNELS.control[i % CHANNELS.control.length][0], strategy_level: ['省级', '市级', '区县级'][i % 3],
         caliber: `结合服务记录、业务到期和客户风险评分触发${CTRL_CATEGORIES[i % CTRL_CATEGORIES.length][1]}流程`,
         iteration: 1 + (i % 5), owner: CTRL_OWNER, status: '生效中',
@@ -287,7 +287,7 @@ async function main() {
           const [year, mm] = month.split('-').map(Number); const days = new Date(year, mm, 0).getDate()
           for (let day = 1; day <= days; day++) {
             const d = Object.fromEntries(Object.entries(daily).map(([key, values]) => [key, values[day - 1]]))
-            passDaily.push({ tab_type: 'passive', strategy_class: null, strategy_id: s.strategy_code, stat_date: `${month}-${String(day).padStart(2, '0')}`, channel, big_category: big, small_category: small, strategy_name: s.strategy_name, ...d, usage_rate: pct(d.usage_count, d.push_count), reach_rate: pct(d.reach_count, d.usage_count), target_conv_rate: pct(d.target_conv_num, d.reach_count), product_conv_rate: pct(d.product_conv_num, d.reach_count), reject_rate: pct(d.reject_count, d.push_count), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+            passDaily.push({ tab_type: 'passive', strategy_class: '全部', strategy_id: s.strategy_code, stat_date: `${month}-${String(day).padStart(2, '0')}`, channel, big_category: big, small_category: small, strategy_name: s.strategy_name, ...d, usage_rate: pct(d.usage_count, d.push_count), reach_rate: pct(d.reach_count, d.usage_count), target_conv_rate: pct(d.target_conv_num, d.reach_count), product_conv_rate: pct(d.product_conv_num, d.reach_count), reject_rate: pct(d.reject_count, d.push_count), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
           }
           const bizSplit = splitTotal(product, PASS_BUSINESSES.length)
           PASS_BUSINESSES.forEach((bizName, bi) => passBiz.push({ tab_type: 'passive', strategy_id: s.strategy_code, stat_date: `${month}-01`, biz_code: `PB${String(bi + 1).padStart(2, '0')}`, biz_name: bizName, count: bizSplit[bi], mom_ratio: between(-18, 24), yoy_ratio: null, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 }))
@@ -296,19 +296,19 @@ async function main() {
         })
         const passiveTotal = apMetrics(passiveRows)
         const priorTotal = mi ? apMetrics(passPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
-        for (const [index, [code, label, unit]] of PASS_KPIS.entries()) passKpis.push({ tab_type: 'passive', strategy_class: null, metric_code: code, metric_name: label, value: passiveTotal[code], unit, qoq: qoq(passiveTotal, priorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+        for (const [index, [code, label, unit]] of PASS_KPIS.entries()) passKpis.push({ tab_type: 'passive', strategy_class: '全部', metric_code: code, metric_name: label, value: passiveTotal[code], unit, qoq: qoq(passiveTotal, priorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
         const passAllPrior = passPriorChannel.get('全部')
-        passMonthlyCapacity.push({ tab_type: 'passive', strategy_class: null, stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: passiveTotal.product_conv_num, qoq: qoq(passiveTotal, passAllPrior, 'product_conv_num'), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+        passMonthlyCapacity.push({ tab_type: 'passive', strategy_class: '全部', stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: passiveTotal.product_conv_num, qoq: qoq(passiveTotal, passAllPrior, 'product_conv_num'), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
         passPriorChannel.set('全部', passiveTotal)
         for (const [channelCode] of CHANNELS.passive) {
           const rows = passiveRows.filter((r) => r.channel === channelCode)
           if (!rows.length) continue
           const metrics = apMetrics(rows)
           const key = channelCode; const prior = passPriorChannel.get(key)
-          passChannelSummary.push({ tab_type: 'passive', strategy_class: null, stat_month: `${month}-01`, channel: channelCode, ...withQoq(metrics, prior), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+          passChannelSummary.push({ tab_type: 'passive', strategy_class: '全部', stat_month: `${month}-01`, channel: channelCode, ...withQoq(metrics, prior), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
           passPriorChannel.set(key, metrics)
           const capacity = metrics.product_conv_num
-          passMonthlyCapacity.push({ tab_type: 'passive', strategy_class: null, stat_month: `${month}-01`, channel: channelCode, big_category: '全部', small_category: '全部', capacity, qoq: qoq(metrics, prior, 'product_conv_num'), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+          passMonthlyCapacity.push({ tab_type: 'passive', strategy_class: '全部', stat_month: `${month}-01`, channel: channelCode, big_category: '全部', small_category: '全部', capacity, qoq: qoq(metrics, prior, 'product_conv_num'), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
           for (const [big, small] of PASS_CATEGORIES) {
             const group = rows.filter((r) => r.big_category === big)
             if (!group.length) continue
@@ -317,7 +317,7 @@ async function main() {
           }
           PASS_BUSINESSES.forEach((bizName, bi) => {
             const cap = Math.round(capacity * between(0.06, 0.25) / 1.1)
-            passChannelBiz.push({ tab_type: 'passive', strategy_class: null, stat_month: `${month}-01`, channel: channelCode, big_category: PASS_CATEGORIES[bi % PASS_CATEGORIES.length][0], small_category: PASS_CATEGORIES[bi % PASS_CATEGORIES.length][1], biz_name: bizName, capacity: cap, qoq: between(-15, 20), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
+            passChannelBiz.push({ tab_type: 'passive', strategy_class: '全部', stat_month: `${month}-01`, channel: channelCode, big_category: PASS_CATEGORIES[bi % PASS_CATEGORIES.length][0], small_category: PASS_CATEGORIES[bi % PASS_CATEGORIES.length][1], biz_name: bizName, capacity: cap, qoq: between(-15, 20), city_id: CITY, county_id: PASS_MARK, is_deleted: 0 })
           })
         }
 
@@ -352,7 +352,7 @@ async function main() {
         })
         const total = ctrlMetrics(controlRows)
         const ctrlPriorTotal = mi ? ctrlMetrics(ctrlPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
-        for (const [index, [code, label, unit]] of CTRL_KPIS.entries()) ctrlKpis.push({ tab_type: 'control', strategy_class: null, metric_code: code, metric_name: label, value: total[code], unit, qoq: qoq(total, ctrlPriorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
+        for (const [index, [code, label, unit]] of CTRL_KPIS.entries()) ctrlKpis.push({ tab_type: 'control', strategy_class: '全部', metric_code: code, metric_name: label, value: total[code], unit, qoq: qoq(total, ctrlPriorTotal, code), yoy: null, icon: 'trend', sort_no: index + 1, stat_month: month, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
         const allSuccessPrior = ctrlPriorChannel.get('全部')
         ctrlMonthlyCapacity.push({ stat_month: `${month}-01`, channel: '全部', big_category: '全部', small_category: '全部', capacity: total.success_count, qoq: qoq(total, allSuccessPrior, 'success_count'), city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
         ctrlPriorChannel.set('全部', total)

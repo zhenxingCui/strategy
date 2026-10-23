@@ -81,7 +81,7 @@ export default {
       return categoryLabelColumns(this.query.tabType === 'control' ? controlCategoryColumns : categoryColumns, this.query)
     },
     isDowngrade() {
-      return this.query.tabType === 'active' && this.query.strategyClass === 'DOWNGRADE'
+      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
     },
     categoryPrefix() {
       return this.isDowngrade ? '场景' : '策略'

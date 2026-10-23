@@ -10,7 +10,7 @@
             v-for="category in categories"
             :key="category.label"
             class="seg-btn"
-            :aria-pressed="(query.strategyClass || '') === category.value ? 'true' : 'false'"
+            :aria-pressed="(query.strategyClass || '全部') === category.value ? 'true' : 'false'"
             @click="$emit('strategy-class', category.value)"
           >
             {{ category.label }}
@@ -182,16 +182,16 @@ export default {
     categories() {
       return this.query.tabType === 'active'
         ? [
-            { label: '全部', value: '' },
-            { label: '升接', value: 'UPSELL' },
-            { label: '稳', value: 'STABLE' },
-            { label: '降拆', value: 'DOWNGRADE' },
-            { label: '离', value: 'CHURN' },
+            { label: '全部', value: '全部' },
+            { label: '升接', value: '升接' },
+            { label: '稳', value: '稳' },
+            { label: '降拆', value: '降拆' },
+            { label: '离', value: '离' },
           ]
-        : [{ label: '全部', value: '' }]
+        : [{ label: '全部', value: '全部' }]
     },
     isDowngrade() {
-      return this.query.tabType === 'active' && this.query.strategyClass === 'DOWNGRADE'
+      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
     },
     groups() {
       if (this.query.tabType === 'control') {
@@ -212,7 +212,7 @@ export default {
       }
     },
     categoryName() {
-      const item = this.categories.find((category) => category.value === (this.query.strategyClass || ''))
+      const item = this.categories.find((category) => category.value === (this.query.strategyClass || '全部'))
       return item ? item.label : '全部'
     },
     channelName() {

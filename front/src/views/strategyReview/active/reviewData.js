@@ -92,7 +92,7 @@ export const strategyColumns = [
     prop: 'strategyClass',
     label: '策略分类',
     text: true,
-    format: (value) => ({ UPSELL: '升接', STABLE: '稳', DOWNGRADE: '降拆', CHURN: '离' })[value] || '—',
+    format: (value) => ({ 全部: '全部', 升接: '升接', 稳: '稳', 降拆: '降拆', 离: '离' })[value] || '—',
   },
   { prop: 'bigCategory', label: '策略大类', text: true },
   { prop: 'smallCategory', label: '策略小类', text: true },
@@ -102,7 +102,7 @@ export const strategyColumns = [
 
 // 存量“降拆”页按场景口径展示分类列名，数据字段保持接口原样。
 export function categoryLabelColumns(columns, query) {
-  if (!query || query.tabType !== 'active' || query.strategyClass !== 'DOWNGRADE') return columns
+  if (!query || query.tabType !== 'active' || query.strategyClass !== '降拆') return columns
   const labels = { bigCategory: '场景大类', smallCategory: '场景小类' }
   return columns.map((column) => labels[column.prop] ? { ...column, label: labels[column.prop] } : column)
 }

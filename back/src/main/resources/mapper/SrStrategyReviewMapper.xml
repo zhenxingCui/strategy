@@ -70,7 +70,8 @@
           AND k.is_deleted = 0
           <choose>
               <when test="strategyClass != null and strategyClass != ''">AND k.strategy_class = #{strategyClass}</when>
-              <otherwise>AND k.strategy_class IS NULL</otherwise>
+
+              <otherwise>AND k.strategy_class = '全部'</otherwise>
           </choose>
           <include refid="kpiRegionWhere"/>
         ORDER BY k.sort_no, k.id
@@ -112,7 +113,8 @@
           AND k.is_deleted = 0
           <choose>
               <when test="strategyClass != null and strategyClass != ''">AND k.strategy_class = #{strategyClass}</when>
-              <otherwise>AND k.strategy_class IS NULL</otherwise>
+
+              <otherwise>AND k.strategy_class = '全部'</otherwise>
           </choose>
           <if test="statMonth != null and statMonth != ''">
               AND REPLACE(k.stat_month, '-', '') &lt;= REPLACE(#{statMonth}, '-', '')
@@ -144,7 +146,8 @@
                 <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
-                    <otherwise>AND c.strategy_class IS NULL</otherwise>
+
+                    <otherwise>AND c.strategy_class = '全部'</otherwise>
                 </choose>
             </otherwise>
         </choose>
@@ -181,7 +184,8 @@
                 <if test="tabType != 'control'">
                     <choose>
                         <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
-                        <otherwise>AND c.strategy_class IS NULL</otherwise>
+
+                        <otherwise>AND c.strategy_class = '全部'</otherwise>
                     </choose>
                 </if>
                 <if test="cityId != null and cityId != ''">
@@ -238,7 +242,8 @@
                   AND c.is_deleted = 0
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
-                    <otherwise>AND c.strategy_class IS NULL</otherwise>
+
+                    <otherwise>AND c.strategy_class = '全部'</otherwise>
                 </choose>
                 <if test="cityId != null and cityId != ''">
                     AND c.city_id = #{cityId}
@@ -298,7 +303,8 @@
                   AND c.is_deleted = 0
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
-                    <otherwise>AND c.strategy_class IS NULL</otherwise>
+
+                    <otherwise>AND c.strategy_class = '全部'</otherwise>
                 </choose>
                 <if test="cityId != null and cityId != ''">
                     AND c.city_id = #{cityId}
@@ -332,7 +338,7 @@
         <if test="strategyName != null and strategyName != ''">
             AND s.strategy_name LIKE CONCAT('%', #{strategyName}, '%')
         </if>
-        <if test="strategyClass != null and strategyClass != ''">
+        <if test="strategyClass != null and strategyClass != '' and strategyClass != '全部'">
             AND s.strategy_class = #{strategyClass}
         </if>
     </sql>
@@ -514,7 +520,8 @@
                   AND m.is_deleted = 0
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND m.strategy_class = #{strategyClass}</when>
-                    <otherwise>AND m.strategy_class IS NULL</otherwise>
+
+                    <otherwise>AND m.strategy_class = '全部'</otherwise>
                 </choose>
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}</if>
                 <choose>
@@ -595,7 +602,11 @@
                 WHERE b.tab_type = #{tabType}
                   AND DATE_FORMAT(b.stat_month, '%Y-%m') = #{statMonth}
                   AND b.is_deleted = 0
-                  <if test="strategyClass != null and strategyClass != ''">AND b.strategy_class = #{strategyClass}</if>
+                  <choose>
+                      <when test="strategyClass != null and strategyClass != ''">AND b.strategy_class = #{strategyClass}</when>
+
+                      <otherwise>AND b.strategy_class = '全部'</otherwise>
+                  </choose>
                   AND b.biz_name != '全部'
                 <if test="channel == null or channel == ''">
                   and b.channel!='全部' and b.big_category !='全部' and b.small_category !='全部' and b.biz_name!='全部'
@@ -706,7 +717,8 @@
                   AND s.is_deleted = 0 and 0=#{queryList} and s.strategy_id = '999'
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND s.strategy_class = #{strategyClass}</when>
-                    <otherwise>AND s.strategy_class IS NULL</otherwise>
+
+                    <otherwise>AND s.strategy_class = '全部'</otherwise>
                 </choose>
                   and s.big_category !='全部' and s.small_category !='全部'
                 <if test="queryList != null and queryList == 0 and (channel == null or channel == '')" >

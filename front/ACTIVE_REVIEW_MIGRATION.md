@@ -28,7 +28,7 @@
 - 7 条预警规则，包括生效、过期和停用示例。
 - 规则、收藏和关注通过接口写入 MySQL。
 - 增量策略和重点产品使用独立策略编码及 2025-11 至 2026-10 月度数据，不覆盖存量策略。
-- 增量策略使用 `_ap` 表并设置 `tab_type='passive'`、`strategy_class=NULL`；重点产品使用 `_ctrl` 表。
+- 增量策略使用 `_ap` 表并设置 `tab_type='passive'`、`strategy_class='全部'`；重点产品使用 `_ctrl` 表。
 - `t_sr_strategy_biz_capacity` 增加 `tab_type` 字段，以隔离存量、增量、重点产品的逐策略业务明细。
 - 增量策略和重点产品各生成 30+ 条策略、月度/按日指标、渠道及业务明细，以及 4 条预警规则。
 
@@ -67,7 +67,7 @@
 
 ## 当前业务边界
 
-- 存量策略分类值为 `UPSELL`、`STABLE`、`DOWNGRADE`、`CHURN`；增量策略、重点产品只展示全部。
+- 存量策略分类值为 `升接`、`稳`、`降拆`、`离`；增量策略、重点产品只展示全部。
 - “重点客群”等待用户提供字段和枚举。
 - “对照执行情况（非上线）”保留禁用标签，等待后端提供对应数据接口。
 
@@ -86,3 +86,7 @@ npm run build
 本次 40 次 API 请求检查通过；浏览器确认免登录直达、触点联动和策略详情联动。
 
 在 `back/` 执行 `mvn -DskipTests compile` 检查 Java 与 Mapper 接口编译。
+
+存量 strategy_class 直接存“升接/稳/降拆/离”，预计算汇总存“全部”。已有英文分类数据执行 back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql。
+
+增量和重点产品的已有 `strategy_class` 字段统一为“全部”（包括主表和明细）；执行 `back/src/main/resources/sql/strategy_review_non_active_class_all.sql`。不带该字段的 `_ctrl` 专用表无需加列。汇总查询未传分类或传空串均读取“全部”。
