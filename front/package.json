@@ -7,6 +7,7 @@
     "db:refresh-local": "node scripts/refresh-local-db.cjs",
     "db:seed-passive-control": "node scripts/seed-passive-control-local.cjs",
     "db:seed-customer-groups": "node scripts/seed-customer-groups-local.cjs",
+    "db:seed-products": "node scripts/seed-products-local.cjs",
     "serve": "node scripts/run-cli.js serve",
     "build": "node scripts/run-cli.js build"
   },

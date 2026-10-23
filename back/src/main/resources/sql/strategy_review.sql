@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy (
     strategy_name  VARCHAR(255) DEFAULT NULL COMMENT '策略名称',
     tab_type       VARCHAR(32)  DEFAULT NULL COMMENT '策略类型：active/passive/control',
     strategy_class VARCHAR(16)  DEFAULT NULL COMMENT '策略分类：存量为升接/稳/降拆/离/重点客群；增量/重点产品为全部',
+    product_name   VARCHAR(128) DEFAULT NULL COMMENT '重点产品名称，一条策略固定归属一个产品',
     customer_group VARCHAR(64) DEFAULT NULL COMMENT '重点客群分类名称，一条策略固定归属一类客群',
     channel        VARCHAR(64)  DEFAULT NULL COMMENT '触点渠道编码',
     strategy_level VARCHAR(32)  DEFAULT NULL COMMENT '策略级别',

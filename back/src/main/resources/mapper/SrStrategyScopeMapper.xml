@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrCustomerGroupMapper">
-    <select id="selectDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
+<mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyScopeMapper">
+    <select id="selectCustomerDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         SELECT DISTINCT TRIM(customer_group) AS keyCode, TRIM(customer_group) AS keyName
         FROM t_sr_strategy
         WHERE tab_type = 'active' AND strategy_class = '重点客群' AND is_deleted = 0
@@ -9,15 +9,40 @@
         ORDER BY keyName
     </select>
 
+    <select id="selectProductDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
+        SELECT DISTINCT TRIM(product_name) AS keyCode, TRIM(product_name) AS keyName
+        FROM t_sr_strategy
+        WHERE tab_type = 'control' AND is_deleted = 0
+          AND product_name IS NOT NULL AND TRIM(product_name) != ''
+        ORDER BY keyName
+    </select>
+
+    <sql id="periodTable">
+        <choose>
+            <when test="query.tabType == 'control'">t_sr_strategy_period_summary_ctrl</when>
+            <otherwise>t_sr_strategy_period_summary_ap</otherwise>
+        </choose>
+    </sql>
+
     <!-- Only strategy facts participate. Rows such as strategy_id=999 are precomputed totals. -->
     <sql id="scope">
-        s.tab_type = 'active' AND s.strategy_class = '重点客群' AND s.is_deleted = 0
+        s.is_deleted = 0
         AND s.strategy_id != '999' AND s.channel != '全部'
         AND s.big_category != '全部' AND s.small_category != '全部'
-        AND EXISTS (SELECT 1 FROM t_sr_strategy cg
-            WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
-              AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
-              AND cg.customer_group = #{query.customerGroup})
+        <choose>
+            <when test="query.tabType == 'control'">
+                AND EXISTS (SELECT 1 FROM t_sr_strategy product
+                    WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
+                      AND product.is_deleted = 0 AND product.product_name = #{query.productName})
+            </when>
+            <otherwise>
+                AND s.tab_type = 'active' AND s.strategy_class = '重点客群'
+                AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                    WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
+                      AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
+                      AND cg.customer_group = #{query.customerGroup})
+            </otherwise>
+        </choose>
         <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
         <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
         <if test="query.channel != null and query.channel != ''">AND s.channel = #{query.channel}</if>
@@ -36,12 +61,21 @@
             <when test="dimension == 'category'">s.big_category AS bigCategory, s.small_category AS smallCategory,</when>
         </choose>
         COUNT(DISTINCT s.strategy_id) AS strategyCount,
+        <choose>
+        <when test="query.tabType == 'control'">
+        SUM(s.consult_count) AS consultCount, SUM(s.retain_count) AS retainCount,
+        SUM(s.dispatch_count) AS dispatchCount, SUM(s.success_count) AS successCount,
+        SUM(s.income) AS income
+        </when>
+        <otherwise>
         SUM(s.original_cust) AS originalCust, SUM(s.push_count) AS pushCount,
         SUM(s.usage_count) AS usageCount, SUM(s.reach_count) AS reachCount,
         SUM(s.target_conv_num) AS targetConvNum, SUM(s.product_conv_num) AS productConvNum,
         SUM(s.expected_income) AS expectedIncome, SUM(s.actual_income) AS actualIncome,
         SUM(s.reject_count) AS rejectCount
-        FROM t_sr_strategy_period_summary_ap s
+        </otherwise>
+        </choose>
+        FROM <include refid="periodTable"/> s
         WHERE <include refid="scope"/>
         GROUP BY DATE_FORMAT(s.stat_month, '%Y-%m')
         <choose>
@@ -56,10 +90,10 @@
                s.big_category AS bigCategory, s.small_category AS smallCategory,
                b.biz_name AS bizName, SUM(b.count) AS capacity
         FROM t_sr_strategy_biz_capacity b
-        JOIN t_sr_strategy_period_summary_ap s ON s.strategy_id = b.strategy_id
-          AND s.tab_type = b.tab_type AND s.city_id &lt;=&gt; b.city_id AND s.county_id &lt;=&gt; b.county_id
+        JOIN <include refid="periodTable"/> s ON s.strategy_id = b.strategy_id
+          AND b.tab_type = #{query.tabType} AND s.city_id &lt;=&gt; b.city_id AND s.county_id &lt;=&gt; b.county_id
           AND DATE_FORMAT(s.stat_month, '%Y-%m') = DATE_FORMAT(b.stat_date, '%Y-%m')
-        WHERE b.is_deleted = 0 AND b.tab_type = 'active' AND b.biz_name != '全部'
+        WHERE b.is_deleted = 0 AND b.biz_name != '全部'
           AND <include refid="scope"/>
         GROUP BY DATE_FORMAT(s.stat_month, '%Y-%m'), s.big_category, s.small_category, b.biz_name
         ORDER BY statMonth, capacity DESC

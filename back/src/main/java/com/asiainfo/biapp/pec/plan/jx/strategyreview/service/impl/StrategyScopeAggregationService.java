@@ -1,7 +1,7 @@
 package com.asiainfo.biapp.pec.plan.jx.strategyreview.service.impl;
 
 import com.asiainfo.biapp.pec.core.exception.BaseException;
-import com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrCustomerGroupMapper;
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyScopeMapper;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyReviewMapper;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req.*;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.*;
@@ -17,10 +17,10 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Selected customer groups aggregate strategy facts; existing all-group summary queries stay unchanged. */
+/** Aggregates strategy facts for selected customer groups or products; totals use existing summary queries. */
 @Service
-public class CustomerGroupAggregationService {
-    @Autowired private SrCustomerGroupMapper mapper;
+public class StrategyScopeAggregationService {
+    @Autowired private SrStrategyScopeMapper mapper;
     @Autowired private SrStrategyReviewMapper reviewMapper;
 
     private static final String[][] METRICS = {
@@ -41,8 +41,27 @@ public class CustomerGroupAggregationService {
         {"rejectRate", "reject_rate", "拒绝率", "%"}
     };
 
-    public List<DimItemVO> dimensions(DimQueryReq req) {
-        return "active".equals(req.getTabType()) ? mapper.selectDimensions() : Collections.emptyList();
+    private static final String[][] CONTROL_METRICS = {
+        {"strategyCount", "strategy_count", "策略数", "个"},
+        {"consultCount", "consult_count", "咨询量", "次"},
+        {"retainCount", "retain_count", "挽留量", "次"},
+        {"retainRate", "retain_rate", "挽留率", "%"},
+        {"dispatchCount", "dispatch_count", "派单量", "单"},
+        {"successCount", "success_count", "成功量", "单"},
+        {"successRate", "success_rate", "成功率", "%"},
+        {"income", "income", "收入", "元"}
+    };
+
+    private static String[][] metrics(String tabType) {
+        return "control".equals(tabType) ? CONTROL_METRICS : METRICS;
+    }
+
+    public List<DimItemVO> customerDimensions(DimQueryReq req) {
+        return "active".equals(req.getTabType()) ? mapper.selectCustomerDimensions() : Collections.emptyList();
+    }
+
+    public List<DimItemVO> productDimensions(DimQueryReq req) {
+        return "control".equals(req.getTabType()) ? mapper.selectProductDimensions() : Collections.emptyList();
     }
 
     private TouchpointQueryReq scope(OverviewQueryReq req) {
@@ -56,7 +75,7 @@ public class CustomerGroupAggregationService {
         BeanUtils.copyProperties(req, copy);
         String month = copy.getStatMonth();
         if (month == null || month.trim().isEmpty()) {
-            month = reviewMapper.selectLatestKpiMonth("active", req.getCityId(), req.getCountyId());
+            month = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId());
         }
         if (month == null || month.trim().isEmpty()) month = YearMonth.now().toString();
         if (month.matches("[0-9]{6}")) month = month.substring(0, 4) + "-" + month.substring(4);
@@ -87,7 +106,10 @@ public class CustomerGroupAggregationService {
             ? mapper.selectBusiness(req) : mapper.selectMetrics(req, dimension);
         Map<List<Object>, Map<String, Object>> byMonth = new HashMap<>();
         for (Map<String, Object> row : rows) {
-            if (!"business".equals(dimension)) {
+            if (!"business".equals(dimension) && "control".equals(req.getTabType())) {
+                rate(row, "retainRate", "retainCount", "consultCount");
+                rate(row, "successRate", "successCount", "dispatchCount");
+            } else if (!"business".equals(dimension)) {
                 rate(row, "usageRate", "usageCount", "pushCount");
                 rate(row, "reachRate", "reachCount", "usageCount");
                 rate(row, "targetConvRate", "targetConvNum", "reachCount");
@@ -102,7 +124,7 @@ public class CustomerGroupAggregationService {
             if ("business".equals(dimension)) {
                 row.put("qoq", change(number(row, "capacity"), number(previous, "capacity"), false));
             } else {
-                for (String[] metric : METRICS) row.put(metric[0] + "QoQ",
+                for (String[] metric : metrics(req.getTabType())) row.put(metric[0] + "QoQ",
                     change(number(row, metric[0]), number(previous, metric[0]), "%".equals(metric[3])));
             }
         }
@@ -134,7 +156,7 @@ public class CustomerGroupAggregationService {
         Map<String, Object> total = total(scope(req));
         if (total == null) return Collections.emptyList();
         List<KpiCardVO> cards = new ArrayList<>();
-        for (String[] metric : METRICS) {
+        for (String[] metric : metrics(req.getTabType())) {
             KpiCardVO card = new KpiCardVO();
             card.setMetricCode(metric[1]); card.setLabel(metric[2]); card.setUnit(metric[3]);
             card.setValue(number(total, metric[0])); card.setTrendQoQ(number(total, metric[0] + "QoQ"));
@@ -144,7 +166,7 @@ public class CustomerGroupAggregationService {
     }
 
     public KpiTrendVO trend(OverviewQueryReq req) {
-        String[] selected = Arrays.stream(METRICS).filter(metric -> metric[1].equals(req.getMetricCode()))
+        String[] selected = Arrays.stream(metrics(req.getTabType())).filter(metric -> metric[1].equals(req.getMetricCode()))
             .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
         List<Map<String, Object>> all = rows(scope(req), "total");
         List<Map<String, Object>> latest = all.subList(Math.max(0, all.size() - 12), all.size());
@@ -159,7 +181,7 @@ public class CustomerGroupAggregationService {
     public ChannelSummaryRespVO channels(TouchpointQueryReq request) {
         TouchpointQueryReq req = normalize(request);
         Map<String, String> names = new HashMap<>();
-        for (DimItemVO dim : reviewMapper.selectChannelDims("active")) names.put(dim.getKeyCode(), dim.getKeyName());
+        for (DimItemVO dim : reviewMapper.selectChannelDims(req.getTabType())) names.put(dim.getKeyCode(), dim.getKeyName());
         List<Map<String, Object>> current = current(rows(req, "channel"), req);
         sort(current, req, "strategyCount");
         List<ChannelSummaryRowVO> list = current.stream().map(row -> {
@@ -187,12 +209,13 @@ public class CustomerGroupAggregationService {
     }
 
     public List<ChannelTrendVO> capacityTrend(TouchpointQueryReq request) {
+        String metric = "control".equals(request.getTabType()) ? "successCount" : "productConvNum";
         List<Map<String, Object>> all = rows(normalize(request), "total");
         List<ChannelTrendVO> result = new ArrayList<>();
         for (Map<String, Object> row : all.subList(Math.max(0, all.size() - 6), all.size())) {
             ChannelTrendVO item = new ChannelTrendVO();
             item.setMonth(row.get("statMonth").toString()); item.setMonthLabel(monthLabel(item.getMonth()));
-            item.setCapacity(number(row, "productConvNum")); item.setQoq(number(row, "productConvNumQoQ"));
+            item.setCapacity(number(row, metric)); item.setQoq(number(row, metric + "QoQ"));
             result.add(item);
         }
         return result;
@@ -209,7 +232,7 @@ public class CustomerGroupAggregationService {
 
     private static void sort(List<Map<String, Object>> rows, TouchpointQueryReq req, String defaultField) {
         Set<String> allowed = new HashSet<>(Arrays.asList("channel", "bigCategory", "smallCategory", "capacity"));
-        for (String[] metric : METRICS) allowed.add(metric[0]);
+        for (String[] metric : metrics(req.getTabType())) allowed.add(metric[0]);
         String field = allowed.contains(req.getSortField()) ? req.getSortField() : defaultField;
         boolean ascending = "asc".equalsIgnoreCase(req.getSortDir());
         rows.sort((left, right) -> {

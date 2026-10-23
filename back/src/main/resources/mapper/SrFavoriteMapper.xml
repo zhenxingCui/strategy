@@ -46,6 +46,12 @@
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
         </if>
+
+        <if test="query.productName != null and query.productName != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy product
+                WHERE product.strategy_code = f.strategy_id AND product.tab_type = 'control'
+                  AND product.is_deleted = 0 AND product.product_name = #{query.productName})
+        </if>
 </sql>
 
     <select id="selectFavoriteList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">

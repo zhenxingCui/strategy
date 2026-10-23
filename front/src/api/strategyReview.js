@@ -14,7 +14,7 @@ const formatParams = (params) => {
 }
 
 // ===== 通用枚举 =====
-// 下拉枚举：type 见 API.md（'触点渠道' / '策略名称' / '预警指标' / '规则状态' / '客群分类'）
+// 下拉枚举：'触点渠道' / '策略名称' / '预警指标' / '规则状态' / '客群分类' / '产品名称'
 export function getDim (params) {
   return postAction(api.dim, params)
 }

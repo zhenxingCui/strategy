@@ -15,7 +15,7 @@ import javax.validation.constraints.NotBlank;
 @ApiModel("通用枚举查询请求")
 public class DimQueryReq extends BaseRegionReq {
 
-    @ApiModelProperty(value = "枚举类型：触点渠道/策略名称/预警指标/规则状态/客群分类", required = true)
+    @ApiModelProperty(value = "枚举类型：触点渠道/策略名称/预警指标/规则状态/客群分类/产品名称", required = true)
     @NotBlank(message = "枚举类型type不能为空")
     private String type;
 
@@ -36,5 +36,12 @@ public class DimQueryReq extends BaseRegionReq {
     public String getCustomerGroup() {
         return "active".equals(tabType) && "重点客群".equals(strategyClass)
                 && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
+    }
+    @ApiModelProperty("重点产品名称，空=全部产品；仅control生效")
+    private String productName;
+
+    public String getProductName() {
+        return "control".equals(tabType) && productName != null && !productName.trim().isEmpty()
+                ? productName.trim() : null;
     }
 }

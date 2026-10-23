@@ -1,7 +1,7 @@
 <template>
   <section class="section overview-section">
       <h2 class="section-title">
-      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '全部客群' }}</template> · 触点：{{ channelName }}</span>
+      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '全部客群' }}</template><template v-if="query.tabType === 'control'"> · 产品：{{ query.productName || '全部产品' }}</template> · 触点：{{ channelName }}</span>
     </h2>
     <div class="overview-body split split--m1">
       <div class="card snapshot-card">
@@ -119,6 +119,14 @@
       </div>
       <div class="card overview-trend-card">
         <div class="overview-panel-head overview-filters">
+          <label v-if="query.tabType === 'control'">
+            产品切换
+            <select class="select" aria-label="产品切换" :value="query.productName || ''"
+              :disabled="productsLoading" @change="$emit('product', $event.target.value)">
+              <option value="">全部产品</option>
+              <option v-for="product in products" :key="product.keyCode" :value="product.keyCode">{{ product.keyName }}</option>
+            </select>
+          </label>
           <label v-if="isKeyAudience">
             客群切换
             <select class="select" aria-label="客群切换" :value="query.customerGroup || ''"
@@ -173,6 +181,8 @@ export default {
     channelsLoading: Boolean,
     customerGroups: { type: Array, default: () => [] },
     customerGroupsLoading: Boolean,
+    products: { type: Array, default: () => [] },
+    productsLoading: Boolean,
   },
   data() {
     return {

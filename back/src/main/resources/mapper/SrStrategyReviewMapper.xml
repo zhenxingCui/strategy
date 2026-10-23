@@ -371,7 +371,13 @@
         <if test="strategyName != null and strategyName != ''">
             AND s.strategy_name LIKE CONCAT('%', #{strategyName}, '%')
         </if>
-    </sql>
+
+        <if test="productName != null and productName != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy product
+                WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
+                  AND product.is_deleted = 0 AND product.product_name = #{productName})
+        </if>
+</sql>
 
     <select id="selectStrategyList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
         <choose>

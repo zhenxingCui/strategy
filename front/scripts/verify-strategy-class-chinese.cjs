@@ -24,6 +24,16 @@ function frontend() {
   const format = data.strategyColumns.find(c => c.prop === 'strategyClass').format
   for (const value of ['全部', '升接', '稳', '降拆', '离', '重点客群']) assert.equal(format(value), value)
   const entry = load('src/views/strategyReview/active/ActiveReview.vue').default
+  for (const tabType of ['active', 'passive', 'control']) {
+    assert.equal(entry.computed.query.call({ tabType, productName: '宽带' }).productName, tabType === 'control' ? '宽带' : '')
+  }
+  const productSwitching = { productName: '宽带', selectedStrategy: { strategyId: 'old' } }
+  entry.methods.changeProduct.call(productSwitching, '移动套餐')
+  assert.equal(productSwitching.productName, '移动套餐')
+  assert.equal(productSwitching.selectedStrategy, null)
+  const tabSwitching = { productName: '宽带', bootstrap() {}, loadChannels() {}, loadCustomerGroups() {}, loadProducts() {} }
+  entry.watch.tabType.call(tabSwitching)
+  assert.equal(tabSwitching.productName, '')
   for (const [tabType, strategyClass, expected] of [['active', '重点客群', '高价值客群'], ['active', '升接', ''], ['passive', '重点客群', ''], ['control', '重点客群', '']]) {
     assert.equal(entry.computed.query.call({ tabType, strategyClass, customerGroup: '高价值客群' }).customerGroup, expected)
   }

@@ -55,4 +55,11 @@ public class WarningRuleQueryReq extends BaseRegionReq {
         return "active".equals(tabType) && "重点客群".equals(strategyClass)
                 && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
     }
+    @ApiModelProperty("重点产品名称，空=全部产品；仅control生效")
+    private String productName;
+
+    public String getProductName() {
+        return "control".equals(tabType) && productName != null && !productName.trim().isEmpty()
+                ? productName.trim() : null;
+    }
 }

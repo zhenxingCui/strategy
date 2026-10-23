@@ -6,6 +6,8 @@
 
 2026-10-23：重点客群在“触点切换”前增加“客群切换”，默认全部客群。`t_sr_strategy.customer_group` 直接存名称（如高价值客群、校园客群、家庭客群、银龄客群），只新增这一列，不新增字典表，不修改统计表。
 
+2026-10-23：重点产品在“触点切换”前增加“产品切换”，默认全部产品。`t_sr_strategy.product_name VARCHAR(128)` 直接存产品名称，仅新增主表一列；具体产品复用客群的聚合框架，仍使用 `_ctrl` 事实和咨询、挽留、派单、成功、收入指标。
+
 ## 运行
 
 - 后端：在 `back/` 执行 `mvn spring-boot:run`，端口 8080。
@@ -50,6 +52,14 @@
 
 此方案约定一条策略固定归属一类客群。修改主表中的客群名称会改变其历史查询归属；需要一策略多客群效果拆分或历史归属快照时，应另行扩展事实数据维度。
 
+现有环境的产品字段迁移：选择目标数据库后执行 `back/src/main/resources/sql/strategy_review_add_product_name.sql`，可重复执行，不修改已有产品归属及统计。重点产品策略的产品名称由数据提供方填写。本地执行 `npm run db:seed-products` 仅为尚无产品归属的 CTL 样例补齐演示名称，不重建策略或统计；增量/重点产品样例初始化脚本也包含此字段及产品归属。
+
+产品下拉接口为 `POST /dim`，参数 `type=产品名称, tabType=control`，返回主表中去重后的非空产品名称（`keyCode=keyName`）。查询参数 `productName` 仅在 `tabType=control` 时生效，去除首尾空格后精确匹配，其他视角忽略。产品切换会重置各模块分页和所选策略详情，保留当前触点；切换主 Tab 会清空产品条件。下拉加载失败可重试，当前维持全部产品。
+
+具体产品的整体指标、近 12 期趋势、渠道/分类汇总及近 6 期产能趋势按主表产品归属筛选 `_ctrl` 策略月度事实并聚合；挽留率=挽留量/咨询量，成功率=成功量/派单量，产能=成功量，数量环比按相邻自然月计算，率值环比为百分点。业务产能从逐策略业务明细按产品归属聚合；策略列表、收藏及预警命中同样按主表筛选。原客群聚合服务/Mapper 已合并为 `StrategyScopeAggregationService` / `SrStrategyScopeMapper`，共享聚合逻辑并分别使用两类指标口径。
+
+全部产品继续读取现有汇总，包含 `product_name` 为 NULL/空白的策略；这些策略不会出现在任何具体产品的结果中，因此补齐归属前各具体产品之和可能小于全部产品。一个策略固定归属一个产品；修改主表归属会影响其历史查询，产品内效果拆分和历史归属快照需扩展事实粒度。
+
 示例数据的使用率=使用量/推送量、触达率=触达量/使用量、转化率=全产品转化量/触达量。率值环比显示为百分点 `pp`。
 渠道汇总原有表结构不含触达率字段，切换到单个触点时该指标显示“—”，不以模拟数补齐。
 
@@ -89,6 +99,7 @@
 node scripts/verify-active-api.cjs
 node scripts/verify-key-audience-data.cjs
 node scripts/verify-customer-groups.cjs
+node scripts/verify-products.cjs
 $env:SR_VERIFY_STRATEGY_CLASS='重点客群'
 node scripts/verify-active-api.cjs
 Remove-Item Env:SR_VERIFY_STRATEGY_CLASS

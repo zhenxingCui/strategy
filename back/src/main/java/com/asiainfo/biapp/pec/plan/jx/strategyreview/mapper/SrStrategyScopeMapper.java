@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 @Mapper
-public interface SrCustomerGroupMapper {
-    List<DimItemVO> selectDimensions();
+public interface SrStrategyScopeMapper {
+    List<DimItemVO> selectCustomerDimensions();
+    List<DimItemVO> selectProductDimensions();
     List<Map<String, Object>> selectMetrics(@Param("query") TouchpointQueryReq query,
                                           @Param("dimension") String dimension);
     List<Map<String, Object>> selectBusiness(@Param("query") TouchpointQueryReq query);

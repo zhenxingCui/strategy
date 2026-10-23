@@ -79,6 +79,7 @@ public interface SrWarningMapper {
                                               @Param("channel") String channel,
                                               @Param("strategyClass") String strategyClass,
                                               @Param("customerGroup") String customerGroup,
+                                           @Param("productName") String productName,
                                               @Param("rule") WarningRuleVO rule,
                                               @Param("favorite") boolean favorite,
                                               @Param("userId") String userId,
@@ -95,6 +96,7 @@ public interface SrWarningMapper {
                               @Param("channel") String channel,
                               @Param("strategyClass") String strategyClass,
                                               @Param("customerGroup") String customerGroup,
+                                           @Param("productName") String productName,
                               @Param("rule") WarningRuleVO rule,
                               @Param("favorite") boolean favorite,
                               @Param("userId") String userId

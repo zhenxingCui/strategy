@@ -42,12 +42,18 @@
           <div v-if="customerGroupsError && strategyClass === '重点客群'" class="dimension-error" role="alert">
             客群选项加载失败，当前展示全部客群。<button class="btn-link" @click="loadCustomerGroups">重试</button>
           </div>
+          <div v-if="productsError && tabType === 'control'" class="dimension-error" role="alert">
+            产品选项加载失败，当前展示全部产品。<button class="btn-link" @click="loadProducts">重试</button>
+          </div>
           <stock-overview
             :query="query"
             :channels="channels"
             :channels-loading="channelsLoading"
             :customer-groups="customerGroups"
             :customer-groups-loading="customerGroupsLoading"
+            :products="products"
+            :products-loading="productsLoading"
+            @product="changeProduct"
             @customer-group="changeCustomerGroup"
             @channel="changeChannel"
             @strategy-class="changeStrategyClass"
@@ -86,6 +92,11 @@ export default {
       customerGroupsLoading: false,
       customerGroupsError: false,
       customerGroupsRequestVersion: 0,
+      productName: '',
+      products: [],
+      productsLoading: false,
+      productsError: false,
+      productsRequestVersion: 0,
       channels: [],
       channelsLoading: false,
       channelError: false,
@@ -109,6 +120,7 @@ export default {
         channel: this.channel,
         strategyClass: this.tabType === 'active' ? (this.strategyClass || '全部') : '全部',
         customerGroup: this.tabType === 'active' && this.strategyClass === '重点客群' ? (this.customerGroup || '') : '',
+        productName: this.tabType === 'control' ? (this.productName || '') : '',
         cityId: getCityId(),
         userId: getUserId(),
       }
@@ -127,6 +139,7 @@ export default {
     this.bootstrap()
     this.loadChannels()
     this.loadCustomerGroups()
+    this.loadProducts()
   },
   mounted() {
     this.$el.addEventListener('click', touchActivity)
@@ -142,13 +155,37 @@ export default {
       this.channel = ''
       this.strategyClass = ''
       this.customerGroup = ''
+      this.productName = ''
       this.selectedStrategy = null
       this.bootstrap()
       this.loadChannels()
       this.loadCustomerGroups()
+      this.loadProducts()
     },
   },
   methods: {
+    async loadProducts() {
+      const version = ++this.productsRequestVersion
+      this.products = []
+      this.productsError = false
+      this.productsLoading = false
+      if (this.tabType !== 'control') return
+      this.productsLoading = true
+      try {
+        const result = await getDim({ tabType: 'control', type: '产品名称' })
+        if (version !== this.productsRequestVersion) return
+        this.products = listOf(result)
+      } catch (e) {
+        if (version === this.productsRequestVersion) this.productsError = true
+      } finally {
+        if (version === this.productsRequestVersion) this.productsLoading = false
+      }
+    },
+    changeProduct(productName) {
+      if (this.productName === productName) return
+      this.productName = productName
+      this.selectedStrategy = null
+    },
     async loadCustomerGroups() {
       const version = ++this.customerGroupsRequestVersion
       const requestType = this.tabType

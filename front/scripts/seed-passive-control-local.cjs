@@ -3,6 +3,9 @@
  * This script never creates or drops tables and never rewrites active samples.
  */
 const mysql = require('mysql2/promise')
+const fs = require('fs')
+const path = require('path')
+const productForStrategy = require('./control-product-names.cjs')
 
 const database = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
 const CITY = '001'
@@ -147,7 +150,7 @@ async function main() {
   const conn = await mysql.createConnection({
     host: process.env.SR_DB_HOST || '127.0.0.1', port: Number(process.env.SR_DB_PORT || 3306),
     user: process.env.SR_DB_USER || 'root', password: process.env.SR_DB_PASSWORD || '123456',
-    database, charset: 'utf8mb4',
+    database, charset: 'utf8mb4', multipleStatements: true,
   })
   try {
     const [[schema]] = await conn.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=?', [database])
@@ -155,6 +158,7 @@ async function main() {
     const [[active]] = await conn.query("SELECT COUNT(*) AS n FROM t_sr_strategy WHERE tab_type='active' AND owner='本地联调' AND is_deleted=0")
     const [[foreignActive]] = await conn.query("SELECT COUNT(*) AS n FROM t_sr_strategy WHERE tab_type='active' AND COALESCE(owner,'')<>'本地联调' AND is_deleted=0")
     if (Number(active.n) < 12 || Number(foreignActive.n) > 0) throw new Error('保护检查未通过：目标库不符合本地存量联调样例特征，未写入数据。')
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_product_name.sql'), 'utf8'))
 
     const [bizColumns] = await conn.query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='t_sr_strategy_biz_capacity' AND COLUMN_NAME='tab_type'", [database])
     if (!bizColumns.length) await conn.query("ALTER TABLE t_sr_strategy_biz_capacity ADD COLUMN tab_type VARCHAR(32) NOT NULL DEFAULT 'active' COMMENT '策略类型：active/passive/control' AFTER id")
@@ -235,6 +239,7 @@ async function main() {
 
       const passStrategies = PASS_NAMES.map((name, i) => ({
         strategy_code: passCodes[i], strategy_name: name, tab_type: 'passive', strategy_class: '全部',
+        product_name: null,
         channel: CHANNELS.passive[i % CHANNELS.passive.length][0], strategy_level: ['省级', '市级', '区县级'][i % 3],
         caliber: `近三个月符合${PASS_CATEGORIES[i % PASS_CATEGORIES.length][1]}条件且处于可触达状态的目标客户`,
         iteration: 1 + (i % 6), owner: PASS_OWNER, status: '生效中',
@@ -243,6 +248,7 @@ async function main() {
       }))
       const ctrlStrategies = CTRL_NAMES.map((name, i) => ({
         strategy_code: ctrlCodes[i], strategy_name: name, tab_type: 'control', strategy_class: '全部',
+        product_name: productForStrategy(name),
         channel: CHANNELS.control[i % CHANNELS.control.length][0], strategy_level: ['省级', '市级', '区县级'][i % 3],
         caliber: `结合服务记录、业务到期和客户风险评分触发${CTRL_CATEGORIES[i % CTRL_CATEGORIES.length][1]}流程`,
         iteration: 1 + (i % 5), owner: CTRL_OWNER, status: '生效中',
