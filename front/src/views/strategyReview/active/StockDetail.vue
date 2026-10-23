@@ -4,10 +4,10 @@
     <div class="split split--m4">
       <div class="card">
         <review-table
-          title="策略执行情况（逐策略）"
+          :title="favoritesOnly ? '我的收藏策略' : '策略执行情况（逐策略）'"
           tools
           selectable
-          sortable
+          :sortable="!favoritesOnly"
           :columns="columns"
           :rows="strategies"
           :state="panels.list"
@@ -20,10 +20,12 @@
           @selection="selection = $event"
           @strategy="selectStrategy"
         >
-          <button slot="actions" class="btn" :disabled="!selection.length || saving" @click="favorite">
-            <i class="el-icon-star-off" />收藏选中
+          <button slot="actions" class="btn" :disabled="!selection.length || saving || !!(panels.list && panels.list.loading)" @click="favorite">
+            <i class="el-icon-star-off" />{{ favoritesOnly ? '取消收藏选中' : '收藏选中' }}
           </button>
           <div slot="filters" class="toolbar">
+            <button class="seg-btn" :aria-pressed="!favoritesOnly ? 'true' : 'false'" :disabled="saving" @click="setFavoritesOnly(false)">全部策略</button>
+            <button class="seg-btn" :aria-pressed="favoritesOnly ? 'true' : 'false'" :disabled="saving" @click="setFavoritesOnly(true)">我的收藏</button>
             <input
               v-model="draftName"
               class="input"
@@ -47,8 +49,8 @@
             @retry="loadInfo"
           >
             <dl class="detail-list">
-              <dt>{{ query.tabType === 'control' ? '策略编码' : '策略名称' }}</dt>
-              <dd>{{ query.tabType === 'control' ? (info.strategyCode || selected.strategyCode || '—') : (info.strategyName || info.name || selected.strategyName || selected.name || '—') }}</dd>
+              <dt>策略名称</dt>
+              <dd>{{ info.strategyName || info.name || selected.strategyName || selected.name || selected.strategyCode || '—' }}</dd>
               <dt>所属渠道</dt>
               <dd>{{ info.channelName || selected.channelName || info.channel || selected.channel || '—' }}</dd>
               <dt>策略级别</dt>
@@ -116,7 +118,7 @@
             ><button class="seg-btn" disabled title="后端尚未提供对照执行数据接口">对照执行情况（非上线）</button>
           </div>
           <span class="spacer" /><span class="muted selected-name">{{
-            selected.strategyName || selected.name || '未选择策略'
+            selected.strategyName || selected.name || selected.strategyCode || '未选择策略'
           }}</span>
           <el-date-picker
             v-model="dailyRange"
@@ -143,6 +145,8 @@ import {
   getStrategyDailyDetail,
   getStrategyRejectReason,
   addFavorite,
+  getFavoriteList,
+  removeFavorite,
 } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
@@ -175,6 +179,7 @@ export default {
       strategyName: '',
       sort: {},
       saving: false,
+      favoritesOnly: false,
     }
   },
   computed: {
@@ -186,25 +191,13 @@ export default {
     },
     bizColumns() {
       return this.query.tabType === 'control'
-        ? [{ prop: 'bizName', label: '业务名称', text: true }, { prop: 'count', label: '成功量' }, { prop: 'momRatio', label: '环比', format: (value) => value == null ? '—' : `${value}%` }]
+        ? strategyBizColumns.map(c => c.prop === 'count' ? { ...c, label: '成功量' } : c)
         : strategyBizColumns
     },
     dailyColumns() {
-      const control = [
-        { prop: 'date', label: '日期', text: true },
-        { prop: 'bigCategory', label: '场景大类', text: true },
-        { prop: 'smallCategory', label: '场景小类', text: true },
-        { prop: 'strategyName', label: '策略名称', text: true },
-        { prop: 'consultCount', label: '咨询量' },
-        { prop: 'retainCount', label: '挽留量' },
-        { prop: 'retainRate', label: '挽留率', format: (value) => value == null ? '—' : `${value}%` },
-        { prop: 'dispatchCount', label: '派单量' },
-        { prop: 'successCount', label: '成功量' },
-        { prop: 'successRate', label: '成功率', format: (value) => value == null ? '—' : `${value}%` },
-      ]
-      const columns = this.query.tabType === 'control'
-        ? control
-        : this.columns.map((column) => ({ ...column, link: false }))
+      const columns = this.columns
+        .filter(column => this.query.tabType !== 'control' || column.prop !== 'income')
+        .map((column) => ({ ...column, link: false }))
       return [{ prop: 'date', label: '日期', text: true }, ...columns.filter((column) => column.prop !== 'date')]
     },
     trendOption() {
@@ -247,6 +240,7 @@ export default {
       deep: true,
       handler() {
         this.page = 1
+        this.selection = []
         this.dailyRange = monthRange(this.query.statMonth)
         this.clearDetails()
         this.loadList()
@@ -278,11 +272,13 @@ export default {
       this.dailyTotal = 0
     },
     loadList() {
+      this.selection = []
       return this.request(
         'list',
         () =>
-          getStrategyList({
+          (this.favoritesOnly ? getFavoriteList : getStrategyList)({
             ...this.query,
+            manualOnly: this.favoritesOnly,
             strategyName: this.strategyName,
             pageNum: this.page,
             pageSize: 5,
@@ -291,6 +287,12 @@ export default {
         (result) => {
           this.strategies = listOf(result)
           this.total = Number(result && result.total) || 0
+          const lastPage = Math.max(1, Math.ceil(this.total / 5))
+          if (this.page > lastPage) {
+            this.page = lastPage
+            this.$nextTick(() => this.loadList())
+            return
+          }
           if (!this.selected.strategyId && this.strategies.length) this.selectStrategy(this.strategies[0])
         },
       )
@@ -309,6 +311,13 @@ export default {
     },
     search() {
       this.strategyName = this.draftName.trim()
+      this.page = 1
+      this.clearDetails()
+      this.loadList()
+    },
+    setFavoritesOnly(value) {
+      if (this.favoritesOnly === value) return
+      this.favoritesOnly = value
       this.page = 1
       this.clearDetails()
       this.loadList()
@@ -399,10 +408,16 @@ export default {
       this.loadDaily()
     },
     async favorite() {
+      if (!this.selection.length || this.saving) return
+      const removing = this.favoritesOnly
       this.saving = true
       try {
-        await addFavorite({ ...this.query, strategyIds: this.selection.map((row) => String(row.strategyId)) })
-        this.$message.success('收藏成功')
+        await (removing ? removeFavorite : addFavorite)({ ...this.query, strategyIds: this.selection.map((row) => String(row.strategyId)) })
+        this.$message.success(removing ? '已取消收藏' : '收藏成功')
+        if (removing) {
+          this.clearDetails()
+          await this.loadList()
+        }
       } catch (e) {
         /* 请求拦截器展示错误 */
       } finally {

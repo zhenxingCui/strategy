@@ -4,7 +4,7 @@
     <div class="split split--m2">
       <div class="card">
         <review-table
-          :title="query.tabType === 'control' ? '场景执行情况' : '策略分类执行情况'"
+          title="策略分类执行情况"
           tools
           :columns="columns"
           :rows="pagedCategories"
@@ -30,7 +30,7 @@
       </div>
       <div class="card chart-card">
         <div class="sub-title">
-          {{ query.tabType === 'control' ? '触点成功量趋势' : '触点产能趋势' }}<span class="spacer" /><span class="muted">{{ channelName }}</span>
+          触点产能趋势<span class="spacer" /><span class="muted">{{ channelName }}</span>
         </div>
         <review-state :state="panels.trend" :empty="!trend.length" @retry="loadTrend"
           ><e-chart :option="trendOption" height="285px"
@@ -38,7 +38,7 @@
       </div>
       <div class="card">
         <review-table
-          :title="query.tabType === 'control' ? '业务成功量明细' : '业务产能明细'"
+          title="业务产能明细"
           :columns="bizColumns"
           :rows="biz.slice((bizPage - 1) * 5, bizPage * 5)"
           :page="bizPage"
@@ -84,7 +84,7 @@ export default {
       return this.query.tabType === 'active' && this.query.strategyClass === 'DOWNGRADE'
     },
     categoryPrefix() {
-      return this.query.tabType === 'control' || this.isDowngrade ? '场景' : '策略'
+      return this.isDowngrade ? '场景' : '策略'
     },
     categoryBigLabel() {
       return `${this.categoryPrefix}大类`
@@ -94,7 +94,7 @@ export default {
     },
     bizColumns() {
       return this.query.tabType === 'control'
-        ? [{ prop: 'bizName', label: '业务名称', text: true }, { prop: 'capacity', label: '成功量' }, { prop: 'qoq', label: '环比', format: (value) => value == null ? '—' : `${value}%` }]
+        ? channelBizColumns.map(c => c.prop === 'capacity' ? { ...c, label: '成功量' } : c)
         : channelBizColumns
     },
     bigCategories() {
@@ -123,7 +123,7 @@ export default {
         this.trend.map((r) => r.monthLabel || r.month),
         this.trend.map((r) => r.capacity),
         this.trend.map((r) => r.qoq),
-        this.query.tabType === 'control' ? '成功量' : '产能',
+        '产能',
       )
     },
   },

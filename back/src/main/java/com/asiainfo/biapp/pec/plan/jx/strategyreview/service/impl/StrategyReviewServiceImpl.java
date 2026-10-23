@@ -117,14 +117,14 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 return new ArrayList<>();
             }
         }
-        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getChannel())) {
+        if (StringUtils.isNotBlank(req.getChannel())) {
             List<ChannelSummaryRowVO> rows = reviewMapper.selectChannelSummaryList(
                     req.getTabType(), toYearMonth(statMonth), req.getCityId(), req.getCountyId(),
                     "c.strategy_count DESC", req.getChannel(), req.getStrategyClass());
             if (rows == null || rows.isEmpty()) return new ArrayList<>();
             // 沿用渠道汇总的真实值和环比，不用原型的缩放系数推算指标。
             org.springframework.beans.BeanWrapper bean = new org.springframework.beans.BeanWrapperImpl(rows.get(0));
-            String[][] metrics = {
+            String[][] apMetrics = {
                     {"strategyCount", "strategy_count", "策略数", "个"},
                     {"originalCust", "original_cust", "客群", "人"},
                     {"pushCount", "push_count", "推送量", "次"},
@@ -135,8 +135,18 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                     {"productConvRate", "product_conv_rate", "全产品转化率", "%"},
                     {"actualIncome", "actual_income", "收入", "元"}
             };
+            String[][] controlMetrics = {
+                    {"strategyCount", "strategy_count", "策略数", "个"},
+                    {"consultCount", "consult_count", "咨询量", "次"},
+                    {"retainCount", "retain_count", "挽留量", "次"},
+                    {"retainRate", "retain_rate", "挽留率", "%"},
+                    {"dispatchCount", "dispatch_count", "派单量", "次"},
+                    {"successCount", "success_count", "成功量", "次"},
+                    {"successRate", "success_rate", "成功率", "%"},
+                    {"income", "income", "收入", "元"}
+            };
             List<KpiCardVO> cards = new ArrayList<>();
-            for (String[] metric : metrics) {
+            for (String[] metric : "control".equals(req.getTabType()) ? controlMetrics : apMetrics) {
                 Object value = bean.getPropertyValue(metric[0]);
                 if (value == null) continue;
                 KpiCardVO card = new KpiCardVO();
@@ -160,9 +170,10 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         }
         List<KpiTrendItemVO> rows;
         String statMonth = normalizeStatMonth(req.getStatMonth());
-        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getChannel())) {
-            String metricColumn = AP_SORT_MAP.get(req.getMetricCode());
-            if (metricColumn == null && AP_SORT_MAP.containsValue(req.getMetricCode())) {
+        if (StringUtils.isNotBlank(req.getChannel())) {
+            Map<String, String> sortMap = "control".equals(req.getTabType()) ? CTRL_SORT_MAP : AP_SORT_MAP;
+            String metricColumn = sortMap.get(req.getMetricCode());
+            if (metricColumn == null && sortMap.containsValue(req.getMetricCode())) {
                 metricColumn = req.getMetricCode();
             }
             if (metricColumn == null || "channel".equals(metricColumn)) {

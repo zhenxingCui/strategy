@@ -148,16 +148,19 @@ export default {
       )
     },
     async loadChannels() {
+      const requestType = this.tabType
       this.channelsLoading = true
       try {
-        this.channels = listOf(await getDim({ tabType: this.tabType, type: '触点渠道' })).filter(
+        const result = await getDim({ tabType: requestType, type: '触点渠道' })
+        if (requestType !== this.tabType) return
+        this.channels = listOf(result).filter(
           (c) => !['全部', '全部渠道'].includes(c.keyName),
         )
         this.channelError = false
       } catch (e) {
-        this.channelError = true
+        if (requestType === this.tabType) this.channelError = true
       } finally {
-        this.channelsLoading = false
+        if (requestType === this.tabType) this.channelsLoading = false
       }
     },
     changeMonth(month) {

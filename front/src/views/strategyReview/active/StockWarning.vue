@@ -41,8 +41,9 @@
               :key="rule.id"
               class="rule-item"
               :class="{ selected: selectedRule && selectedRule.id === rule.id }"
+              @click="chooseRule(rule)"
             >
-              <button class="rule-pick" @click="chooseRule(rule)">
+              <button class="rule-pick" @click.stop="chooseRule(rule)">
                 <strong>{{ rule.ruleName }}</strong
                 ><span class="status" :class="{ live: rule.status === '生效中' }">{{ rule.status }}</span>
               </button>
@@ -50,10 +51,10 @@
               <p class="muted">生效：{{ rule.dateRange || `${rule.startDate || '—'} 至 ${rule.endDate || '—'}` }}</p>
               <div class="rule-footer">
                 <span class="muted">{{ rule.createTime || rule.creator || '—' }}</span
-                ><span class="spacer" /><button class="btn-link" :disabled="busy" @click="edit(rule)">编辑</button
-                ><button class="btn-link" :disabled="busy" @click="toggleStatus(rule)">
+                ><span class="spacer" /><button class="btn-link" :disabled="busy" @click.stop="edit(rule)">编辑</button
+                ><button class="btn-link" :disabled="busy" @click.stop="toggleStatus(rule)">
                   {{ rule.status === '生效中' ? '停用' : '启用' }}</button
-                ><button class="btn-link danger" :disabled="busy" @click="remove(rule)">删除</button>
+                ><button class="btn-link danger" :disabled="busy" @click.stop="remove(rule)">删除</button>
               </div>
             </article>
           </div>
@@ -188,6 +189,11 @@ export default {
       deep: true,
       handler() {
         this.hitPage = 1
+        this.hitTotal = 0
+        this.hits = []
+        this.selection = []
+        this.requestVersions.hits = (this.requestVersions.hits || 0) + 1
+        this.$set(this.panels, 'hits', {})
         this.rulePage = 1
         this.selectedRule = null
         this.rules = []
@@ -245,8 +251,9 @@ export default {
     loadHits() {
       this.selection = []
       this.hits = []
-      this.hitTotal = 0
       if (!this.selectedRule) {
+        this.hitTotal = 0
+        this.hitPage = 1
         this.requestVersions.hits = (this.requestVersions.hits || 0) + 1
         this.$set(this.panels, 'hits', {})
         return
@@ -264,6 +271,11 @@ export default {
         (result) => {
           this.hits = listOf(result)
           this.hitTotal = Number(result && result.total) || 0
+          const lastPage = Math.max(1, Math.ceil(this.hitTotal / 5))
+          if (this.hitPage > lastPage) {
+            this.hitPage = lastPage
+            this.$nextTick(() => this.loadHits())
+          }
         },
       )
     },
@@ -355,6 +367,7 @@ export default {
       }
     },
     async follow(followed) {
+      if (!this.selectedRule || !this.selection.length || this.busy) return
       this.busy = true
       try {
         await toggleFollowStrategy({
@@ -364,7 +377,7 @@ export default {
           followed,
         })
         this.$message.success(followed ? '已关注' : '已取消关注')
-        this.loadHits()
+        await this.loadHits()
       } catch (e) {
         /* 请求拦截器展示错误 */
       } finally {

@@ -196,8 +196,8 @@ export default {
     groups() {
       if (this.query.tabType === 'control') {
         return {
-          left: [item('consult_count', '咨询量'), item('success_count', '成功量'), item('income', '收入')],
-          mid: [item('consult_count', '咨询量'), item('retain_count', '挽留量'), item('dispatch_count', '派单量'), item('success_count', '成功量')],
+          left: [item('strategy_count', '策略数'), item('success_count', '产能', '产能采用控损成功量'), item('income', '收入')],
+          mid: [item('strategy_count', '策略数'), item('consult_count', '咨询量'), item('retain_count', '挽留量'), item('dispatch_count', '派单量'), item('success_count', '成功量')],
           rate: [item('retain_rate', '挽留率'), item('success_rate', '成功率')],
         }
       }
@@ -220,7 +220,7 @@ export default {
       return c ? c.keyName : '全部渠道'
     },
     funnel() {
-      return this.query.tabType === 'control' || this.isDowngrade ? this.groups.mid : this.groups.mid.slice(1)
+      return this.isDowngrade ? this.groups.mid : this.groups.mid.slice(1)
     },
     activeCard() {
       return this.kpis.find((k) => k.metricCode === this.activeMetric) || {}

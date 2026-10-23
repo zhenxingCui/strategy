@@ -189,15 +189,23 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void toggleFollow(FavoriteOpReq req, String userId) {
+        if (StringUtils.isBlank(req.getRuleId()) || !req.getRuleId().matches("[0-9]+")
+                || warningMapper.queryRuleById(req.getTabType(), req.getRuleId(), null) == null) {
+            throw new BaseException("请选择有效的预警规则");
+        }
         boolean followed = !Boolean.FALSE.equals(req.getFollowed());
-        for (String strategyId : req.getStrategyIds()) {
-            warningMapper.updateHitFollowed(strategyId, req.getTabType(), followed, userId);
+        Map<String, SrFavorite> existingFavorites = new HashMap<>();
+        for (SrFavorite favorite : favoriteMapper.selectFavoriteStates(userId, req.getTabType(), req.getStrategyIds())) {
+            existingFavorites.put(favorite.getStrategyId(), favorite);
         }
         if (followed) {
             // 关注的命中策略自动进入收藏，来源标记为 follow；数据源与命中列表一致（period_summary），strategyId 保持业务ID
             List<SrFavorite> baseInfos = "control".equals(req.getTabType())
-                    ? favoriteMapper.selectStrategyBaseInfoCtrl(req.getStrategyIds())
-                    : favoriteMapper.selectStrategyBaseInfo(req.getStrategyIds(), req.getTabType());
+                ? favoriteMapper.selectStrategyBaseInfoCtrl(req.getStrategyIds())
+                : favoriteMapper.selectStrategyBaseInfo(req.getStrategyIds(), req.getTabType());
+            if (baseInfos.size() != new java.util.HashSet<>(req.getStrategyIds()).size()) {
+                throw new BaseException("存在无效的策略ID，请刷新后重试");
+            }
             for (SrFavorite base : baseInfos) {
                 SrFavorite favorite = new SrFavorite();
                 favorite.setUserId(userId);
@@ -206,12 +214,42 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
                 favorite.setStrategyName(base.getStrategyName());
                 favorite.setChannel(base.getChannel());
                 favorite.setRuleId(req.getRuleId());
-                favorite.setSource("follow");
-                favoriteMapper.deleteFavorite(userId, favorite.getTabType(), favorite.getStrategyId());
-                favoriteMapper.upsertFavorite(favorite);
+                SrFavorite existing = existingFavorites.get(favorite.getStrategyId());
+                if (existing == null) {
+                    favorite.setSource("follow");
+                    // 清除软删除历史行占用的唯一键，支持取消关注后再次关注。
+                    favoriteMapper.deleteFavorite(userId, favorite.getTabType(), favorite.getStrategyId());
+                    favoriteMapper.upsertFavorite(favorite);
+                } else {
+                    // 同一策略可以同时被手动收藏和规则关注；保留其收藏记录，取消关注时再恢复为 manual。
+                    String source = "manual".equals(existing.getSource()) || "manual+follow".equals(existing.getSource())
+                            ? "manual+follow" : "follow";
+                    favoriteMapper.updateFavoriteSource(userId, favorite.getTabType(), favorite.getStrategyId(),
+                            source, FavoriteRuleLinks.add(existing.getRuleId(), req.getRuleId()));
+                }
             }
         } else {
-            favoriteMapper.removeFavorites(userId, req.getTabType(), req.getStrategyIds());
+            List<String> removeIds = new ArrayList<>();
+            for (String strategyId : req.getStrategyIds()) {
+                SrFavorite existing = existingFavorites.get(strategyId);
+                if (existing == null) continue;
+                if ("manual+follow".equals(existing.getSource()) || "follow".equals(existing.getSource())) {
+                    String remaining = FavoriteRuleLinks.remove(existing.getRuleId(), req.getRuleId());
+                    boolean manual = "manual+follow".equals(existing.getSource());
+                    if (remaining != null || manual) {
+                        favoriteMapper.updateFavoriteSource(userId, req.getTabType(), strategyId,
+                                remaining == null ? "manual" : manual ? "manual+follow" : "follow", remaining);
+                    } else {
+                        removeIds.add(strategyId);
+                    }
+                }
+            }
+            if (!removeIds.isEmpty()) {
+                favoriteMapper.removeFavorites(userId, req.getTabType(), removeIds);
+            }
+        }
+        for (String strategyId : req.getStrategyIds()) {
+            warningMapper.updateHitFollowed(strategyId, req.getTabType(), followed, userId);
         }
     }
 

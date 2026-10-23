@@ -29,13 +29,13 @@ public class SrFavorite {
     /** 触点渠道（冗余） */
     private String channel;
 
-    /** 预警规则ID（source=follow 时关联的规则，source=manual 时为 null） */
+    /** 关注规则ID集合，逗号分隔，兼容历史单ID；manual 来源时为 null。字段上限64字符。 */
     private String ruleId;
 
     /** 数据时间（冗余） */
     private Date dataDate;
 
-    /** 来源：manual=主动收藏，follow=预警关注自动加入 */
+    /** 来源：manual=主动收藏，follow=预警关注，manual+follow=同时手动收藏和规则关注 */
     private String source;
 
     /** 创建时间 */

@@ -229,8 +229,8 @@
         </if>
         <if test="favorite">
             AND EXISTS (SELECT 1 FROM t_sr_favorite f WHERE f.strategy_id = s.strategy_id
-                AND f.user_id = #{userId} AND f.tab_type = #{tabType} AND f.source = 'follow'
-                AND f.rule_id = #{ruleId} AND f.is_deleted = 0)
+                AND f.user_id = #{userId} AND f.tab_type = #{tabType} AND f.source IN ('follow', 'manual+follow')
+                AND FIND_IN_SET(CAST(#{ruleId} AS CHAR), f.rule_id) &gt; 0 AND f.is_deleted = 0)
         </if>
     </sql>
 

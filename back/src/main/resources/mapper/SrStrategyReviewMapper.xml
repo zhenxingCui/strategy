@@ -122,18 +122,31 @@
         LIMIT 12
     </select>
 
-    <!-- metricColumn 仅来自服务层 AP_SORT_MAP 白名单。渠道表使用原始计量单位。 -->
+    <!-- metricColumn 仅来自服务层字段白名单。渠道表使用原始计量单位。 -->
     <select id="selectChannelKpiTrend" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.KpiTrendItemVO">
-        SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
-               c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
-        FROM t_sr_channel_summary_ap c
-        WHERE c.tab_type = #{tabType} AND c.channel = #{channel} AND c.is_deleted = 0
-          AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
-        <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
-        <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
         <choose>
-            <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
-            <otherwise>AND c.strategy_class IS NULL</otherwise>
+            <when test="tabType == 'control'">
+                SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
+                       c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
+                FROM t_sr_channel_summary_ctrl c
+                WHERE c.channel = #{channel} AND c.is_deleted = 0
+                  AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
+                <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
+                <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
+            </when>
+            <otherwise>
+                SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
+                       c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
+                FROM t_sr_channel_summary_ap c
+                WHERE c.tab_type = #{tabType} AND c.channel = #{channel} AND c.is_deleted = 0
+                  AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
+                <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
+                <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
+                <choose>
+                    <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
+                    <otherwise>AND c.strategy_class IS NULL</otherwise>
+                </choose>
+            </otherwise>
         </choose>
         ORDER BY c.stat_month DESC LIMIT 12
     </select>

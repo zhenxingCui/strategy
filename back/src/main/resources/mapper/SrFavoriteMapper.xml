@@ -8,17 +8,37 @@
         LEFT JOIN t_sr_strategy_period_summary_ap s
             ON s.strategy_id = f.strategy_id
            AND s.tab_type = f.tab_type
+           AND s.channel = f.channel
            AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
            AND s.is_deleted = 0
+           <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
+           <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
         LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
     </sql>
 
     <sql id="favoriteListJoinCtrl">
         LEFT JOIN t_sr_strategy_period_summary_ctrl s
             ON s.strategy_id = f.strategy_id
+           AND s.channel = f.channel
            AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
            AND s.is_deleted = 0
+           <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
+           <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
         LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
+    </sql>
+
+    <sql id="favoriteFilters">
+        <if test="query.manualOnly">AND f.source IN ('manual', 'manual+follow')</if>
+        <if test="query.channel != null and query.channel != ''">AND f.channel = #{query.channel}</if>
+        <if test="query.strategyName != null and query.strategyName != ''">
+            AND f.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')
+        </if>
+        <if test="tabType != 'control' and query.strategyClass != null and query.strategyClass != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_period_summary_ap p
+                WHERE p.strategy_id = f.strategy_id AND p.tab_type = f.tab_type
+                AND p.strategy_class = #{query.strategyClass} AND p.is_deleted = 0
+                AND DATE_FORMAT(p.stat_month, '%Y-%m') = #{query.statMonth})
+        </if>
     </sql>
 
     <select id="selectFavoriteList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
@@ -27,6 +47,8 @@
                 SELECT f.id           AS id,
                        f.strategy_id  AS strategyId,
                        f.strategy_name AS strategyName,
+                       COALESCE(s.strategy_code, f.strategy_id) AS strategyCode,
+                       s.big_category AS bigCategory, s.small_category AS smallCategory,
                        f.channel      AS channel,
                        d.key_name     AS channelName,
                        DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
@@ -51,6 +73,7 @@
                 WHERE f.user_id = #{userId}
                   AND f.tab_type = #{tabType}
                   AND f.is_deleted = 0
+                <include refid="favoriteFilters"/>
                 ORDER BY f.create_time DESC
                 LIMIT #{limit} OFFSET #{offset}
             </when>
@@ -58,6 +81,8 @@
                 SELECT f.id           AS id,
                        f.strategy_id  AS strategyId,
                        f.strategy_name AS strategyName,
+                       s.big_category AS bigCategory, s.small_category AS smallCategory,
+                       s.strategy_class AS strategyClass,
                        f.channel      AS channel,
                        d.key_name     AS channelName,
                        DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
@@ -90,6 +115,7 @@
                 WHERE f.user_id = #{userId}
                   AND f.tab_type = #{tabType}
                   AND f.is_deleted = 0
+                <include refid="favoriteFilters"/>
                 ORDER BY f.create_time DESC
                 LIMIT #{limit} OFFSET #{offset}
             </otherwise>
@@ -102,7 +128,32 @@
         WHERE f.user_id = #{userId}
           AND f.tab_type = #{tabType}
           AND f.is_deleted = 0
+        <include refid="favoriteFilters"/>
     </select>
+
+    <select id="selectFavoriteStates" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrFavorite">
+        SELECT f.strategy_id AS strategyId,
+               f.source AS source,
+               f.rule_id AS ruleId
+        FROM t_sr_favorite f
+        WHERE f.user_id = #{userId}
+          AND f.tab_type = #{tabType}
+          AND f.is_deleted = 0
+          AND f.strategy_id IN
+        <foreach collection="strategyIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+        FOR UPDATE
+    </select>
+
+    <update id="updateFavoriteSource">
+        UPDATE t_sr_favorite
+        SET source = #{source}, rule_id = #{ruleId}, update_time = NOW()
+        WHERE user_id = #{userId}
+          AND tab_type = #{tabType}
+          AND strategy_id = #{strategyId}
+          AND is_deleted = 0
+    </update>
 
     <select id="selectExistFavoriteIds" resultType="java.lang.Long">
         SELECT f.strategy_id

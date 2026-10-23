@@ -60,16 +60,30 @@ export const categoryColumns = [
   ...metrics,
 ]
 
-export const controlCategoryColumns = [
-  { prop: 'bigCategory', label: '场景大类', text: true },
-  { prop: 'smallCategory', label: '场景小类', text: true },
-  { prop: 'strategyCount', label: '策略量' },
+// 控损指标采用同一套分类、策略名称和交互布局，数值字段保持控损接口定义。
+export const controlMetrics = [
   { prop: 'consultCount', label: '咨询量' },
   { prop: 'retainCount', label: '挽留量' },
   { prop: 'retainRate', label: '挽留率', format: percentText },
   { prop: 'dispatchCount', label: '派单量' },
   { prop: 'successCount', label: '成功量' },
   { prop: 'successRate', label: '成功率', format: percentText },
+]
+
+export const controlCategoryColumns = [
+  { prop: 'bigCategory', label: '策略大类', text: true },
+  { prop: 'smallCategory', label: '策略小类', text: true },
+  { prop: 'strategyCount', label: '策略量' },
+  ...controlMetrics,
+  { prop: 'income', label: '收入(元)' },
+]
+
+export const controlStrategyColumns = [
+  { prop: 'bigCategory', label: '策略大类', text: true },
+  { prop: 'smallCategory', label: '策略小类', text: true },
+  { prop: 'strategyName', label: '策略名称', text: true, link: true,
+    format: (value, row) => value || row.name || row.strategyCode || '—' },
+  ...controlMetrics,
   { prop: 'income', label: '收入(元)' },
 ]
 
@@ -92,19 +106,6 @@ export function categoryLabelColumns(columns, query) {
   const labels = { bigCategory: '场景大类', smallCategory: '场景小类' }
   return columns.map((column) => labels[column.prop] ? { ...column, label: labels[column.prop] } : column)
 }
-
-export const controlStrategyColumns = [
-  { prop: 'bigCategory', label: '场景大类', text: true },
-  { prop: 'smallCategory', label: '场景小类', text: true },
-  { prop: 'strategyCode', label: '策略编码', text: true },
-  { prop: 'consultCount', label: '咨询量' },
-  { prop: 'retainCount', label: '挽留量' },
-  { prop: 'retainRate', label: '挽留率', format: percentText },
-  { prop: 'dispatchCount', label: '派单量' },
-  { prop: 'successCount', label: '成功量' },
-  { prop: 'successRate', label: '成功率', format: percentText },
-  { prop: 'income', label: '收入(元)' },
-]
 
 export const channelBizColumns = [
   { prop: 'bizName', label: '业务名称', text: true },

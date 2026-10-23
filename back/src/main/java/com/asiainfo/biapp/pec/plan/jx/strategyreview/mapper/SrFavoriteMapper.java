@@ -2,6 +2,7 @@ package com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper;
 
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.model.SrFavorite;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO;
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req.FavoriteQueryReq;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -18,11 +19,25 @@ public interface SrFavoriteMapper {
                                            @Param("tabType") String tabType,
                                            @Param("statMonth") String statMonth,
                                            @Param("offset") int offset,
-                                           @Param("limit") int limit);
+                                           @Param("limit") int limit,
+                                           @Param("query") FavoriteQueryReq query);
 
     /** 收藏列表-总数 */
     long countFavoriteList(@Param("userId") String userId,
-                           @Param("tabType") String tabType);
+                           @Param("tabType") String tabType,
+                           @Param("query") FavoriteQueryReq query);
+
+    /** 当前用户已收藏策略及来源，用于关注/取消关注时保留手动收藏 */
+    List<SrFavorite> selectFavoriteStates(@Param("userId") String userId,
+                                          @Param("tabType") String tabType,
+                                          @Param("strategyIds") List<String> strategyIds);
+
+    /** 更新收藏来源和关联规则 */
+    int updateFavoriteSource(@Param("userId") String userId,
+                             @Param("tabType") String tabType,
+                             @Param("strategyId") String strategyId,
+                             @Param("source") String source,
+                             @Param("ruleId") String ruleId);
 
     /** 已存在的有效收藏策略ID集合 */
     List<Long> selectExistFavoriteIds(@Param("userId") String userId,

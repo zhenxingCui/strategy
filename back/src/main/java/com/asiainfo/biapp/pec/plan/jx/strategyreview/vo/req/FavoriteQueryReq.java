@@ -22,6 +22,18 @@ public class FavoriteQueryReq extends BaseRegionReq {
     @ApiModelProperty(value = "账期月份，格式 yyyy-MM", example = "2026-08")
     private String statMonth;
 
+    @ApiModelProperty("仅查询手动收藏（含同时规则关注的策略），默认false")
+    private Boolean manualOnly = false;
+
+    @ApiModelProperty("触点渠道编码，空=全部")
+    private String channel;
+
+    @ApiModelProperty("策略名称，模糊查询")
+    private String strategyName;
+
+    @ApiModelProperty("策略分类，空=全部")
+    private String strategyClass;
+
     @ApiModelProperty(value = "页码，从1开始", example = "1")
     private Integer pageNum = 1;
 
