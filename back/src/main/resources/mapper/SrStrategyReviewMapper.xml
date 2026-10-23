@@ -5,58 +5,95 @@
     <!-- ==================== 通用枚举 ==================== -->
 
     <select id="selectChannelDims" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
-        SELECT d.key_code  AS keyCode,
-               d.key_name  AS keyName
-        FROM t_sr_dim_channel d
-        WHERE d.status = 1
-          AND d.is_deleted = 0
-          AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)
-        <if test="query.tabType == 'active' and ((query.statMonth != null and query.statMonth != '') or (query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'))">
-          AND EXISTS (
-            SELECT 1 FROM t_sr_strategy_period_summary_ap s
-            WHERE s.tab_type = 'active' AND s.is_deleted = 0
-              AND s.channel = d.key_code AND s.strategy_id != '999'
-              AND s.big_category != '全部' AND s.small_category != '全部'
-            <if test="query.statMonth != null and query.statMonth != ''">
-              AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
-            </if>
-            <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
-              AND s.strategy_class = #{query.strategyClass}
-            </if>
-            <if test="query.cityId != null and query.cityId != ''">
-              AND s.city_id = #{query.cityId}
-            </if>
-            <if test="query.countyId != null and query.countyId != ''">
-              AND s.county_id = #{query.countyId}
-            </if>
-            <if test="query.customerGroup != null and query.customerGroup != ''">
-              AND EXISTS (SELECT 1 FROM t_sr_strategy t
-                WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
-                  AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
-            </if>
-          )
-        </if>
-        ORDER BY d.sort_no, d.key_code
+        <choose>
+            <when test="query.tabType == 'active'">
+                SELECT DISTINCT s.channel AS keyCode,
+                       s.channel         AS keyName
+                FROM t_sr_strategy_period_summary_ap s
+                WHERE s.tab_type = 'active' AND s.is_deleted = 0
+                  AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
+                  AND s.strategy_id != '999'
+                  AND s.big_category != '全部' AND s.small_category != '全部'
+                <if test="query.statMonth != null and query.statMonth != ''">
+                  AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                </if>
+                <if test="query.statMonth == null or query.statMonth == ''">
+                  AND s.stat_month = (SELECT MAX(latest.stat_month)
+                    FROM t_sr_strategy_period_summary_ap latest
+                    WHERE latest.tab_type = 'active' AND latest.is_deleted = 0)
+                </if>
+                <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+                  AND s.strategy_class = #{query.strategyClass}
+                </if>
+                <if test="query.cityId != null and query.cityId != ''">
+                  AND s.city_id = #{query.cityId}
+                </if>
+                <if test="query.countyId != null and query.countyId != ''">
+                  AND s.county_id = #{query.countyId}
+                </if>
+                <if test="query.customerGroup != null and query.customerGroup != ''">
+                  AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                    WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
+                      AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
+                </if>
+                ORDER BY keyName
+            </when>
+            <otherwise>
+                SELECT d.key_code AS keyCode,
+                       d.key_name AS keyName
+                FROM t_sr_dim_channel d
+                WHERE d.status = 1
+                  AND d.is_deleted = 0
+                  AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)
+                ORDER BY d.sort_no, d.key_code
+            </otherwise>
+        </choose>
     </select>
 
     <select id="selectStrategyNameDims" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
-        SELECT t.strategy_code AS keyCode,
-               t.strategy_name    AS keyName
-        FROM t_sr_strategy t
-        WHERE t.tab_type = #{tabType}
-          AND t.is_deleted = 0
-          <if test="channel != null and channel != ''">
-              AND (t.channel = #{channel} OR t.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
-          </if>
-          <!-- 远程搜索：不传关键字时不返回数据，避免全量下发（生产 6 万+ 条） -->
-          <if test="keyword == null or keyword == ''">
-              AND 1 = 0
-          </if>
-          <if test="keyword != null and keyword != ''">
-              AND t.strategy_name LIKE CONCAT('%', #{keyword}, '%')
-          </if>
-          ORDER BY t.id DESC
-          LIMIT 10
+        <choose>
+            <when test="tabType == 'active'">
+                SELECT s.strategy_id AS keyCode,
+                       MAX(s.strategy_name) AS keyName
+                FROM t_sr_strategy_period_summary_ap s
+                WHERE s.tab_type = 'active' AND s.is_deleted = 0
+                  AND s.strategy_id != '999' AND s.strategy_name IS NOT NULL
+                  AND s.stat_month = (SELECT MAX(latest.stat_month)
+                    FROM t_sr_strategy_period_summary_ap latest
+                    WHERE latest.tab_type = 'active' AND latest.is_deleted = 0)
+                <if test="channel != null and channel != ''">
+                  AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
+                </if>
+                <!-- 远程搜索：不传关键字时不返回数据，避免全量下发 -->
+                <if test="keyword == null or keyword == ''">
+                  AND 1 = 0
+                </if>
+                <if test="keyword != null and keyword != ''">
+                  AND s.strategy_name LIKE CONCAT('%', #{keyword}, '%')
+                </if>
+                GROUP BY s.strategy_id
+                ORDER BY keyName
+                LIMIT 10
+            </when>
+            <otherwise>
+                SELECT t.strategy_code AS keyCode,
+                       t.strategy_name AS keyName
+                FROM t_sr_strategy t
+                WHERE t.tab_type = #{tabType}
+                  AND t.is_deleted = 0
+                  <if test="channel != null and channel != ''">
+                      AND (t.channel = #{channel} OR t.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
+                  </if>
+                  <if test="keyword == null or keyword == ''">
+                      AND 1 = 0
+                  </if>
+                  <if test="keyword != null and keyword != ''">
+                      AND t.strategy_name LIKE CONCAT('%', #{keyword}, '%')
+                  </if>
+                ORDER BY t.id DESC
+                LIMIT 10
+            </otherwise>
+        </choose>
     </select>
 
     <select id="selectMetricDims" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
@@ -81,7 +118,16 @@
     </sql>
 
     <select id="selectKpiCard" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.KpiCardVO">
-        SELECT k.metric_code AS metricCode,
+        SELECT CASE k.metric_code
+                   WHEN 'PUSH_CNT' THEN 'push_count'
+                   WHEN 'USAGE_CNT' THEN 'usage_count'
+                   WHEN 'REAL_INCOME' THEN 'actual_income'
+                   WHEN 'ALL_PRODUCT_CONV_RATE' THEN 'product_conv_rate'
+                   WHEN 'ALL_PRODUCT_CONV_CNT' THEN 'product_conv_num'
+                   WHEN 'STRATEGY_CNT' THEN 'strategy_count'
+                   WHEN 'REACH_CNT' THEN 'reach_count'
+                   ELSE k.metric_code
+               END AS metricCode,
                k.metric_name AS label,
                k.value       AS value,
                k.unit        AS unit,
@@ -134,7 +180,16 @@
                k.unit                         AS unit
         FROM t_sr_kpi_summary k
         WHERE k.tab_type = #{tabType}
-          AND k.metric_code = #{metricCode}
+          AND CASE k.metric_code
+                  WHEN 'PUSH_CNT' THEN 'push_count'
+                  WHEN 'USAGE_CNT' THEN 'usage_count'
+                  WHEN 'REAL_INCOME' THEN 'actual_income'
+                  WHEN 'ALL_PRODUCT_CONV_RATE' THEN 'product_conv_rate'
+                  WHEN 'ALL_PRODUCT_CONV_CNT' THEN 'product_conv_num'
+                  WHEN 'STRATEGY_CNT' THEN 'strategy_count'
+                  WHEN 'REACH_CNT' THEN 'reach_count'
+                  ELSE k.metric_code
+              END = #{metricCode}
           AND k.is_deleted = 0
           <choose>
               <when test="strategyClass != null and strategyClass != ''">AND k.strategy_class = #{strategyClass}</when>
@@ -208,7 +263,7 @@
         <choose>
             <when test="tabType == 'control'">
                 SELECT c.channel           AS channel,
-                       d.key_name         AS channelName,
+                       COALESCE(d.key_name, c.channel) AS channelName,
                        c.strategy_count   AS strategyCount,
                        c.strategy_count_qoq AS strategyCountQoQ,
                        c.consult_count    AS consultCount,
@@ -258,7 +313,7 @@
             </when>
             <otherwise>
                 SELECT c.channel           AS channel,
-                       d.key_name         AS channelName,
+                       COALESCE(d.key_name, c.channel) AS channelName,
                        c.strategy_count   AS strategyCount,
                        c.strategy_count_qoq AS strategyCountQoQ,
                        c.original_cust    AS originalCust,
@@ -434,7 +489,7 @@
                        s.strategy_code      AS strategyCode,
                        s.strategy_name      AS strategyName,
                        s.channel            AS channel,
-                       d.key_name           AS channelName,
+                       COALESCE(d.key_name, s.channel) AS channelName,
                        s.big_category       AS bigCategory,
                        s.small_category     AS smallCategory,
                        s.consult_count      AS consultCount,
@@ -469,7 +524,7 @@
                        s.strategy_name        AS strategyName,
                        s.strategy_class      AS strategyClass,
                        s.channel              AS channel,
-                       d.key_name             AS channelName,
+                       COALESCE(d.key_name, s.channel) AS channelName,
                        s.big_category         AS bigCategory,
                        s.small_category       AS smallCategory,
                        s.original_cust        AS originalCust,
@@ -502,6 +557,9 @@
                 <include refid="strategyListApWhere"/>
                 <if test="queryList !=null and queryList == 0" >
                     and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部' and s.strategy_id!='999'
+                    <if test="strategyClass == null or strategyClass == '' or strategyClass == '全部'">
+                        AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
+                    </if>
                 </if>
                 ORDER BY
                 <choose>
@@ -526,6 +584,9 @@
                 FROM t_sr_strategy_period_summary_ap s
                 <include refid="strategyListApWhere"/>
                 AND s.channel != '全部' AND s.big_category != '全部' AND s.small_category != '全部' AND s.strategy_name != '全部' AND s.strategy_id != '999'
+                <if test="strategyClass == null or strategyClass == '' or strategyClass == '全部'">
+                    AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
+                </if>
             </otherwise>
         </choose>
     </select>
@@ -828,13 +889,16 @@
                        DATE_FORMAT(t.start_date, '%Y-%m-%d') AS startDate,
                        DATE_FORMAT(t.end_date, '%Y-%m-%d')   AS endDate,
                        p.channel                      AS channel,
-                       d.key_name                     AS channelName,
+                       COALESCE(d.key_name, p.channel) AS channelName,
                        p.big_category                 AS bigCategory,
                        p.small_category               AS smallCategory
                 FROM (
                     SELECT strategy_id, strategy_name, channel, big_category, small_category
                     FROM t_sr_strategy_period_summary_ctrl
                     WHERE strategy_id = #{strategyId} AND is_deleted = 0  AND channel!='全部'
+                    <if test="channel != null and channel != ''">
+                      AND (channel = #{channel} OR channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
+                    </if>
                     ORDER BY stat_month DESC LIMIT 1
                 ) p
                 LEFT JOIN t_sr_strategy t ON t.strategy_code = #{strategyId} AND t.is_deleted = 0
@@ -855,15 +919,20 @@
                        DATE_FORMAT(t.start_date, '%Y-%m-%d') AS startDate,
                        DATE_FORMAT(t.end_date, '%Y-%m-%d')   AS endDate,
                        p.channel                      AS channel,
-                       d.key_name                     AS channelName,
+                       COALESCE(d.key_name, p.channel) AS channelName,
                        p.big_category                 AS bigCategory,
                        p.small_category               AS smallCategory
                 FROM (
                     SELECT strategy_id, strategy_name, channel, big_category, small_category
                     FROM t_sr_strategy_period_summary_ap
                     WHERE strategy_id = #{strategyId} AND is_deleted = 0
-                      AND (tab_type = #{tabType} OR tab_type IS NULL) AND channel!='全部'
-                    ORDER BY stat_month DESC LIMIT 1
+                      AND (tab_type = #{tabType} OR tab_type IS NULL)
+                      AND channel != '全部' AND big_category != '全部' AND small_category != '全部'
+                      AND (strategy_class IS NULL OR strategy_class != '全部')
+                    <if test="channel != null and channel != ''">
+                      AND channel = #{channel}
+                    </if>
+                    ORDER BY stat_month DESC, channel, big_category, small_category LIMIT 1
                 ) p
                 LEFT JOIN t_sr_strategy t ON t.strategy_code = #{strategyId} AND t.is_deleted = 0
                 LEFT JOIN t_sr_dim_channel d ON d.key_code = p.channel
@@ -883,6 +952,9 @@
                 WHERE s.strategy_id = #{strategyId}
                   AND s.is_deleted = 0
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') &lt;= #{statMonth}</if>    and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部'
+                <if test="channel != null and channel != ''">
+                    AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND s.city_id = #{cityId}
                 </if>
@@ -894,20 +966,29 @@
             </when>
             <otherwise>
                 SELECT DATE_FORMAT(s.stat_month, '%Y-%m') AS month,
-                       s.product_conv_num                 AS capacity,
-                       s.product_conv_num_qoq             AS qoq,
-                       ${metricColumn}                    AS metricValue
+                       SUM(s.product_conv_num) AS capacity,
+                       CASE WHEN SUM(COALESCE(s.product_conv_num, 0)) = 0
+                            THEN AVG(s.product_conv_num_qoq)
+                            ELSE ROUND(SUM(s.product_conv_num * s.product_conv_num_qoq)
+                                       / NULLIF(SUM(s.product_conv_num), 0), 2)
+                       END AS qoq,
+                       SUM(${metricColumn}) AS metricValue
                 FROM t_sr_strategy_period_summary_ap s
                 WHERE s.strategy_id = #{strategyId}
                   AND (s.tab_type = #{tabType} OR s.tab_type IS NULL)
                   AND s.is_deleted = 0
+                  AND (s.strategy_class IS NULL OR s.strategy_class != '全部')
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') &lt;= #{statMonth}</if>    and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部'
+                <if test="channel != null and channel != ''">
+                    AND s.channel = #{channel}
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND s.city_id = #{cityId}
                 </if>
                 <if test="countyId != null and countyId != ''">
                     AND s.county_id = #{countyId}
                 </if>
+                GROUP BY s.stat_month
                 ORDER BY s.stat_month DESC
                 LIMIT 6
             </otherwise>
@@ -915,7 +996,7 @@
     </select>
 
     <select id="selectStrategyBizCapacity" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyBizVO">
-        SELECT b.biz_code  AS bizCode,
+        SELECT DISTINCT b.biz_code  AS bizCode,
                b.biz_name  AS bizName,
                b.count     AS count,
                b.mom_ratio AS momRatio,
@@ -938,18 +1019,22 @@
 
     <select id="countStrategyBizCapacity" resultType="long">
         SELECT COUNT(1)
-        FROM t_sr_strategy_biz_capacity b
-        WHERE b.tab_type = #{tabType}
-          AND b.strategy_id = #{strategyId}
-          AND b.stat_date &gt;= STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d')
-          AND b.stat_date &lt; DATE_ADD(STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d'), INTERVAL 1 MONTH)
-          AND b.is_deleted = 0 and  b.biz_name!='全部'
-        <if test="cityId != null and cityId != ''">
-            AND b.city_id = #{cityId}
-        </if>
-        <if test="countyId != null and countyId != ''">
-            AND b.county_id = #{countyId}
-        </if>
+        FROM (
+            SELECT b.biz_code, b.biz_name, b.count, b.mom_ratio, b.yoy_ratio
+            FROM t_sr_strategy_biz_capacity b
+            WHERE b.tab_type = #{tabType}
+              AND b.strategy_id = #{strategyId}
+              AND b.stat_date &gt;= STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d')
+              AND b.stat_date &lt; DATE_ADD(STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d'), INTERVAL 1 MONTH)
+              AND b.is_deleted = 0 AND b.biz_name != '全部'
+            <if test="cityId != null and cityId != ''">
+                AND b.city_id = #{cityId}
+            </if>
+            <if test="countyId != null and countyId != ''">
+                AND b.county_id = #{countyId}
+            </if>
+            GROUP BY b.biz_code, b.biz_name, b.count, b.mom_ratio, b.yoy_ratio
+        ) dedup
     </select>
 
     <select id="selectStrategyDailyDetail" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyDailyVO">
@@ -970,6 +1055,9 @@
                 WHERE d.strategy_id = #{strategyId}
                   AND d.is_deleted = 0
                 and d.channel!='全部' and d.big_category !='全部' and d.small_category !='全部' and d.strategy_name!='全部'
+                <if test="channel != null and channel != ''">
+                    AND (d.channel = #{channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch WHERE ch.key_name = #{channel} AND ch.status = 1 AND ch.is_deleted = 0 AND (ch.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, ch.tab_type) &gt; 0)))
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND d.city_id = #{cityId}
                 </if>
@@ -1010,6 +1098,9 @@
                   AND (d.tab_type = #{tabType} OR d.tab_type IS NULL)
                   AND d.is_deleted = 0
                  and d.channel!='全部' and d.big_category !='全部' and d.small_category !='全部' and d.strategy_name!='全部'
+                <if test="channel != null and channel != ''">
+                    AND (d.channel = #{channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch WHERE ch.key_name = #{channel} AND ch.status = 1 AND ch.is_deleted = 0 AND (ch.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, ch.tab_type) &gt; 0)))
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND d.city_id = #{cityId}
                 </if>
@@ -1036,6 +1127,9 @@
                 WHERE d.strategy_id = #{strategyId}
                   AND d.is_deleted = 0
                 and d.channel!='全部' and d.big_category !='全部' and d.small_category !='全部' and d.strategy_name!='全部'
+                <if test="channel != null and channel != ''">
+                    AND (d.channel = #{channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch WHERE ch.key_name = #{channel} AND ch.status = 1 AND ch.is_deleted = 0 AND (ch.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, ch.tab_type) &gt; 0)))
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND d.city_id = #{cityId}
                 </if>
@@ -1056,6 +1150,9 @@
                   AND (d.tab_type = #{tabType} OR d.tab_type IS NULL)
                   AND d.is_deleted = 0
                 and d.channel!='全部' and d.big_category !='全部' and d.small_category !='全部' and d.strategy_name!='全部'
+                <if test="channel != null and channel != ''">
+                    AND (d.channel = #{channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch WHERE ch.key_name = #{channel} AND ch.status = 1 AND ch.is_deleted = 0 AND (ch.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, ch.tab_type) &gt; 0)))
+                </if>
                 <if test="cityId != null and cityId != ''">
                     AND d.city_id = #{cityId}
                 </if>
@@ -1073,16 +1170,24 @@
     </select>
 
     <select id="selectStrategyRejectSummary" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
-        SELECT reject_rate AS rejectRate, reject_rate_qoq AS rejectRateQoQ, reject_count AS rejectCount
-        FROM t_sr_strategy_period_summary_ap
-        WHERE strategy_id = #{strategyId}
-          AND DATE_FORMAT(stat_month, '%Y-%m') = #{statMonth}
-          AND is_deleted = 0
+        SELECT s.reject_rate AS rejectRate, s.reject_rate_qoq AS rejectRateQoQ, s.reject_count AS rejectCount
+        FROM t_sr_strategy_period_summary_ap s
+        WHERE s.strategy_id = #{strategyId}
+          AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
+          AND s.is_deleted = 0
+          AND (s.tab_type = 'active' OR s.tab_type IS NULL)
+          AND s.strategy_class = '全部'
+          AND s.big_category = '全部'
+          AND s.small_category = '全部'
+        <choose>
+            <when test="channel != null and channel != ''">AND s.channel = #{channel}</when>
+            <otherwise>AND s.channel = '全部'</otherwise>
+        </choose>
         <if test="cityId != null and cityId != ''">
-            AND city_id = #{cityId}
+            AND s.city_id = #{cityId}
         </if>
         <if test="countyId != null and countyId != ''">
-            AND county_id = #{countyId}
+            AND s.county_id = #{countyId}
         </if>
         LIMIT 1
     </select>
@@ -1097,7 +1202,7 @@
         WHERE r.strategy_id = #{strategyId}
           AND DATE_FORMAT(r.stat_month, '%Y-%m') = #{statMonth}
           AND r.is_deleted = 0
-        <if test="cityId != null and cityId != ''">
+        <if test="cityId != null and cityId != '' and cityId != '999'">
             AND r.city_id = #{cityId}
         </if>
         <if test="countyId != null and countyId != ''">

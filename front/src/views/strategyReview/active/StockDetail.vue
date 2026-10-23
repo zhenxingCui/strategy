@@ -285,7 +285,7 @@ export default {
   },
   methods: {
     params(extra = {}) {
-      return { ...this.query, strategyId: this.selected.strategyId, ...extra }
+      return { ...this.query, strategyId: this.selected.strategyId, channel: this.selected.channel || null, ...extra }
     },
     clearDetails() {
       for (const key of ['info', 'trend', 'reject', 'biz', 'daily']) {

@@ -163,7 +163,8 @@ public interface SrStrategyReviewMapper {
 
     /** 策略基本信息（tabType 用于选择大类/小类子查询来源表） */
     StrategyInfoVO selectStrategyInfo(@Param("tabType") String tabType,
-                                      @Param("strategyId") String strategyId);
+                                      @Param("strategyId") String strategyId,
+                                      @Param("channel") String channel);
 
     /** 策略产能趋势（近6个月，capacity 取产品转化数/成功办理量；metricColumn 为白名单校验后的列名） */
     List<StrategyTrendItemVO> selectStrategyCapacityTrend(@Param("tabType") String tabType,
@@ -171,7 +172,8 @@ public interface SrStrategyReviewMapper {
                                                       @Param("metricColumn") String metricColumn,
                                                       @Param("cityId") String cityId,
                                                       @Param("countyId") String countyId,
-                                                      @Param("statMonth") String statMonth);
+                                                      @Param("statMonth") String statMonth,
+                                                      @Param("channel") String channel);
 
     /** 策略业务产能-当前页 */
     List<StrategyBizVO> selectStrategyBizCapacity(@Param("tabType") String tabType,
@@ -194,6 +196,7 @@ public interface SrStrategyReviewMapper {
                                                     @Param("strategyId") String strategyId,
                                                     @Param("cityId") String cityId,
                                                     @Param("countyId") String countyId,
+                                                    @Param("channel") String channel,
                                                     @Param("startDate") String startDate,
                                                     @Param("endDate") String endDate,
                                                     @Param("offset") int offset,
@@ -204,6 +207,7 @@ public interface SrStrategyReviewMapper {
                                   @Param("strategyId") String strategyId,
                                   @Param("cityId") String cityId,
                                   @Param("countyId") String countyId,
+                                  @Param("channel") String channel,
                                   @Param("startDate") String startDate,
                                   @Param("endDate") String endDate);
 
@@ -211,7 +215,8 @@ public interface SrStrategyReviewMapper {
     StrategyRowVO selectStrategyRejectSummary(@Param("strategyId") String strategyId,
                                               @Param("statMonth") String statMonth,
                                               @Param("cityId") String cityId,
-                                              @Param("countyId") String countyId);
+                                              @Param("countyId") String countyId,
+                                              @Param("channel") String channel);
 
     /** 策略拒绝原因列表（active） */
     List<RejectReasonItemVO> selectRejectReasons(@Param("strategyId") String strategyId,

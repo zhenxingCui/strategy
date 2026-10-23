@@ -186,14 +186,15 @@
     </update>
 
     <select id="selectChannelNamesByCodes" resultType="java.lang.String">
-        SELECT d.key_name
-        FROM t_sr_dim_channel d
-        WHERE d.status = 1
-          AND d.is_deleted = 0
-          AND d.key_code IN
-        <foreach collection="channels" item="code" open="(" separator="," close=")">
-            #{code}
-        </foreach>
+        SELECT COALESCE(d.key_name, requested.channel)
+        FROM (
+            <foreach collection="channels" item="code" separator=" UNION ALL ">
+                SELECT #{code} AS channel
+            </foreach>
+        ) requested
+        LEFT JOIN t_sr_dim_channel d
+          ON d.status = 1 AND d.is_deleted = 0
+         AND (d.key_code = requested.channel OR d.key_name = requested.channel)
     </select>
 
     <!-- ==================== 命中策略 ==================== -->
@@ -256,7 +257,7 @@
                     SELECT s.strategy_id        AS strategyId,
                     s.strategy_code      AS strategyCode,
                     s.channel            AS channel,
-                    d.key_name           AS channelName,
+                    COALESCE(d.key_name, s.channel) AS channelName,
                     s.big_category       AS bigCategory,
                     s.small_category     AS smallCategory,
                     s.consult_count      AS consultCount,
@@ -287,7 +288,7 @@
                     s.strategy_name        AS strategyName,
                     s.strategy_class       AS strategyClass,
                     s.channel              AS channel,
-                    d.key_name             AS channelName,
+                    COALESCE(d.key_name, s.channel) AS channelName,
                     s.big_category         AS bigCategory,
                     s.small_category       AS smallCategory,
                     s.original_cust        AS originalCust,

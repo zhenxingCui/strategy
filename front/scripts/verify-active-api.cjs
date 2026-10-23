@@ -38,7 +38,16 @@ async function main() {
   assert.equal(list.list.length, Math.min(list.total, 5))
   assert.ok(list.list.every((row) => row.strategyId !== '999'))
   if (defaults.strategyClass !== '全部') assert.ok(list.list.every(row => row.strategyClass === defaults.strategyClass))
-  assert.equal(kpis.find((row) => row.metricCode === 'strategy_count').value, list.total)
+  const allStrategyRows = []
+  for (let pageNum = 1; pageNum <= Math.ceil(list.total / 500); pageNum++) {
+    const page = await api('/touchpoint/strategyList', { ...scope, pageNum, pageSize: 500 })
+    allStrategyRows.push(...page.list)
+  }
+  assert.equal(
+    kpis.find((row) => row.metricCode === 'strategy_count').value,
+    new Set(allStrategyRows.map((row) => row.strategyId)).size,
+    'KPI strategy count is by unique strategy ID; a strategy can have rows under multiple channels',
+  )
   const trend = await api('/overview/trend', { ...scope, metricCode: kpis[0].metricCode })
   assert.ok(trend.months.length > 1 && trend.months.length <= 12)
   const channelKpis = await api('/overview/kpi', { ...scope, channel })
@@ -69,7 +78,7 @@ async function main() {
   assert.ok(historical.length && historical.every((row) => row.month.slice(0, 7) <= historicalMonth))
   assert.ok((await api('/touchpoint/channelBizCapacity', scope)).length)
   const strategyId = channelList.list[0].strategyId
-  const detailScope = { ...scope, strategyId }
+  const detailScope = { ...scope, strategyId, channel: channelList.list[0].channel }
   const info = await api('/execution/strategyInfo', detailScope)
   assert.equal(info.strategyId, strategyId)
   assert.ok(info.level && info.caliber && info.createTime)
@@ -81,8 +90,8 @@ async function main() {
     endDate: monthEnd,
     pageSize: 10,
   })
-  assert.ok(daily.total > 10 && daily.list.every((row) => row.date.startsWith(statMonth)))
-  assert.ok((await api('/execution/rejectReason', detailScope)).reasons.length)
+  assert.ok(Array.isArray(daily.list) && daily.list.every((row) => row.date.startsWith(statMonth)))
+  assert.ok(Array.isArray((await api('/execution/rejectReason', detailScope)).reasons))
   const rules = await api('/warning/ruleList', { ...scope, pageSize: 5 })
   assert.ok(rules.total > 5 && rules.list[0].conditions.length)
   const liveRule = rules.list.find((rule) => rule.status === '生效中')

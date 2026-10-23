@@ -123,3 +123,11 @@ npm run build
 重点产品整体情况补齐三项比率：使用率=使用量/推送量，触达率=触达量/使用量，转化率=转化量/触达量。新增的 reach_rate 通过 dispatch_count/retain_count 聚合计算；全部产品、具体产品及触点筛选均支持，环比为相邻自然月率值之差（pp），缺少上月或分母为零时为空。点击触达率可查看近12期趋势，无需新增数据库列或重写历史汇总。
 
 存量降拆页面文案：漏斗及趋势使用咨询量、挽留量、派单量、成功量；分类汇总、预警命中、逐策略、收藏、分日表格及导出统一采用该口径，目标转化指标显示为目标成功量/目标成功率，业务产能列显示成功量。仅在 active + 降拆 生效，接口字段和数值不变。
+
+## BQQData 本地快照适配
+
+`front/scripts/adapt-bqqdata-local.cjs` 读取 `D:\工作数据\BQQData\sql` 的 9 张 MySQL 表格导出。先在 `front/` 执行 `npm run db:adapt-bqqdata` 查看来源月份、行数、待补列和替换范围；确认后执行 `npm run db:adapt-bqqdata -- --apply`。导入脚本只允许写入本地库 `strategy_review_active_class_local`，执行前会生成完整 `mysqldump` 到 `outputs/local-db-adapt-20261024/`。
+
+导入会整体替换 `t_sr_strategy` 的 active 主表记录，并替换各事实表对应月份的 active 快照；其它月份、control/passive 数据、收藏和预警表保留。源文件中的自增 `id` 不导入，由本地库重新生成。现有表缺少的源列可通过 `back/src/main/resources/sql/strategy_review_add_bqqdata_compat_columns.sql` 补齐，重复执行安全。
+
+源快照的渠道值是展示名称、KPI 指标编码使用大写源编码，策略汇总包含按渠道/分类拆出的维度行，拒因城市码也不同于页面根级城市码。Mapper 已兼容这些形态；策略明细请求附带所选渠道，按月趋势合并多渠道记录，业务产能相同输出行去重。分类和客群字段值不做映射，按当前来源值原样返回。

@@ -694,6 +694,7 @@ export default {
       return {
         tabType: this.tabType,
         strategyId: sid,
+        channel: this.activeStrategy.channel || null,
         // 登录身份透传：后端按 city_id/user_id 过滤
         cityId: getCityId(),
         userId: getUserId()

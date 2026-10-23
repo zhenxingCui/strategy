@@ -22,6 +22,8 @@ public class ExecutionQueryReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "策略ID（t_sr_strategy.id）")
     private String strategyId;
+    @ApiModelProperty(value = "触点渠道，策略明细从渠道行进入时用于限定对应渠道")
+    private String channel;
 
     @ApiModelProperty(value = "账期月份，格式 yyyy-MM", example = "2026-08")
     private String statMonth;

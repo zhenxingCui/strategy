@@ -358,7 +358,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         if (req.getStrategyId() == null) {
             return new StrategyInfoVO();
         }
-        StrategyInfoVO info = reviewMapper.selectStrategyInfo(req.getTabType(), req.getStrategyId());
+        StrategyInfoVO info = reviewMapper.selectStrategyInfo(req.getTabType(), req.getStrategyId(), req.getChannel());
         return info == null ? new StrategyInfoVO() : info;
     }
 
@@ -372,7 +372,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         }
         List<StrategyTrendItemVO> rows = reviewMapper.selectStrategyCapacityTrend(
                 req.getTabType(), req.getStrategyId(), metricColumn,
-                req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())));
+                req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())), req.getChannel());
         StrategyTrendVO resp = new StrategyTrendVO();
         List<String> months = new ArrayList<>();
         List<BigDecimal> capacity = new ArrayList<>();
@@ -414,10 +414,12 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         long total = reviewMapper.countStrategyDailyDetail(
                 req.getTabType(), req.getStrategyId(),
                 req.getCityId(), req.getCountyId(),
+                req.getChannel(),
                 req.getStartDate(), req.getEndDate());
         List<StrategyDailyVO> list = total == 0 ? new ArrayList<>() : reviewMapper.selectStrategyDailyDetail(
                 req.getTabType(), req.getStrategyId(),
                 req.getCityId(), req.getCountyId(),
+                req.getChannel(),
                 req.getStartDate(), req.getEndDate(),
                 (pageNum - 1) * pageSize, pageSize);
         return PageResultVO.of(list, total,new StrategyDailyVO(), pageNum, pageSize);
@@ -429,7 +431,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         RejectReasonRespVO resp = new RejectReasonRespVO();
         StrategyRowVO summary =
                 reviewMapper.selectStrategyRejectSummary(req.getStrategyId(), statMonth,
-                        req.getCityId(), req.getCountyId());
+                        req.getCityId(), req.getCountyId(), req.getChannel());
         if (summary != null) {
             resp.setRejectRate(summary.getRejectRate());
             resp.setRejectRateQoQ(summary.getRejectRateQoQ());
