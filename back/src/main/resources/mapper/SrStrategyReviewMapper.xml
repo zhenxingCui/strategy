@@ -8,8 +8,15 @@
         <choose>
             <when test="query.tabType == 'active'">
                 SELECT DISTINCT s.channel AS keyCode,
-                       s.channel         AS keyName
+                       COALESCE(d.key_name, s.channel) AS keyName
                 FROM t_sr_strategy_period_summary_ap s
+                LEFT JOIN (
+                    SELECT key_code, MAX(key_name) AS key_name
+                    FROM t_sr_dim_channel
+                    WHERE status = 1 AND is_deleted = 0
+                      AND (tab_type = 'active' OR FIND_IN_SET('active', tab_type) &gt; 0)
+                    GROUP BY key_code
+                ) d ON d.key_code = s.channel
                 WHERE s.tab_type = 'active' AND s.is_deleted = 0
                   AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
                   AND s.strategy_id != '999'

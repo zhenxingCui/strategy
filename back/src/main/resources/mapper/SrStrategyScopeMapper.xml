@@ -39,9 +39,51 @@
             </when>
             <otherwise>
                 AND s.tab_type = #{query.tabType}
-                <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
-                AND s.strategy_class = #{query.strategyClass}
-                </if>
+                <choose>
+                    <when test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+                        AND s.strategy_class = #{query.strategyClass}
+                    </when>
+                    <when test="query.tabType == 'active'">
+                        <!-- The '全部' rows are authoritative rollups. Fall back to class facts only for channels/months without that rollup. -->
+                        <choose>
+                            <when test="query.channel != null and query.channel != ''">
+                                AND (s.strategy_class = '全部' OR (
+                                    s.strategy_class != '全部'
+                                    AND NOT EXISTS (
+                                        SELECT 1 FROM t_sr_strategy_period_summary_ap all_scope
+                                        WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
+                                          AND all_scope.strategy_class = '全部'
+                                          AND all_scope.stat_month = s.stat_month
+                                          AND all_scope.channel = s.channel
+                                          AND all_scope.city_id &lt;=&gt; s.city_id
+                                          AND all_scope.county_id &lt;=&gt; s.county_id
+                                          AND all_scope.strategy_id != '999'
+                                          AND all_scope.channel != '全部'
+                                          AND all_scope.big_category != '全部'
+                                          AND all_scope.small_category != '全部'
+                                    )
+                                ))
+                            </when>
+                            <otherwise>
+                                AND (s.strategy_class = '全部' OR (
+                                    s.strategy_class != '全部'
+                                    AND NOT EXISTS (
+                                        SELECT 1 FROM t_sr_strategy_period_summary_ap all_scope
+                                        WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
+                                          AND all_scope.strategy_class = '全部'
+                                          AND all_scope.stat_month = s.stat_month
+                                          AND all_scope.city_id &lt;=&gt; s.city_id
+                                          AND all_scope.county_id &lt;=&gt; s.county_id
+                                          AND all_scope.strategy_id != '999'
+                                          AND all_scope.channel != '全部'
+                                          AND all_scope.big_category != '全部'
+                                          AND all_scope.small_category != '全部'
+                                    )
+                                ))
+                            </otherwise>
+                        </choose>
+                    </when>
+                </choose>
                 <if test="query.customerGroup != null and query.customerGroup != ''">
                 AND EXISTS (SELECT 1 FROM t_sr_strategy cg
                     WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'

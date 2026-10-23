@@ -133,7 +133,12 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             List<ChannelSummaryRowVO> rows = reviewMapper.selectChannelSummaryList(
                     req.getTabType(), toYearMonth(statMonth), req.getCityId(), req.getCountyId(),
                     "c.strategy_count DESC", req.getChannel(), req.getStrategyClass());
-            if (rows == null || rows.isEmpty()) return new ArrayList<>();
+            if (rows == null || rows.isEmpty()) {
+                // Channel summaries are not synchronized for every active class/channel.
+                // Use the same filtered strategy facts as the other scope-aware KPIs.
+                if ("active".equals(req.getTabType())) return scopeAggregation.kpis(req);
+                return new ArrayList<>();
+            }
             // 沿用渠道汇总的真实值和环比，不用原型的缩放系数推算指标。
             org.springframework.beans.BeanWrapper bean = new org.springframework.beans.BeanWrapperImpl(rows.get(0));
             String[][] apMetrics = {
@@ -188,6 +193,11 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         }
         List<KpiCardVO> list = reviewMapper.selectKpiCard(req.getTabType(), statMonth,
                 req.getCityId(), req.getCountyId(), req.getStrategyClass());
+        // Some imported strategy classes have period facts but no matching KPI summary rows.
+        // Derive the cards from those facts so the latest class view does not render empty.
+        if ((list == null || list.isEmpty()) && "active".equals(req.getTabType())) {
+            return scopeAggregation.kpis(req);
+        }
         if (list != null && "control".equals(req.getTabType())) {
             list.removeIf(card -> "reach_rate".equals(card.getMetricCode()));
             KpiCardVO reachRate = scopeAggregation.reachRate(req);
@@ -230,6 +240,23 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         } else {
             rows = reviewMapper.selectKpiTrend(req.getTabType(), req.getMetricCode(),
                     req.getCityId(), req.getCountyId(), statMonth, req.getStrategyClass());
+        }
+        // Keep the category trend aligned with its KPI cards when the latest month
+        // exists in strategy facts but has not yet been written to the KPI summary.
+        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getStrategyClass())) {
+            String latestMonth = statMonth;
+            if (StringUtils.isBlank(latestMonth)) {
+                latestMonth = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId());
+            }
+            if (StringUtils.isBlank(latestMonth)) {
+                latestMonth = reviewMapper.selectLatestStrategyMonth(req.getTabType(), req.getCityId(), req.getCountyId());
+            }
+            final String targetMonth = toYearMonth(latestMonth);
+            boolean hasTargetMonth = StringUtils.isNotBlank(targetMonth) && rows != null && rows.stream()
+                    .anyMatch(row -> targetMonth.equals(toYearMonth(row.getMonth())));
+            if (StringUtils.isNotBlank(targetMonth) && !hasTargetMonth) {
+                return scopeAggregation.trend(req);
+            }
         }
         KpiTrendVO resp = new KpiTrendVO();
         List<String> months = new ArrayList<>();
