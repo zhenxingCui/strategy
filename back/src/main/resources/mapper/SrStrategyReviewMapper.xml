@@ -341,7 +341,14 @@
         <if test="strategyClass != null and strategyClass != '' and strategyClass != '全部'">
             AND s.strategy_class = #{strategyClass}
         </if>
-    </sql>
+
+        <if test="customerGroup != null and customerGroup != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
+                  AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
+                  AND cg.customer_group = #{customerGroup})
+        </if>
+</sql>
 
     <sql id="strategyListCtrlWhere">
         WHERE DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}

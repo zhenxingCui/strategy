@@ -4,6 +4,8 @@
 
 2026-10-23：重点产品参照增量策略的布局、分类与策略名称入口；接口参数继续使用 `tab_type=control`，数据仍来自控损表，保留咨询、挽留、派单、成功及收入指标，不将其改名为推送、使用、转化指标。
 
+2026-10-23：重点客群在“触点切换”前增加“客群切换”，默认全部客群。`t_sr_strategy.customer_group` 直接存名称（如高价值客群、校园客群、家庭客群、银龄客群），只新增这一列，不新增字典表，不修改统计表。
+
 ## 运行
 
 - 后端：在 `back/` 执行 `mvn spring-boot:run`，端口 8080。
@@ -39,6 +41,14 @@
 当前联调库更新样例数据时，在 `front/` 执行 `npm run db:refresh-local`。刷新脚本只允许更新 `strategy_review_active_class_local`，并要求库内策略均为本地联调样例；只替换这些样例策略和统计事实，保留收藏与预警规则。刷新前应确认该库仍仅用于本地测试。
 
 给现有联调库补充增量和重点产品数据时执行 `npm run db:seed-passive-control`。脚本只允许目标库为 `strategy_review_active_class_local`，只清理带本脚本专属标记的增量/重点产品样例，支持重复执行，不创建或删除表，也不重建存量数据。现有环境的字段迁移见 `back/src/main/resources/sql/strategy_review_add_strategy_biz_tab_type.sql`；新环境建表 DDL 已包含该字段。
+
+现有环境增加客群列时，先选择目标数据库，再执行 `back/src/main/resources/sql/strategy_review_add_customer_group.sql`，可重复执行。已有重点客群策略的分类名称由数据提供方填充；NULL/空白归属仍计入“全部客群”，不出现在下拉选项中。本地执行 `npm run db:seed-customer-groups` 可迁移该列并为 STR013–STR020 中尚无分组的本地样例填充四类客群，不重建统计、不覆盖已有归属。新建和刷新本地库也包含这些客群名称。
+
+接口 `POST /dim` 的 `type=客群分类, tabType=active` 从主表返回不重复的非空名称，`keyCode` 与 `keyName` 都是名称。查询参数 `customerGroup` 按名称精确匹配并去除首尾空格；仅在 `tabType=active, strategyClass=重点客群` 时生效，空值表示全部客群，其他视角忽略此参数。切换分类会清空客群选择，切换客群会重置列表分页和所选策略详情，保留当前触点条件。
+
+具体客群的 KPI、趋势、渠道与分类汇总从策略月度事实按主表归属聚合，排除 `strategy_id=999` 等预计算汇总行；策略数按策略编码去重，比率使用聚合后的分子/分母计算，数量环比按相邻自然月计算，率值环比为百分点。缺少上月或分母为零时返回空值。SQL 先聚合最多 13 个月的数据，再计算环比及近 12/6 期趋势，不把策略明细全量传到前端。业务产能使用逐策略业务明细聚合，缺少上月明细时环比为空。策略分页、收藏列表、预警命中列表均按主表中的客群归属筛选；全部客群继续走现有汇总查询。
+
+此方案约定一条策略固定归属一类客群。修改主表中的客群名称会改变其历史查询归属；需要一策略多客群效果拆分或历史归属快照时，应另行扩展事实数据维度。
 
 示例数据的使用率=使用量/推送量、触达率=触达量/使用量、转化率=全产品转化量/触达量。率值环比显示为百分点 `pp`。
 渠道汇总原有表结构不含触达率字段，切换到单个触点时该指标显示“—”，不以模拟数补齐。
@@ -78,6 +88,7 @@
 ```powershell
 node scripts/verify-active-api.cjs
 node scripts/verify-key-audience-data.cjs
+node scripts/verify-customer-groups.cjs
 $env:SR_VERIFY_STRATEGY_CLASS='重点客群'
 node scripts/verify-active-api.cjs
 Remove-Item Env:SR_VERIFY_STRATEGY_CLASS

@@ -30,4 +30,11 @@ public class OverviewQueryReq extends BaseRegionReq {
 
     @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群，空=全部")
     private String strategyClass;
+    @ApiModelProperty("重点客群分类名称，空=全部客群；仅存量重点客群生效")
+    private String customerGroup;
+
+    public String getCustomerGroup() {
+        return "active".equals(tabType) && "重点客群".equals(strategyClass)
+                && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
+    }
 }

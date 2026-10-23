@@ -99,6 +99,7 @@ public interface SrStrategyReviewMapper {
                                            @Param("bigCategory") String bigCategory,
                                            @Param("smallCategory") String smallCategory,
                                            @Param("strategyClass") String strategyClass,
+                                           @Param("customerGroup") String customerGroup,
                                            @Param("strategyName") String strategyName,
                                            @Param("orderByClause") String orderByClause,
                                            @Param("offset") int offset,
@@ -115,6 +116,7 @@ public interface SrStrategyReviewMapper {
                            @Param("bigCategory") String bigCategory,
                            @Param("smallCategory") String smallCategory,
                            @Param("strategyClass") String strategyClass,
+                                           @Param("customerGroup") String customerGroup,
                            @Param("strategyName") String strategyName);
 
     /** 渠道产能趋势（近6个月，支持大类/小类联动筛选） */

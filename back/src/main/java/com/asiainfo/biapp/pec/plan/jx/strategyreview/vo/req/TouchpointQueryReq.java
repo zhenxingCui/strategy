@@ -48,4 +48,11 @@ public class TouchpointQueryReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "排序方向：asc/desc")
     private String sortDir;
+    @ApiModelProperty("重点客群分类名称，空=全部客群；仅存量重点客群生效")
+    private String customerGroup;
+
+    public String getCustomerGroup() {
+        return "active".equals(tabType) && "重点客群".equals(strategyClass)
+                && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
+    }
 }

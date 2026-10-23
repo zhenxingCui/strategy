@@ -7,6 +7,7 @@ const keyAudienceNames = [
   '商旅客群漫游权益推荐', '高流量客群套餐优化', '合约到期重点客户续约', '宽带高潜客群提速推荐',
 ]
 const activeClasses = ['升接', '稳', '降拆', '离', '重点客群']
+const customerGroups = ['高价值客群', '校园客群', '家庭客群', '银龄客群', '高价值客群', '校园客群', '高价值客群', '家庭客群']
 
 const database = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
 if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(database)) throw new Error('数据库名仅支持字母、数字和下划线')
@@ -142,6 +143,7 @@ async function main() {
       await connection.query(schema)
     }
     await connection.query('USE ??', [database])
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
     if (refreshExisting) {
       const [seeded] = await connection.query(
         "SELECT COUNT(*) AS seeded_count FROM t_sr_strategy WHERE tab_type = 'active' AND owner = '本地联调' AND strategy_code LIKE 'STR%' AND is_deleted = 0",
@@ -239,6 +241,7 @@ async function main() {
       strategy_name: name,
       tab_type: 'active',
       strategy_class: strategyClasses[i],
+      customer_group: i >= 12 ? customerGroups[i - 12] : null,
       channel: channels[i % 4].key_code,
       strategy_level: ['省级', '市级', '网格级'][i % 3],
       caliber: `近三个月符合${small[i % 4]}条件且允许营销触达的客户（本地联调样例）`,

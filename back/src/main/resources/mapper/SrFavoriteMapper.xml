@@ -39,7 +39,14 @@
                 AND p.strategy_class = #{query.strategyClass} AND p.is_deleted = 0
                 AND DATE_FORMAT(p.stat_month, '%Y-%m') = #{query.statMonth})
         </if>
-    </sql>
+
+        <if test="query.customerGroup != null and query.customerGroup != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                WHERE cg.strategy_code = f.strategy_id AND cg.tab_type = 'active'
+                  AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
+                  AND cg.customer_group = #{query.customerGroup})
+        </if>
+</sql>
 
     <select id="selectFavoriteList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
         <choose>

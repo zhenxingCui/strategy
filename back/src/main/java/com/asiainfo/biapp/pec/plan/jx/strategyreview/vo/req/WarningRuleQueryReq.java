@@ -48,4 +48,11 @@ public class WarningRuleQueryReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "每页条数", example = "10")
     private Integer pageSize = 10;
+    @ApiModelProperty("重点客群分类名称，空=全部客群；仅存量重点客群生效")
+    private String customerGroup;
+
+    public String getCustomerGroup() {
+        return "active".equals(tabType) && "重点客群".equals(strategyClass)
+                && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
+    }
 }

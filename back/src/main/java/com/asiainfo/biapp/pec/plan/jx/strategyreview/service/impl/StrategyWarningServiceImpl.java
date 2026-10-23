@@ -175,13 +175,13 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         boolean favorite = StringUtils.isNotBlank(req.getFavorite());
         String userId = StringUtils.defaultIfBlank(req.getUserId(), "admin");
         long total = warningMapper.countHitStrategyList(req.getTabType(), req.getRuleId(), statMonth, conditionSQL,
-                req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), warningRuleVO, favorite, userId);
+                req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), req.getCustomerGroup(), warningRuleVO, favorite, userId);
         List<StrategyRowVO> list;
         if (total == 0) {
             list = new ArrayList<>();
         } else {
             list = warningMapper.selectHitStrategyList(req.getTabType(), req.getRuleId(), statMonth,conditionSQL,
-                    req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), warningRuleVO, favorite, userId, (pageNum - 1) * pageSize, pageSize);
+                    req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), req.getCustomerGroup(), warningRuleVO, favorite, userId, (pageNum - 1) * pageSize, pageSize);
         }
         return PageResultVO.of(list, total,new StrategyRowVO(), pageNum, pageSize);
     }

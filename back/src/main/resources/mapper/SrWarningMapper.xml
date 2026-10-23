@@ -232,7 +232,14 @@
                 AND f.user_id = #{userId} AND f.tab_type = #{tabType} AND f.source IN ('follow', 'manual+follow')
                 AND FIND_IN_SET(CAST(#{ruleId} AS CHAR), f.rule_id) &gt; 0 AND f.is_deleted = 0)
         </if>
-    </sql>
+
+        <if test="customerGroup != null and customerGroup != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
+                  AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
+                  AND cg.customer_group = #{customerGroup})
+        </if>
+</sql>
 
     <select id="selectHitStrategyList" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
             <choose>

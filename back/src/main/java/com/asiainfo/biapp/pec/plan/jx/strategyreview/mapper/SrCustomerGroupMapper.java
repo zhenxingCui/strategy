@@ -1,0 +1,16 @@
+package com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper;
+
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req.TouchpointQueryReq;
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface SrCustomerGroupMapper {
+    List<DimItemVO> selectDimensions();
+    List<Map<String, Object>> selectMetrics(@Param("query") TouchpointQueryReq query,
+                                          @Param("dimension") String dimension);
+    List<Map<String, Object>> selectBusiness(@Param("query") TouchpointQueryReq query);
+}

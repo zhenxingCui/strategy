@@ -39,10 +39,16 @@
           <div v-if="channelError" class="dimension-error" role="alert">
             触点选项加载失败，当前展示全部渠道。<button class="btn-link" @click="loadChannels">重试</button>
           </div>
+          <div v-if="customerGroupsError && strategyClass === '重点客群'" class="dimension-error" role="alert">
+            客群选项加载失败，当前展示全部客群。<button class="btn-link" @click="loadCustomerGroups">重试</button>
+          </div>
           <stock-overview
             :query="query"
             :channels="channels"
             :channels-loading="channelsLoading"
+            :customer-groups="customerGroups"
+            :customer-groups-loading="customerGroupsLoading"
+            @customer-group="changeCustomerGroup"
             @channel="changeChannel"
             @strategy-class="changeStrategyClass"
             @month="drillMonth"
@@ -75,6 +81,11 @@ export default {
       month: '',
       channel: '',
       strategyClass: '',
+      customerGroup: '',
+      customerGroups: [],
+      customerGroupsLoading: false,
+      customerGroupsError: false,
+      customerGroupsRequestVersion: 0,
       channels: [],
       channelsLoading: false,
       channelError: false,
@@ -97,6 +108,7 @@ export default {
         statMonth: this.month,
         channel: this.channel,
         strategyClass: this.tabType === 'active' ? (this.strategyClass || '全部') : '全部',
+        customerGroup: this.tabType === 'active' && this.strategyClass === '重点客群' ? (this.customerGroup || '') : '',
         cityId: getCityId(),
         userId: getUserId(),
       }
@@ -114,6 +126,7 @@ export default {
     }
     this.bootstrap()
     this.loadChannels()
+    this.loadCustomerGroups()
   },
   mounted() {
     this.$el.addEventListener('click', touchActivity)
@@ -128,12 +141,37 @@ export default {
       this.month = ''
       this.channel = ''
       this.strategyClass = ''
+      this.customerGroup = ''
       this.selectedStrategy = null
       this.bootstrap()
       this.loadChannels()
+      this.loadCustomerGroups()
     },
   },
   methods: {
+    async loadCustomerGroups() {
+      const version = ++this.customerGroupsRequestVersion
+      const requestType = this.tabType
+      this.customerGroups = []
+      this.customerGroupsError = false
+      this.customerGroupsLoading = false
+      if (requestType !== 'active') return
+      this.customerGroupsLoading = true
+      try {
+        const result = await getDim({ tabType: requestType, type: '客群分类' })
+        if (version !== this.customerGroupsRequestVersion) return
+        this.customerGroups = listOf(result)
+      } catch (e) {
+        if (version === this.customerGroupsRequestVersion) this.customerGroupsError = true
+      } finally {
+        if (version === this.customerGroupsRequestVersion) this.customerGroupsLoading = false
+      }
+    },
+    changeCustomerGroup(customerGroup) {
+      if (this.customerGroup === customerGroup) return
+      this.customerGroup = customerGroup
+      this.selectedStrategy = null
+    },
     bootstrap() {
       return this.request(
         'bootstrap',
@@ -176,6 +214,7 @@ export default {
     changeStrategyClass(strategyClass) {
       if (this.strategyClass === strategyClass) return
       this.strategyClass = strategyClass
+      this.customerGroup = ''
       this.selectedStrategy = null
     },
     drillMonth(month) {

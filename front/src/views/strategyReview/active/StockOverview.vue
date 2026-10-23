@@ -1,7 +1,7 @@
 <template>
   <section class="section overview-section">
       <h2 class="section-title">
-      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }} · 触点：{{ channelName }}</span>
+      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '全部客群' }}</template> · 触点：{{ channelName }}</span>
     </h2>
     <div class="overview-body split split--m1">
       <div class="card snapshot-card">
@@ -119,6 +119,14 @@
       </div>
       <div class="card overview-trend-card">
         <div class="overview-panel-head overview-filters">
+          <label v-if="isKeyAudience">
+            客群切换
+            <select class="select" aria-label="客群切换" :value="query.customerGroup || ''"
+              :disabled="customerGroupsLoading" @change="$emit('customer-group', $event.target.value)">
+              <option value="">全部客群</option>
+              <option v-for="group in customerGroups" :key="group.keyCode" :value="group.keyCode">{{ group.keyName }}</option>
+            </select>
+          </label>
           <label
             >触点切换
             <select
@@ -163,6 +171,8 @@ export default {
     query: { type: Object, required: true },
     channels: { type: Array, default: () => [] },
     channelsLoading: Boolean,
+    customerGroups: { type: Array, default: () => [] },
+    customerGroupsLoading: Boolean,
   },
   data() {
     return {
@@ -178,6 +188,9 @@ export default {
     }
   },
   computed: {
+    isKeyAudience() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
+    },
     categories() {
       return this.query.tabType === 'active'
         ? [

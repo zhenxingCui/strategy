@@ -24,6 +24,15 @@ function frontend() {
   const format = data.strategyColumns.find(c => c.prop === 'strategyClass').format
   for (const value of ['全部', '升接', '稳', '降拆', '离', '重点客群']) assert.equal(format(value), value)
   const entry = load('src/views/strategyReview/active/ActiveReview.vue').default
+  for (const [tabType, strategyClass, expected] of [['active', '重点客群', '高价值客群'], ['active', '升接', ''], ['passive', '重点客群', ''], ['control', '重点客群', '']]) {
+    assert.equal(entry.computed.query.call({ tabType, strategyClass, customerGroup: '高价值客群' }).customerGroup, expected)
+  }
+  const switching = { strategyClass: '重点客群', customerGroup: '高价值客群', selectedStrategy: { strategyId: 'old' } }
+  entry.methods.changeStrategyClass.call(switching, '升接')
+  assert.equal(switching.customerGroup, '')
+  assert.equal(switching.selectedStrategy, null)
+  entry.methods.changeCustomerGroup.call(switching, '家庭客群')
+  assert.equal(switching.customerGroup, '家庭客群')
   for (const strategyClass of ['', '全部', '升接', '稳', '降拆', '离', '重点客群']) {
     assert.equal(entry.computed.query.call({ tabType: 'active', strategyClass }).strategyClass, strategyClass || '全部')
     assert.equal(entry.computed.query.call({ tabType: 'passive', strategyClass }).strategyClass, '全部')
@@ -35,6 +44,8 @@ function frontend() {
     }
     assert.equal(component.computed.isDowngrade.call({ query: { tabType: 'passive', strategyClass: '降拆' } }), false)
     if (name === 'StockOverview') {
+      assert.equal(component.computed.isKeyAudience.call({ query: { tabType: 'active', strategyClass: '重点客群' } }), true)
+      assert.equal(component.computed.isKeyAudience.call({ query: { tabType: 'active', strategyClass: '升接' } }), false)
       const categories = component.computed.categories.call({ query: { tabType: 'active' } })
       assert.equal(categories.map(c => c.value).join(','), '全部,升接,稳,降拆,离,重点客群')
       const groups = strategyClass => component.computed.groups.call({ query: { tabType: 'active', strategyClass }, isDowngrade: false })
