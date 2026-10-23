@@ -1,0 +1,33 @@
+{
+  "tabType": "active",
+  "strategyClass": "离",
+  "cityId": "999",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-21",
+  "strategiesPerMonth": 10,
+  "monthlyMoMRange": "-2%..5%",
+  "method": "Fixed ten strategy codes, deterministic v3 simulation; adjacent simulated month measures stay within -1.5%..4.5%, and the last simulated month aligns to the source month daily average.",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyStrategyIds": [
+    "lw_1001",
+    "lw_1002",
+    "lw_1003",
+    "lw_1004",
+    "lw_1005",
+    "lw_1006",
+    "lw_1007",
+    "lw_1008",
+    "lw_1009",
+    "lw_1010"
+  ],
+  "dailyRuleSource": "Excel分日展示",
+  "dailyRuleSourceSha256": "a6f874f9bef45c11781cfffd76e1f5e91a7d1acb69d3f7f27a40cdbde04f95eb",
+  "sourceFile": "261023存量策略_精简填报模板_3张输入表-离V1.1.xlsx",
+  "sourceSha256": "a6f874f9bef45c11781cfffd76e1f5e91a7d1acb69d3f7f27a40cdbde04f95eb",
+  "partialMonthQoQ": "daily-average comparable"
+}

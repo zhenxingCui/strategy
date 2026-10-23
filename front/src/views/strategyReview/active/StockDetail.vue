@@ -39,7 +39,7 @@
           </div>
         </review-table>
       </div>
-      <div class="detail-grid" :class="{ 'detail-grid--without-biz': isDowngrade }">
+      <div class="detail-grid" :class="{ 'detail-grid--without-biz': hideBusinessCapacity }">
         <div class="card">
           <div class="sub-title">策略详情</div>
           <review-state
@@ -82,7 +82,7 @@
             ><e-chart :option="rejectOption" height="210px"
           /></review-state>
         </div>
-        <div v-if="!isDowngrade" class="card">
+        <div v-if="!hideBusinessCapacity" class="card">
           <review-table
             title="业务产能明细"
             :columns="bizColumns"
@@ -99,6 +99,7 @@
       </div>
     </div>
     <div class="card daily-card">
+      <p v-if="dailySimulationNote" class="metric-footnote" role="note">{{ dailySimulationNote }}</p>
       <review-table
         title="执行明细（分日）"
         tools
@@ -151,7 +152,11 @@ import {
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
 import ReviewTable from './ReviewTable.vue'
-import { listOf, strategyColumns, controlStrategyColumns, strategyBizColumns, categoryLabelColumns, barLineOption, monthRange, panelRequests } from './reviewData'
+import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyBizColumns, categoryLabelColumns, barLineOption, monthRange, panelRequests } from './reviewData'
+import leaveSimulation from './leaveSimulation.json'
+import customerGroupSimulation from './customerGroupSimulation.json'
+import incrementalSimulation from './incrementalSimulation.json'
+import { visibleSimulationTrend } from './simulationTrend'
 
 export default {
   name: 'StockDetail',
@@ -183,8 +188,26 @@ export default {
     }
   },
   computed: {
-    isDowngrade() {
-      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
+    dailySimulationNote() {
+      if (this.query.tabType === incrementalSimulation.tabType && this.query.cityId === incrementalSimulation.cityId &&
+          incrementalSimulation.dailyStrategyIds.includes(this.selected.strategyId) && this.dailyRange &&
+          this.dailyRange[0] <= incrementalSimulation.dailyEndDate && this.dailyRange[1] >= incrementalSimulation.dailyStartDate) {
+        return `${incrementalSimulation.dailyStartDate}至${incrementalSimulation.dailyEndDate}为依据月度总量、固定种子星期权重及逐日漏斗上限拆分的模拟日数据；各策略日合计与10月Excel月度数据一致。`
+      }
+      if (this.query.tabType === customerGroupSimulation.tabType && this.query.cityId === customerGroupSimulation.cityId &&
+          this.query.strategyClass === customerGroupSimulation.strategyClass &&
+          (!this.query.customerGroup || this.query.customerGroup === customerGroupSimulation.customerGroup) &&
+          customerGroupSimulation.dailyStrategyIds.includes(this.selected.strategyId) && this.dailyRange &&
+          this.dailyRange[0] <= customerGroupSimulation.dailyEndDate && this.dailyRange[1] >= customerGroupSimulation.dailyStartDate) {
+        return `9月及10月1—23日为按月度数据、星期权重和转化漏斗关系模拟的日明细；9月日合计与9月全月一致，10月日合计与Excel截至10月23日数据一致。10月环比比较9月与10月各自1—23日同期累计值。`
+      }
+      if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
+          !leaveSimulation.dailyStrategyIds || !leaveSimulation.dailyStrategyIds.includes(this.selected.strategyId) ||
+          !this.dailyRange || this.dailyRange[0] > leaveSimulation.dailyEndDate || this.dailyRange[1] < leaveSimulation.dailyStartDate) return ''
+      return `${leaveSimulation.dailyStartDate}至${leaveSimulation.dailyEndDate}为依据Excel“分日展示”比例并按漏斗关系校准的模拟日明细；各项日合计与10月月度数据一致，逐日数量满足使用≤推送、触达≤使用、转化≤触达。`
+    },
+    hideBusinessCapacity() {
+      return this.query.tabType === 'active' && ['降拆', '离'].includes(this.query.strategyClass)
     },
     columns() {
       const columns = this.query.tabType === 'control'
@@ -204,7 +227,8 @@ export default {
       return [{ prop: 'date', label: '日期', text: true }, ...columns.filter((column) => column.prop !== 'date')]
     },
     trendOption() {
-      return barLineOption(this.trend.months, this.trend.capacity, this.trend.qoq, '产能', this.trend.unit || '')
+      const trend = visibleSimulationTrend(this.query, this.trend, 'capacity', this.selected.strategyId)
+      return barLineOption(trend.months, trend.capacity, trend.qoq, '产能', trend.unit || '')
     },
     rejectOption() {
       return {
@@ -224,7 +248,10 @@ export default {
             label: {
               color: '#86909c',
               fontSize: 10,
-              formatter: (params) => (params.name.length > 6 ? params.name.slice(0, 6) + '…' : params.name),
+              formatter: (params) => {
+                const name = params.name.length > 6 ? params.name.slice(0, 6) + '…' : params.name
+                return `${name} ${percentText(params.data.ratio == null ? params.percent : params.data.ratio)}`
+              },
             },
             labelLine: { length: 8, length2: 5 },
             data: this.reasons.map((r) => ({
@@ -369,7 +396,7 @@ export default {
         )
     },
     loadBiz() {
-      if (this.isDowngrade) return
+      if (this.hideBusinessCapacity) return
       if (this.selected.strategyId)
         return this.request(
           'biz',

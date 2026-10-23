@@ -23,13 +23,15 @@ public class DimQueryReq extends BaseRegionReq {
     @NotBlank(message = "策略类型tabType不能为空")
     private String tabType;
 
-    @ApiModelProperty(value = "触点渠道编码（keyCode），type=策略名称时用于过滤")
+    @ApiModelProperty(value = "触点渠道名称（keyName），type=策略名称时用于过滤")
     private String channel;
 
     @ApiModelProperty(value = "搜索关键字，模糊匹配名称")
     private String keyword;
 
     private String strategyClass;
+    @ApiModelProperty("统计月份yyyy-MM；触点渠道按当前月份的实际策略数据筛选")
+    private String statMonth;
     @ApiModelProperty("重点客群分类名称，空=全部客群；仅存量重点客群生效")
     private String customerGroup;
 

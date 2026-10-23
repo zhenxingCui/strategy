@@ -175,14 +175,14 @@ async function main() {
     if (refreshExisting) {
       const generatedStrategyIds = Array.from({ length: 12 + keyAudienceNames.length }, (_, index) => `STR${String(index + 1).padStart(3, '0')}`)
       const deletes = [
-        ['t_sr_strategy_reject_reason', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '001']],
-        ['t_sr_strategy_biz_capacity', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '001']],
-        ['t_sr_channel_biz_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '001']],
-        ['t_sr_strategy_daily_ap', 'tab_type = ? AND city_id = ?', ['active', '001']],
-        ['t_sr_channel_monthly_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '001']],
-        ['t_sr_channel_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '001']],
-        ['t_sr_strategy_period_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '001']],
-        ['t_sr_kpi_summary', 'tab_type = ? AND city_id = ?', ['active', '001']],
+        ['t_sr_strategy_reject_reason', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_strategy_biz_capacity', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_channel_biz_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_daily_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_monthly_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_period_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_kpi_summary', 'tab_type = ? AND city_id = ?', ['active', '999']],
       ]
       for (const [table, where, params] of deletes) {
         await connection.query(`DELETE FROM ?? WHERE ${where}`, [table, ...params])
@@ -255,7 +255,7 @@ async function main() {
       small_category: small[i % 4],
     }))
     await insert('t_sr_strategy', strategies)
-    const common = { tab_type: 'active', strategy_class: '全部', city_id: '001', is_deleted: 0 }
+    const common = { tab_type: 'active', strategy_class: '全部', city_id: '999', is_deleted: 0 }
     const periods = []
     const channelRows = []
     const categoryRows = []
@@ -614,7 +614,7 @@ async function main() {
         {
           database,
           month: seedMonth,
-          cityId: '001',
+          cityId: '999',
           strategies: strategies.length,
           monthlyDetails: periods.length,
           dailyDetails: daily.length,

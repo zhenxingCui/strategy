@@ -15,7 +15,7 @@ async function main() {
     const fields = ['original_cust', 'push_count', 'usage_count', 'reach_count', 'target_conv_num', 'product_conv_num', 'expected_income', 'actual_income', 'reject_count']
     const [periods] = await connection.query("SELECT * FROM t_sr_strategy_period_summary_ap WHERE tab_type='active' AND strategy_class='重点客群' AND strategy_id!='999' AND is_deleted=0")
     const [daily] = await connection.query("SELECT * FROM t_sr_strategy_daily_ap WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0")
-    const [kpis] = await connection.query("SELECT * FROM t_sr_kpi_summary WHERE tab_type='active' AND city_id='001' AND is_deleted=0")
+    const [kpis] = await connection.query("SELECT * FROM t_sr_kpi_summary WHERE tab_type='active' AND city_id='999' AND is_deleted=0")
     assert.equal(new Set(periods.map(row => row.stat_month.slice(0, 7))).size, 12)
     assert.ok(periods.every(row => strategies.some(strategy => strategy.strategy_code === row.strategy_id)))
     for (const row of periods) {

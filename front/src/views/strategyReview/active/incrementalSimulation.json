@@ -1,0 +1,22 @@
+{
+  "tabType": "passive",
+  "strategyClass": "全部",
+  "cityId": "999",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "baselineMonth": "2025-12",
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-21",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyStrategyIds": [
+    "zl_1001",
+    "zl_1002",
+    "zl_1003"
+  ],
+  "strategiesPerMonth": 3,
+  "monthlyMoMRange": "-2%..5%",
+  "sourceSha256": "b595a11971db1631030fe36142847a16292cdc9e3da628aeb0b408767a5e6c0f",
+  "sourceFile": "261023存量策略_精简填报模板_3张输入表-增量.xlsx",
+  "dailyMethod": "固定种子周内/周末权重，最大余数并逐日上限分配；仅为模拟日拆分。"
+}

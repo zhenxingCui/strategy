@@ -4,7 +4,7 @@ const base = process.env.SR_API_BASE || 'http://127.0.0.1:8080/plan-svc-lj/strat
 const writes = process.argv.includes('--write-checks')
 if (writes && !['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('写入检查仅允许本地服务')
 const userId = `active-verify-${Date.now()}`
-const defaults = { tabType: 'active', cityId: '001', userId, strategyClass: process.env.SR_VERIFY_STRATEGY_CLASS || '全部' }
+const defaults = { tabType: 'active', cityId: '999', userId, strategyClass: process.env.SR_VERIFY_STRATEGY_CLASS || '全部' }
 let checks = 0
 async function api(endpoint, params = {}) {
   const response = await fetch(base + endpoint, {

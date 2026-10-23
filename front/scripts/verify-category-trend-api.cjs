@@ -19,7 +19,7 @@ async function main() {
   let checks = 0
   try {
     for (const tabType of ['active', 'passive', 'control']) {
-      const query = { tabType, cityId: '001', userId: 'category-trend-readonly', strategyClass: '全部' }
+      const query = { tabType, cityId: '999', userId: 'category-trend-readonly', strategyClass: '全部' }
       query.statMonth = (await api('latestDate', query)).slice(0, 7)
       const category = (await api('touchpoint/categorySummary', query)).list[0]
       assert.ok(category, `${tabType}: category required`)

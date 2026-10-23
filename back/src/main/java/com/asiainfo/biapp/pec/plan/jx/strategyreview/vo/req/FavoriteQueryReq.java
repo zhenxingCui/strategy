@@ -25,7 +25,7 @@ public class FavoriteQueryReq extends BaseRegionReq {
     @ApiModelProperty("仅查询手动收藏（含同时规则关注的策略），默认false")
     private Boolean manualOnly = false;
 
-    @ApiModelProperty("触点渠道编码，空=全部")
+    @ApiModelProperty("触点渠道名称，空=全部")
     private String channel;
 
     @ApiModelProperty("策略名称，模糊查询")

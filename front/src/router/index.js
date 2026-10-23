@@ -27,8 +27,12 @@ const router = new VueRouter({
   routes
 })
 
-// 路由守卫：未登录（sessionStorage 无身份）或超过 10 分钟无操作，一律引导回登录提示页
+// 开发构建要求本机身份或有效 IOP 登录；生产包跳过前端登录守卫。
 router.beforeEach((to, from, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    next()
+    return
+  }
   if ((to.path !== '/login' || !to.query.signToken) && ensureLocalDevelopmentAuth()) {
     next(to.path === '/login' ? '/strategyReview' : undefined)
     return

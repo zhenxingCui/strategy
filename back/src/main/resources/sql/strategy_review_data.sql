@@ -6,7 +6,7 @@
 --       放大为百万级大数字测试数据（含 +475%/+168.5% 极端环比），
 --       用于千分位展示测试；同日将库内 9 月数据整体平移至 10 月
 --       （stat_month/stat_date +1 MONTH），重新导入本文件将回到基础量级+9月口径。
--- 2026-10-10：signToken 单点登录联调，全库事实表 city_id 回填 '001'
+-- 2026-10-10：signToken 单点登录联调，全库事实表 city_id 回填 '999'
 --       （见文件末尾 UPDATE 段）。
 -- =====================================================================
 
@@ -561,19 +561,19 @@ WHERE strategy_id = 'STR003'
 -- ---------------------------------------------------------------------
 -- 2026-10-10 signToken 单点登录：事实表 city_id 回填（登录后按 cityId 过滤）
 -- ---------------------------------------------------------------------
-UPDATE t_sr_kpi_summary                    SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_summary_ctrl           SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_summary_ap             SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_period_summary_ctrl   SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_period_summary_ap     SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_monthly_capacity_ctrl  SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_monthly_capacity_ap    SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_biz_capacity_ctrl      SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_channel_biz_capacity_ap        SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_biz_capacity          SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_daily_ctrl            SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_daily_ap              SET city_id = '001' WHERE city_id IS NULL;
-UPDATE t_sr_strategy_reject_reason         SET city_id = '001' WHERE city_id IS NULL;
+UPDATE t_sr_kpi_summary                    SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_summary_ctrl           SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_summary_ap             SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_period_summary_ctrl   SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_period_summary_ap     SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_monthly_capacity_ctrl  SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_monthly_capacity_ap    SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_biz_capacity_ctrl      SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_channel_biz_capacity_ap        SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_biz_capacity          SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_daily_ctrl            SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_daily_ap              SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_reject_reason         SET city_id = '999' WHERE city_id IS NULL;
 
 -- ---------------------------------------------------------------------
 -- 2026-10-10 策略分类汇总行（strategy_id='999'）重建：

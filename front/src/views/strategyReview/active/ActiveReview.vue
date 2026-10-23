@@ -100,6 +100,7 @@ export default {
       channels: [],
       channelsLoading: false,
       channelError: false,
+      channelsRequestVersion: 0,
       selectedStrategy: null,
       dark: false,
       tabs: [
@@ -126,7 +127,7 @@ export default {
       }
     },
     channelName() {
-      const item = this.channels.find((c) => c.keyCode === this.channel)
+      const item = this.channels.find((c) => c.keyName === this.channel)
       return item ? item.keyName : '全部渠道'
     },
   },
@@ -208,6 +209,7 @@ export default {
       if (this.customerGroup === customerGroup) return
       this.customerGroup = customerGroup
       this.selectedStrategy = null
+      this.loadChannels()
     },
     bootstrap() {
       return this.request(
@@ -223,19 +225,27 @@ export default {
       )
     },
     async loadChannels() {
-      const requestType = this.tabType
+      const version = ++this.channelsRequestVersion
       this.channelsLoading = true
       try {
-        const result = await getDim({ tabType: requestType, type: '触点渠道' })
-        if (requestType !== this.tabType) return
+        const result = await getDim({ ...this.query, type: '触点渠道' })
+        if (version !== this.channelsRequestVersion) return
         this.channels = listOf(result).filter(
           (c) => !['全部', '全部渠道'].includes(c.keyName),
         )
+        if (this.channel && !this.channels.some((c) => c.keyName === this.channel)) {
+          this.channel = ''
+          this.selectedStrategy = null
+        }
         this.channelError = false
       } catch (e) {
-        if (requestType === this.tabType) this.channelError = true
+        if (version === this.channelsRequestVersion) {
+          this.channels = []
+          this.channel = ''
+          this.channelError = true
+        }
       } finally {
-        if (requestType === this.tabType) this.channelsLoading = false
+        if (version === this.channelsRequestVersion) this.channelsLoading = false
       }
     },
     changeMonth(month) {
@@ -243,6 +253,7 @@ export default {
       this.month = month
       this.selectedStrategy = null
       this.$emit('dateRangeChange', monthRange(month))
+      this.loadChannels()
     },
     changeChannel(channel) {
       this.channel = channel
@@ -253,6 +264,7 @@ export default {
       this.strategyClass = strategyClass
       this.customerGroup = ''
       this.selectedStrategy = null
+      this.loadChannels()
     },
     drillMonth(month) {
       this.changeMonth(month)

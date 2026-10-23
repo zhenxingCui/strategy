@@ -29,7 +29,7 @@
 
     <sql id="favoriteFilters">
         <if test="query.manualOnly">AND f.source IN ('manual', 'manual+follow')</if>
-        <if test="query.channel != null and query.channel != ''">AND f.channel = #{query.channel}</if>
+        <if test="query.channel != null and query.channel != ''">AND (f.channel = #{query.channel} OR f.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
         <if test="query.strategyName != null and query.strategyName != ''">
             AND f.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')
         </if>

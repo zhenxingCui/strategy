@@ -103,7 +103,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             case "产品名称":
                 return scopeAggregation.productDimensions(req);
             case "触点渠道":
-                return reviewMapper.selectChannelDims(req.getTabType());
+                return reviewMapper.selectChannelDims(req);
             case "策略名称":
                 return reviewMapper.selectStrategyNameDims(req.getTabType(), req.getChannel(), req.getKeyword());
             case "预警指标":
@@ -171,6 +171,18 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             if ("control".equals(req.getTabType())) {
                 KpiCardVO reachRate = scopeAggregation.reachRate(req);
                 if (reachRate != null) cards.add(reachRate);
+            } else {
+                List<KpiTrendItemVO> rates = reviewMapper.selectChannelReachRateTrend(req.getTabType(),
+                        req.getChannel(), toYearMonth(statMonth), req.getCityId(), req.getCountyId(), req.getStrategyClass());
+                String currentMonth = toYearMonth(statMonth).replace("-", "");
+                for (KpiTrendItemVO rate : rates) {
+                    if (!currentMonth.equals(rate.getMonth())) continue;
+                    KpiCardVO card = new KpiCardVO();
+                    card.setMetricCode("reach_rate"); card.setLabel("触达率"); card.setUnit("%");
+                    card.setValue(rate.getValue()); card.setTrendQoQ(rate.getQoq());
+                    cards.add(card);
+                    break;
+                }
             }
             return cards;
         }
@@ -198,17 +210,23 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         List<KpiTrendItemVO> rows;
         String statMonth = normalizeStatMonth(req.getStatMonth());
         if (StringUtils.isNotBlank(req.getChannel())) {
-            Map<String, String> sortMap = "control".equals(req.getTabType()) ? CTRL_SORT_MAP : AP_SORT_MAP;
-            String metricColumn = sortMap.get(req.getMetricCode());
-            if (metricColumn == null && sortMap.containsValue(req.getMetricCode())) {
-                metricColumn = req.getMetricCode();
+            if (!"control".equals(req.getTabType()) && "reach_rate".equals(req.getMetricCode())) {
+                rows = reviewMapper.selectChannelReachRateTrend(req.getTabType(), req.getChannel(),
+                        StringUtils.isBlank(statMonth) ? java.time.YearMonth.now().toString() : toYearMonth(statMonth),
+                        req.getCityId(), req.getCountyId(), req.getStrategyClass());
+            } else {
+                Map<String, String> sortMap = "control".equals(req.getTabType()) ? CTRL_SORT_MAP : AP_SORT_MAP;
+                String metricColumn = sortMap.get(req.getMetricCode());
+                if (metricColumn == null && sortMap.containsValue(req.getMetricCode())) {
+                    metricColumn = req.getMetricCode();
+                }
+                if (metricColumn == null || "channel".equals(metricColumn)) {
+                    throw new BaseException("不支持的渠道指标编码");
+                }
+                rows = reviewMapper.selectChannelKpiTrend(req.getTabType(), req.getChannel(), metricColumn,
+                        req.getCityId(), req.getCountyId(), StringUtils.isBlank(statMonth)
+                                ? java.time.YearMonth.now().toString() : toYearMonth(statMonth), req.getStrategyClass());
             }
-            if (metricColumn == null || "channel".equals(metricColumn)) {
-                throw new BaseException("不支持的渠道指标编码");
-            }
-            rows = reviewMapper.selectChannelKpiTrend(req.getTabType(), req.getChannel(), metricColumn,
-                    req.getCityId(), req.getCountyId(), StringUtils.isBlank(statMonth)
-                            ? java.time.YearMonth.now().toString() : toYearMonth(statMonth), req.getStrategyClass());
         } else {
             rows = reviewMapper.selectKpiTrend(req.getTabType(), req.getMetricCode(),
                     req.getCityId(), req.getCountyId(), statMonth, req.getStrategyClass());

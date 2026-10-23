@@ -27,7 +27,7 @@ public interface SrStrategyReviewMapper {
     // ==================== 通用枚举 ====================
 
     /** 触点渠道枚举 */
-    List<DimItemVO> selectChannelDims(@Param("tabType") String tabType);
+    List<DimItemVO> selectChannelDims(@Param("query") com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req.DimQueryReq query);
 
     /** 策略名称枚举 */
     List<DimItemVO> selectStrategyNameDims(@Param("tabType") String tabType,
@@ -36,6 +36,12 @@ public interface SrStrategyReviewMapper {
 
     /** 预警指标枚举 */
     List<DimItemVO> selectMetricDims(@Param("tabType") String tabType);
+
+    /** AP渠道触达率及与上个自然月相比的百分点变化，使用真实分子分母计算。 */
+    List<KpiTrendItemVO> selectChannelReachRateTrend(@Param("tabType") String tabType,
+            @Param("channel") String channel, @Param("statMonth") String statMonth,
+            @Param("cityId") String cityId, @Param("countyId") String countyId,
+            @Param("strategyClass") String strategyClass);
 
     // ==================== 策略整体情况（t_sr_kpi_summary 长表） ====================
 

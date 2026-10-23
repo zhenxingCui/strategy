@@ -52,12 +52,37 @@
         </choose>
         <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
         <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
-        <if test="query.channel != null and query.channel != ''">AND s.channel = #{query.channel}</if>
+        <if test="query.channel != null and query.channel != ''">AND (s.channel = #{query.channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)))</if>
         <if test="query.bigCategory != null and query.bigCategory != ''">AND s.big_category = #{query.bigCategory}</if>
         <if test="query.smallCategory != null and query.smallCategory != ''">AND s.small_category = #{query.smallCategory}</if>
         <if test="query.strategyName != null and query.strategyName != ''">AND s.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')</if>
         AND s.stat_month &gt;= DATE_SUB(CONCAT(#{query.statMonth}, '-01'), INTERVAL 12 MONTH)
         AND s.stat_month &lt; DATE_ADD(CONCAT(#{query.statMonth}, '-01'), INTERVAL 1 MONTH)
+    </sql>
+
+    <sql id="dailyScope">
+        d.is_deleted = 0 AND d.tab_type = #{query.tabType}
+        AND d.strategy_id != '999' AND d.channel != '全部'
+        AND d.big_category != '全部' AND d.small_category != '全部'
+        <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+            AND d.strategy_class = #{query.strategyClass}
+        </if>
+        <if test="query.customerGroup != null and query.customerGroup != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                WHERE cg.strategy_code = d.strategy_id AND cg.tab_type = 'active'
+                  AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
+                  AND cg.customer_group = #{query.customerGroup})
+        </if>
+        <if test="query.cityId != null and query.cityId != ''">AND d.city_id = #{query.cityId}</if>
+        <if test="query.countyId != null and query.countyId != ''">AND d.county_id = #{query.countyId}</if>
+        <if test="query.channel != null and query.channel != ''">
+            AND (d.channel = #{query.channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch
+                WHERE ch.key_name = #{query.channel} AND ch.status = 1 AND ch.is_deleted = 0
+                  AND (ch.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, ch.tab_type) &gt; 0)))
+        </if>
+        <if test="query.bigCategory != null and query.bigCategory != ''">AND d.big_category = #{query.bigCategory}</if>
+        <if test="query.smallCategory != null and query.smallCategory != ''">AND d.small_category = #{query.smallCategory}</if>
+        <if test="query.strategyName != null and query.strategyName != ''">AND d.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')</if>
     </sql>
 
     <!-- SQL aggregates before returning data; Java calculates rates and exact preceding-month comparisons. -->
@@ -88,6 +113,41 @@
         <choose>
             <when test="dimension == 'channel'">, s.channel</when>
             <when test="dimension == 'category'">, s.big_category, s.small_category</when>
+        </choose>
+        ORDER BY statMonth
+    </select>
+
+    <select id="selectDailyCutoff" resultType="java.lang.Integer">
+        SELECT DAY(MAX(d.stat_date))
+        FROM t_sr_strategy_daily_ap d
+        WHERE <include refid="dailyScope"/>
+          AND DATE_FORMAT(d.stat_date, '%Y-%m') = #{query.statMonth}
+    </select>
+
+    <!-- Partial-month QoQ uses matching day ranges from both months, while monthly totals remain unchanged. -->
+    <select id="selectSamePeriodMetrics" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(d.stat_date, '%Y-%m') AS statMonth,
+        <choose>
+            <when test="dimension == 'channel'">d.channel AS channel,</when>
+            <when test="dimension == 'category'">d.big_category AS bigCategory, d.small_category AS smallCategory,</when>
+        </choose>
+        COUNT(DISTINCT d.strategy_id) AS strategyCount,
+        COUNT(DISTINCT d.stat_date) AS dayCount,
+        MIN(DAY(d.stat_date)) AS minDay,
+        MAX(DAY(d.stat_date)) AS maxDay,
+        SUM(d.original_cust) AS originalCust, SUM(d.push_count) AS pushCount,
+        SUM(d.usage_count) AS usageCount, SUM(d.reach_count) AS reachCount,
+        SUM(d.target_conv_num) AS targetConvNum, SUM(d.product_conv_num) AS productConvNum,
+        SUM(d.expected_income) AS expectedIncome, SUM(d.actual_income) AS actualIncome,
+        SUM(d.reject_count) AS rejectCount
+        FROM t_sr_strategy_daily_ap d
+        WHERE <include refid="dailyScope"/>
+          AND DATE_FORMAT(d.stat_date, '%Y-%m') IN (#{previousMonth}, #{query.statMonth})
+          AND DAY(d.stat_date) &lt;= #{cutoffDay}
+        GROUP BY DATE_FORMAT(d.stat_date, '%Y-%m')
+        <choose>
+            <when test="dimension == 'channel'">, d.channel</when>
+            <when test="dimension == 'category'">, d.big_category, d.small_category</when>
         </choose>
         ORDER BY statMonth
     </select>

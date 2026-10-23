@@ -6,7 +6,7 @@ import { getCityId, getUserId } from '@/utils/auth'
 const formatParams = (params) => {
   if (typeof params !== 'object') return params
   return {
-    cityId: getCityId() || sessionStorage.getItem('cityId') || '',
+    cityId: getCityId() || sessionStorage.getItem('cityId') || '999',
     userId: getUserId(),
     countyId: sessionStorage.getItem('countyId') || '',
     ...params

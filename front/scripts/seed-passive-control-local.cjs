@@ -8,7 +8,7 @@ const path = require('path')
 const productForStrategy = require('./control-product-names.cjs')
 
 const database = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
-const CITY = '001'
+const CITY = '999'
 const PASS_MARK = 'LOCAL_PASSIVE_SEED'
 const CTRL_MARK = 'LOCAL_CONTROL_SEED'
 const PASS_OWNER = '本地联调-增量样例'

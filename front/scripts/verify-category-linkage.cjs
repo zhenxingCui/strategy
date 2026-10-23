@@ -57,7 +57,7 @@ function checkPair(instance, big, small) {
 }
 async function main() {
   for (const tabType of ['active', 'passive', 'control']) {
-    const query = { tabType, statMonth: '2026-10', channel: '01', strategyClass: '重点客群', customerGroup: '校园', productName: '宽带', cityId: '001', userId: 'test' }
+    const query = { tabType, statMonth: '2026-10', channel: '01', strategyClass: '重点客群', customerGroup: '校园', productName: '宽带', cityId: '999', userId: 'test' }
     const instance = new (Vue.extend(component))({ propsData: { query } })
     checkPair(instance, '', '')
     await settle()

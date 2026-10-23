@@ -1,0 +1,18 @@
+{
+  "tabType": "active",
+  "strategyClass": "重点客群",
+  "customerGroup": "拆弹客户",
+  "cityId": "999",
+  "startMonth": "2026-01",
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-23",
+  "baselineMonth": "2025-12",
+  "dailyStartDate": "2026-09-01",
+  "dailyEndDate": "2026-10-23",
+  "comparisonStartDate": "2026-09-01",
+  "comparisonEndDate": "2026-09-23",
+  "dailyStrategyIds": ["cd_1001", "cd_1002", "cd_1003", "cd_1004"],
+  "monthlySimulationMonths": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"],
+  "dailySimulationMonths": ["2026-09", "2026-10"],
+  "samePeriodComparison": true
+}

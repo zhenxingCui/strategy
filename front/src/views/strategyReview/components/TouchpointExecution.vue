@@ -1036,13 +1036,11 @@ export default {
       const m = CHANNEL_COLOR_MAP[channel] || { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)' }
       return { color: m.color, background: m.bg, borderColor: m.color }
     },
-    // 渠道显示名称：优先 row.channelName，否则从下拉选项映射 label，最后回退 code
+    // 优先显示接口返回的渠道名称，没有名称时回退显示原始渠道值。
     getChannelLabel (row) {
-      const code = row.channel || row.channelCode || ''
       const name = row.channelName || row.keyName
       if (name) return name
-      const opt = this.channelOptions.find(c => c.value === code)
-      return opt ? opt.label : code
+      return row.channel || row.channelCode || ''
     },
     buildParams (extra) {
       return {
@@ -1059,7 +1057,7 @@ export default {
         const list = extractList(res)
         this.channelOptions = list.map(c => ({
           label: c.keyName || c.channelName || c.name || c.label || c.channel,
-          value: c.keyCode || c.channelCode || c.code || c.value || c.channel
+          value: c.keyName || c.channelName || c.name || c.label || c.channel
         }))
       } catch (e) {
         this.channelOptions = []
@@ -1276,7 +1274,7 @@ export default {
     // 行点击：触发右侧策略筛选 + 触点联动（趋势图+业务明细）
     handleLeftRowClick (row) {
       if (row._isTotal) return
-      this.selectChannel(row.channel)
+      this.selectChannel(row.channelName || row.channel)
     },
     selectChannel (channel) {
       this.rightFilter.channel = channel
@@ -1350,7 +1348,7 @@ export default {
     },
     leftRowClass ({ row }) {
       if (row._isTotal) return 'row-total'
-      return row.channel === this.activeChannel ? 'row-active' : ''
+      return (row.channelName || row.channel) === this.activeChannel ? 'row-active' : ''
     },
     rightRowClass ({ row }) {
       const name = row.strategyName || row.name

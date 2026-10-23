@@ -15,7 +15,7 @@ function load(relative) {
     plugins: [require.resolve('@babel/plugin-transform-modules-commonjs')],
   }).code
   const module = { exports: {} }
-  vm.runInNewContext(code, { module, exports: module.exports, require: () => ({ getCityId: () => '001', getUserId: () => 'test' }), console, Number, Date })
+  vm.runInNewContext(code, { module, exports: module.exports, require: () => ({ getCityId: () => '999', getUserId: () => 'test' }), console, Number, Date })
   return module.exports
 }
 

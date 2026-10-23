@@ -120,6 +120,7 @@ public class StrategyScopeAggregationService {
             }
             byMonth.put(key(row, row.get("statMonth").toString()), row);
         }
+        Map<List<Object>, Map<String, Object>> samePeriod = samePeriodRows(req, dimension);
         for (Map<String, Object> row : rows) {
             String previousMonth = YearMonth.parse(row.get("statMonth").toString()).minusMonths(1).toString();
             Map<String, Object> previous = byMonth.get(key(row, previousMonth));
@@ -128,9 +129,51 @@ public class StrategyScopeAggregationService {
             } else {
                 for (String[] metric : metrics(req.getTabType())) row.put(metric[0] + "QoQ",
                     change(number(row, metric[0]), number(previous, metric[0]), "%".equals(metric[3])));
+                if (req.getStatMonth().equals(row.get("statMonth")) && samePeriod != null) {
+                    Map<String, Object> currentComparable = samePeriod.get(key(row, req.getStatMonth()));
+                    Map<String, Object> previousComparable = samePeriod.get(key(row, previousMonth));
+                    if (completeComparablePeriod(currentComparable, previousComparable)) {
+                        applyChanges(row, currentComparable, previousComparable, req.getTabType());
+                    }
+                }
             }
         }
         return rows;
+    }
+
+    private Map<List<Object>, Map<String, Object>> samePeriodRows(TouchpointQueryReq req, String dimension) {
+        if (!"active".equals(req.getTabType()) || "business".equals(dimension)) return null;
+        Integer cutoff = mapper.selectDailyCutoff(req);
+        if (cutoff == null || cutoff < 1 || cutoff >= YearMonth.parse(req.getStatMonth()).lengthOfMonth()) return null;
+        String previousMonth = YearMonth.parse(req.getStatMonth()).minusMonths(1).toString();
+        List<Map<String, Object>> comparable = mapper.selectSamePeriodMetrics(req, dimension, previousMonth, cutoff);
+        Map<List<Object>, Map<String, Object>> result = new HashMap<>();
+        for (Map<String, Object> row : comparable) {
+            rate(row, "usageRate", "usageCount", "pushCount");
+            rate(row, "reachRate", "reachCount", "usageCount");
+            rate(row, "targetConvRate", "targetConvNum", "reachCount");
+            rate(row, "productConvRate", "productConvNum", "reachCount");
+            rate(row, "rejectRate", "rejectCount", "pushCount");
+            result.put(key(row, row.get("statMonth").toString()), row);
+        }
+        return result;
+    }
+
+    private static boolean completeComparablePeriod(Map<String, Object> current, Map<String, Object> previous) {
+        if (current == null || previous == null) return false;
+        BigDecimal currentDays = number(current, "dayCount"), previousDays = number(previous, "dayCount");
+        BigDecimal currentMin = number(current, "minDay"), previousMin = number(previous, "minDay");
+        BigDecimal currentMax = number(current, "maxDay"), previousMax = number(previous, "maxDay");
+        return currentDays != null && previousDays != null && currentDays.compareTo(previousDays) == 0 && currentMin != null &&
+            previousMin != null && currentMin.compareTo(BigDecimal.ONE) == 0 &&
+            previousMin.compareTo(BigDecimal.ONE) == 0 && currentMax != null &&
+            currentMax.compareTo(previousMax) == 0 && currentDays.compareTo(currentMax) == 0;
+    }
+
+    private static void applyChanges(Map<String, Object> target, Map<String, Object> current,
+                                     Map<String, Object> previous, String tabType) {
+        for (String[] metric : metrics(tabType)) target.put(metric[0] + "QoQ",
+            change(number(current, metric[0]), number(previous, metric[0]), "%".equals(metric[3])));
     }
 
     private static BigDecimal change(BigDecimal current, BigDecimal previous, boolean rate) {
@@ -188,7 +231,9 @@ public class StrategyScopeAggregationService {
     public ChannelSummaryRespVO channels(TouchpointQueryReq request) {
         TouchpointQueryReq req = normalize(request);
         Map<String, String> names = new HashMap<>();
-        for (DimItemVO dim : reviewMapper.selectChannelDims(req.getTabType())) names.put(dim.getKeyCode(), dim.getKeyName());
+        DimQueryReq dimensions = new DimQueryReq();
+        dimensions.setTabType(req.getTabType());
+        for (DimItemVO dim : reviewMapper.selectChannelDims(dimensions)) names.put(dim.getKeyCode(), dim.getKeyName());
         List<Map<String, Object>> current = current(rows(req, "channel"), req);
         sort(current, req, "strategyCount");
         List<ChannelSummaryRowVO> list = current.stream().map(row -> {

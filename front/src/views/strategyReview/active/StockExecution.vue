@@ -5,7 +5,7 @@
       <span>当前联动：{{ scopeLabel }}</span>
       <button v-if="selectedCategory" class="btn-link" @click="clearSelection">× 清除选择</button>
     </div>
-    <div class="split split--m2" :class="{ 'split--without-biz': isDowngrade }">
+    <div class="split split--m2" :class="{ 'split--without-biz': hideBusinessCapacity }">
       <div class="card">
         <review-table
           title="策略分类执行情况"
@@ -44,7 +44,7 @@
           ><e-chart :option="trendOption" height="285px"
         /></review-state>
       </div>
-      <div v-if="!isDowngrade" class="card">
+      <div v-if="!hideBusinessCapacity" class="card">
         <review-table
           title="业务产能明细"
           :columns="bizColumns"
@@ -65,6 +65,7 @@ import EChart from '@/components/EChart.vue'
 import ReviewTable from './ReviewTable.vue'
 import ReviewState from './ReviewState.vue'
 import { listOf, categoryColumns, controlCategoryColumns, channelBizColumns, categoryLabelColumns, barLineOption, panelRequests } from './reviewData'
+import { visibleSimulationTrend } from './simulationTrend'
 
 export default {
   name: 'StockExecution',
@@ -103,6 +104,9 @@ export default {
     isDowngrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
     },
+    hideBusinessCapacity() {
+      return this.query.tabType === 'active' && ['降拆', '离'].includes(this.query.strategyClass)
+    },
     categoryPrefix() {
       return this.isDowngrade ? '场景' : '策略'
     },
@@ -139,10 +143,15 @@ export default {
       return this.filteredCategories.slice((this.page - 1) * 5, this.page * 5)
     },
     trendOption() {
+      const trend = visibleSimulationTrend(this.query, {
+        months: this.trend.map((r) => r.monthLabel || r.month),
+        capacity: this.trend.map((r) => r.capacity),
+        qoq: this.trend.map((r) => r.qoq),
+      }, 'capacity')
       return barLineOption(
-        this.trend.map((r) => r.monthLabel || r.month),
-        this.trend.map((r) => r.capacity),
-        this.trend.map((r) => r.qoq),
+        trend.months,
+        trend.capacity,
+        trend.qoq,
         '产能',
       )
     },
@@ -203,7 +212,7 @@ export default {
       )
     },
     loadBiz() {
-      if (this.isDowngrade) return
+      if (this.hideBusinessCapacity) return
       return this.request(
         'biz',
         () => getChannelBizCapacity(this.capacityQuery),

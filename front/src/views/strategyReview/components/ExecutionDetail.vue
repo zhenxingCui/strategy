@@ -271,7 +271,7 @@ import {
   getStrategyDailyDetail
 } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
-import { chartRows } from '../active/reviewData'
+import { chartRows, percentText } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 const REJECT_COLORS = ['#3b6cb5', '#e67e22', '#f1c40f', '#5aad3e', '#95a5a6']
@@ -584,7 +584,7 @@ export default {
               position: 'outside',
               fontSize: 9,
               color: '#595959',
-              formatter: (p) => `${p.name}\n${p.value}%`
+              formatter: (p) => `${p.name} ${percentText(p.value)}`
             },
             labelLine: {
               show: true,

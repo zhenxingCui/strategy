@@ -173,7 +173,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         conditionSQL += " AND (" + StringUtils.join(metricConditions, "or".equalsIgnoreCase(warningRuleVO.getLogic()) ? " OR " : " AND ") + ")";
 
         boolean favorite = StringUtils.isNotBlank(req.getFavorite());
-        String userId = StringUtils.defaultIfBlank(req.getUserId(), "admin");
+        String userId = StringUtils.defaultIfBlank(req.getUserId(), "root");
         long total = warningMapper.countHitStrategyList(req.getTabType(), req.getRuleId(), statMonth, conditionSQL,
                 req.getCityId(), req.getCountyId(), req.getChannel(), req.getStrategyClass(), req.getCustomerGroup(), req.getProductName(), warningRuleVO, favorite, userId);
         List<StrategyRowVO> list;

@@ -3,6 +3,7 @@
       <h2 class="section-title">
       策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '全部客群' }}</template><template v-if="query.tabType === 'control'"> · 产品：{{ query.productName || '全部产品' }}</template> · 触点：{{ channelName }}</span>
     </h2>
+    <p v-if="simulationNote" class="metric-footnote" role="note">{{ simulationNote }}</p>
     <div class="overview-body split split--m1">
       <div class="card snapshot-card">
         <div class="overview-panel-head category-seg" role="group" aria-label="策略分类">
@@ -114,7 +115,7 @@
               </button>
             </div>
           </div>
-          <p class="metric-footnote">点击指标查看趋势；“—”表示接口未提供该指标。{{ query.tabType === 'active' ? '存量策略分类为本地测试随机分组。' : '当前视角仅支持全部分类。' }}</p>
+          <p class="metric-footnote">点击指标查看趋势；“—”表示接口未提供该指标。{{ query.tabType === 'active' ? '存量策略分类按数据源提供的归属展示。' : '当前视角仅支持全部分类。' }}</p>
         </review-state>
       </div>
       <div class="card overview-trend-card">
@@ -145,7 +146,7 @@
               @change="$emit('channel', $event.target.value)"
             >
               <option value="">全部渠道</option>
-              <option v-for="channel in channels" :key="channel.keyCode" :value="channel.keyCode">
+              <option v-for="channel in channels" :key="channel.keyName" :value="channel.keyName">
                 {{ channel.keyName }}
               </option>
             </select></label
@@ -169,6 +170,10 @@ import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
 import { listOf, numberText, percentText, barLineOption, panelRequests } from './reviewData'
+import leaveSimulation from './leaveSimulation.json'
+import customerGroupSimulation from './customerGroupSimulation.json'
+import incrementalSimulation from './incrementalSimulation.json'
+import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
 export default {
@@ -198,6 +203,22 @@ export default {
     }
   },
   computed: {
+    simulationNote() {
+      if (this.query.tabType === incrementalSimulation.tabType && this.query.cityId === incrementalSimulation.cityId &&
+          this.query.statMonth >= incrementalSimulation.startMonth && this.query.statMonth <= incrementalSimulation.sourceMonth) {
+        return `增量策略：${incrementalSimulation.startMonth.slice(5)}—${incrementalSimulation.endMonth.slice(5)}月为固定${incrementalSimulation.strategiesPerMonth}条策略的模拟月度历史；${incrementalSimulation.sourceMonth.slice(5)}月为业务部门Excel数据（截至${incrementalSimulation.sourceCutoff.slice(5)}）。${incrementalSimulation.baselineMonth.slice(5)}月为模拟环比基期。来源月环比按截至日与上月日均比较，柱形仍展示月累计量；${incrementalSimulation.dailyStartDate.slice(5)}—${incrementalSimulation.dailyEndDate.slice(5)}日数据为按权重拆分的模拟日数据。模拟结果仅供演示。`
+      }
+      if (this.query.tabType === customerGroupSimulation.tabType && this.query.cityId === customerGroupSimulation.cityId &&
+          this.query.strategyClass === customerGroupSimulation.strategyClass &&
+          (!this.query.customerGroup || this.query.customerGroup === customerGroupSimulation.customerGroup) &&
+          this.query.statMonth >= customerGroupSimulation.startMonth && this.query.statMonth <= customerGroupSimulation.sourceMonth) {
+        return `重点客群“拆弹客户”：2026年1—9月为模拟月度历史，10月为业务部门Excel数据（截至10月23日）。柱形展示9月全月与10月1—23日累计值；10月环比按10月1—23日与9月1—23日同期累计值计算。9月同期及10月日明细为按月度总量模拟的逐日分布，环比仅供演示。`
+      }
+      if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
+          !['离', '全部'].includes(this.query.strategyClass || '全部') ||
+          this.query.statMonth < leaveSimulation.startMonth || this.query.statMonth > leaveSimulation.sourceMonth) return ''
+      return `“离”策略：2026年1—9月为模拟历史，每月固定同一组10条策略；10月为Excel数据（截至10月21日）。${leaveSimulation.baselineMonth ? '1月环比使用2025年12月模拟基期。' : ''}10月环比按截至日的日均与9月全月日均比较，柱形展示各月累计量，因此10月累计量低于9月是正常的。模拟环比仅供演示。`
+    },
     isKeyAudience() {
       return this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
     },
@@ -239,7 +260,7 @@ export default {
       return item ? item.label : '全部'
     },
     channelName() {
-      const c = this.channels.find((c) => c.keyCode === this.query.channel)
+      const c = this.channels.find((c) => c.keyName === this.query.channel)
       return c ? c.keyName : '全部渠道'
     },
     funnel() {
@@ -252,10 +273,11 @@ export default {
       const metric = this.isDowngrade
         ? this.groups.mid.concat(this.groups.rate, this.groups.left).find((item) => item.key === this.activeMetric)
         : null
+      const trend = visibleSimulationTrend(this.query, this.trend)
       return barLineOption(
-        this.trend.months,
-        this.trend.values,
-        this.trend.qoq,
+        trend.months,
+        trend.values,
+        trend.qoq,
         (metric && metric.label) || this.activeCard.label || '指标',
         this.trend.unit || this.activeCard.unit || '',
       )

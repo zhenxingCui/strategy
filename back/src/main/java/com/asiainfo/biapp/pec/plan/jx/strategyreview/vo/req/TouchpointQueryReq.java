@@ -22,7 +22,7 @@ public class TouchpointQueryReq extends BaseRegionReq {
     @ApiModelProperty(value = "账期月份，格式 yyyy-MM", example = "2026-08")
     private String statMonth;
 
-    @ApiModelProperty(value = "触点渠道编码（dim.keyCode），空=全部渠道")
+    @ApiModelProperty(value = "触点渠道名称（dim.keyName），空=全部渠道")
     private String channel;
 
     @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群，空=全部")

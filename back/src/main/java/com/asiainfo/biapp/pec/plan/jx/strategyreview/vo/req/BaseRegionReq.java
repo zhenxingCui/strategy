@@ -9,12 +9,12 @@ import lombok.Data;
 @Data
 public class BaseRegionReq {
 
-    /** 地市编码（以网关注入为准） */
-    private String cityId;
+    /** 地市编码（默认999；以网关注入为准） */
+    private String cityId = "999";
 
     /** 区县编码（以网关注入为准） */
     private String countyId;
 
-    /** 登录用户ID（IOP 单点登录透传，前端 sessionStorage 传入） */
-    private String userId;
+    /** 用户ID（默认root；前端可传入） */
+    private String userId = "root";
 }

@@ -10,7 +10,32 @@
         FROM t_sr_dim_channel d
         WHERE d.status = 1
           AND d.is_deleted = 0
-          AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)
+          AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)
+        <if test="query.tabType == 'active' and ((query.statMonth != null and query.statMonth != '') or (query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'))">
+          AND EXISTS (
+            SELECT 1 FROM t_sr_strategy_period_summary_ap s
+            WHERE s.tab_type = 'active' AND s.is_deleted = 0
+              AND s.channel = d.key_code AND s.strategy_id != '999'
+              AND s.big_category != '全部' AND s.small_category != '全部'
+            <if test="query.statMonth != null and query.statMonth != ''">
+              AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+            </if>
+            <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+              AND s.strategy_class = #{query.strategyClass}
+            </if>
+            <if test="query.cityId != null and query.cityId != ''">
+              AND s.city_id = #{query.cityId}
+            </if>
+            <if test="query.countyId != null and query.countyId != ''">
+              AND s.county_id = #{query.countyId}
+            </if>
+            <if test="query.customerGroup != null and query.customerGroup != ''">
+              AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
+                  AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
+            </if>
+          )
+        </if>
         ORDER BY d.sort_no, d.key_code
     </select>
 
@@ -21,7 +46,7 @@
         WHERE t.tab_type = #{tabType}
           AND t.is_deleted = 0
           <if test="channel != null and channel != ''">
-              AND t.channel = #{channel}
+              AND (t.channel = #{channel} OR t.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
           </if>
           <!-- 远程搜索：不传关键字时不返回数据，避免全量下发（生产 6 万+ 条） -->
           <if test="keyword == null or keyword == ''">
@@ -131,7 +156,7 @@
                 SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
                        c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
                 FROM t_sr_channel_summary_ctrl c
-                WHERE c.channel = #{channel} AND c.is_deleted = 0
+                WHERE (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0))) AND c.is_deleted = 0
                   AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
                 <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
                 <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
@@ -140,7 +165,7 @@
                 SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
                        c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
                 FROM t_sr_channel_summary_ap c
-                WHERE c.tab_type = #{tabType} AND c.channel = #{channel} AND c.is_deleted = 0
+                WHERE c.tab_type = #{tabType} AND (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0))) AND c.is_deleted = 0
                   AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
                 <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
                 <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
@@ -150,6 +175,29 @@
                     <otherwise>AND c.strategy_class = '全部'</otherwise>
                 </choose>
             </otherwise>
+        </choose>
+        ORDER BY c.stat_month DESC LIMIT 12
+    </select>
+
+    <select id="selectChannelReachRateTrend" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.KpiTrendItemVO">
+        SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
+               ROUND(c.reach_count * 100.0 / NULLIF(c.usage_count, 0), 2) AS value,
+               ROUND(ROUND(c.reach_count * 100.0 / NULLIF(c.usage_count, 0), 2)
+                   - ROUND(p.reach_count * 100.0 / NULLIF(p.usage_count, 0), 2), 2) AS qoq,
+               '%' AS unit
+        FROM t_sr_channel_summary_ap c
+        LEFT JOIN t_sr_channel_summary_ap p
+          ON p.tab_type = c.tab_type AND p.strategy_class = c.strategy_class
+         AND p.channel = c.channel AND p.city_id &lt;=&gt; c.city_id
+         AND p.county_id &lt;=&gt; c.county_id AND p.is_deleted = 0
+         AND p.stat_month = DATE_SUB(c.stat_month, INTERVAL 1 MONTH)
+        WHERE c.tab_type = #{tabType} AND (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0))) AND c.is_deleted = 0
+          AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
+        <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
+        <if test="countyId != null and countyId != ''">AND c.county_id = #{countyId}</if>
+        <choose>
+            <when test="strategyClass != null and strategyClass != ''">AND c.strategy_class = #{strategyClass}</when>
+            <otherwise>AND c.strategy_class = '全部'</otherwise>
         </choose>
         ORDER BY c.stat_month DESC LIMIT 12
     </select>
@@ -196,7 +244,7 @@
                 </if>
                   <choose>
                     <when test="channel != null and channel != ''">
-                       AND c.channel = #{channel}
+                       AND (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                     </when>
                    <otherwise>
                        AND c.channel !='全部'
@@ -250,7 +298,7 @@
                 </if>
                 <choose>
                     <when test="channel != null and channel != ''">
-                        AND c.channel = #{channel}
+                        AND (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                     </when>
                     <otherwise>
                         AND c.channel !='全部'
@@ -327,7 +375,7 @@
             AND s.county_id = #{countyId}
         </if>
         <if test="channel != null and channel != ''">
-            AND s.channel = #{channel}
+            AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
         </if>
         <if test="bigCategory != null and bigCategory != ''">
             AND s.big_category = #{bigCategory}
@@ -360,7 +408,7 @@
             AND s.county_id = #{countyId}
         </if>
         <if test="channel != null and channel != ''">
-            AND s.channel = #{channel}
+            AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
         </if>
         <if test="bigCategory != null and bigCategory != ''">
             AND s.big_category = #{bigCategory}
@@ -493,7 +541,7 @@
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}</if>
                 <choose>
                     <when test="channel != null and channel != ''">
-                        AND m.channel = #{channel}
+                        AND (m.channel = #{channel} OR m.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                     </when>
                     <otherwise>
                         AND m.channel ='全部'
@@ -539,7 +587,7 @@
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}</if>
                 <choose>
                     <when test="channel != null and channel != ''">
-                        AND m.channel = #{channel}
+                        AND (m.channel = #{channel} OR m.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                     </when>
                     <otherwise>
                         AND m.channel ='全部'
@@ -589,7 +637,7 @@
                 and b.channel!='全部' and b.big_category !='全部' and b.small_category !='全部' and b.biz_name!='全部'
                 </if>
                 <if test="channel != null and channel != ''">
-                    AND b.channel = #{channel}
+                    AND (b.channel = #{channel} OR b.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                 </if>
                 <if test="bigCategory != null and bigCategory != ''">
                     AND b.big_category = #{bigCategory}
@@ -625,7 +673,7 @@
                   and b.channel!='全部' and b.big_category !='全部' and b.small_category !='全部' and b.biz_name!='全部'
                 </if>
                 <if test="channel != null and channel != ''">
-                    AND b.channel = #{channel}
+                    AND (b.channel = #{channel} OR b.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                 </if>
                 <if test="bigCategory != null and bigCategory != ''">
                     AND b.big_category = #{bigCategory}
@@ -670,7 +718,9 @@
                 FROM t_sr_strategy_period_summary_ctrl s
                 WHERE DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
                   AND s.is_deleted = 0 and s.strategy_id = '999'
-                  and s.big_category !='全部' and s.small_category !='全部'
+                <if test="queryList != null and queryList == 0">
+                  AND s.big_category != '全部' AND s.small_category != '全部'
+                </if>
                 <if test="queryList != null and queryList == 0 and (channel == null or channel == '')" >
                     and s.channel!='全部'
                 </if>
@@ -682,7 +732,7 @@
                     AND s.county_id = #{countyId}
                 </if>
                 <if test="channel != null and channel != ''">
-                    AND s.channel = #{channel}
+                    AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                 </if>
                 <if test="bigCategory != null and bigCategory != ''">
                     AND s.big_category = #{bigCategory}
@@ -727,13 +777,16 @@
                 FROM t_sr_strategy_period_summary_ap s
                 WHERE s.tab_type = #{tabType}
                   AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
-                  AND s.is_deleted = 0 and 0=#{queryList} and s.strategy_id = '999'
+                  AND s.is_deleted = 0
+                  AND s.strategy_id = '999'
                 <choose>
                     <when test="strategyClass != null and strategyClass != ''">AND s.strategy_class = #{strategyClass}</when>
 
                     <otherwise>AND s.strategy_class = '全部'</otherwise>
                 </choose>
-                  and s.big_category !='全部' and s.small_category !='全部'
+                <if test="queryList != null and queryList == 0">
+                  AND s.big_category != '全部' AND s.small_category != '全部'
+                </if>
                 <if test="queryList != null and queryList == 0 and (channel == null or channel == '')" >
                     and s.channel!='全部'
                 </if>
@@ -744,7 +797,7 @@
                     AND s.county_id = #{countyId}
                 </if>
                 <if test="channel != null and channel != ''">
-                    AND s.channel = #{channel}
+                    AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
                 </if>
                 <if test="bigCategory != null and bigCategory != ''">
                     AND s.big_category = #{bigCategory}

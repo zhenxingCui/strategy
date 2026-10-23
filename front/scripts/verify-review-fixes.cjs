@@ -15,7 +15,7 @@ const ruleIds = []
 async function post(route, data) {
   const response = await fetch(`${apiRoot}/${route}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tabType: 'active', userId, cityId: '001', ...data }),
+    body: JSON.stringify({ tabType: 'active', userId, cityId: '999', ...data }),
   })
   const body = await response.json()
   assert.equal(body.status, 'SUCCESS', `${route}: ${body.message}`)
@@ -35,7 +35,7 @@ async function checkApi() {
     await conn.execute(`INSERT INTO t_sr_strategy_period_summary_ap
       (tab_type, strategy_id, strategy_name, channel, big_category, small_category, stat_month,
        strategy_count, push_count, product_conv_num, city_id, is_deleted)
-      VALUES ('active', ?, ?, '01', '回归验证', '临时策略', ?, 1, 1, 1, '001', 0)`,
+      VALUES ('active', ?, ?, '01', '回归验证', '临时策略', ?, 1, 1, 1, '999', 0)`,
     [strategyId, strategyId, `${month}-01`])
     const payload = {
       startDate: dates.today, endDate: dates.later, dataStartDate: `${month}-01`, dataEndDate: `${month}-28`,
@@ -85,7 +85,7 @@ async function checkApi() {
     const controlId = `${strategyId}-ctrl`
     await conn.execute(`INSERT INTO t_sr_strategy_period_summary_ctrl
       (strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month, city_id, is_deleted)
-      VALUES (?, ?, ?, 'CCH02', '回归验证', '临时策略', ?, '001', 0)`, [controlId, controlId, controlId, `${month}-01`])
+      VALUES (?, ?, ?, 'CCH02', '回归验证', '临时策略', ?, '999', 0)`, [controlId, controlId, controlId, `${month}-01`])
     await post('favorite/add', { tabType: 'control', strategyIds: [controlId] })
     const controlList = await post('favorite/list', { tabType: 'control', statMonth: month, manualOnly: true })
     assert.equal(controlList.total, 1)
@@ -122,7 +122,7 @@ async function checkFrontend() {
   const data = loadModule('src/views/strategyReview/active/reviewData.js')
   assert.equal(data.strategyColumns.find(c => c.prop === 'strategyName').link, true)
   const entry = loadModule('src/views/strategyReview/active/ActiveReview.vue', {
-    './reviewData': data, '@/utils/auth': { getCityId: () => '001', getUserId: () => userId },
+    './reviewData': data, '@/utils/auth': { getCityId: () => '999', getUserId: () => userId },
   }).default
   assert.equal(entry.computed.query.call({ tabType: 'control' }).tabType, 'control')
   const signature = columns => JSON.stringify(columns.map(c => ({ prop: c.prop, label: c.label, link: !!c.link })))

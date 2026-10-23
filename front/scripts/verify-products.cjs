@@ -14,7 +14,7 @@ const metricLabels = { consult_count: '推送量', retain_count: '使用量', di
 async function api(route, params = {}) {
   const response = await fetch(base + route, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tabType: 'control', strategyClass: '全部', cityId: '001', userId, ...params }),
+    body: JSON.stringify({ tabType: 'control', strategyClass: '全部', cityId: '999', userId, ...params }),
     signal: AbortSignal.timeout(15000),
   })
   const body = await response.json()
@@ -49,7 +49,7 @@ async function main() {
     assert.ok(groups.every(group => group.keyCode === group.keyName && group.keyName.trim() === group.keyName))
     const [facts] = await connection.query(`SELECT p.*, s.product_name FROM t_sr_strategy_period_summary_ctrl p
       JOIN t_sr_strategy s ON s.strategy_code=p.strategy_id AND s.tab_type='control' AND s.is_deleted=0
-      WHERE p.city_id='001' AND p.is_deleted=0 AND p.strategy_id!='999'`)
+      WHERE p.city_id='999' AND p.is_deleted=0 AND p.strategy_id!='999'`)
     const channels = ['', ...(await api('/dim', { type: '触点渠道' })).map(channel => channel.keyCode)]
     for (const group of groups) {
       for (const channel of channels) {

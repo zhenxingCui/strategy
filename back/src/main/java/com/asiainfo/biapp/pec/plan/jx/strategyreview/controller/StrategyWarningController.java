@@ -99,9 +99,9 @@ public class StrategyWarningController {
         }
         try {
             String userId = UserUtilJx.getUser().getUserId();
-            return userId != null ? userId : "admin";
+            return userId != null ? userId : "root";
         } catch (Exception e) {
-            return "admin";
+            return "root";
         }
     }
 }

@@ -218,7 +218,7 @@
 
     <sql id="hitStrategyFilters">
         AND s.strategy_id != '999'
-        <if test="channel != null and channel != ''">AND s.channel = #{channel}</if>
+        <if test="channel != null and channel != ''">AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
         <if test="tabType != 'control' and strategyClass != null and strategyClass != '' and strategyClass != '全部'">AND s.strategy_class = #{strategyClass}</if>
         <if test="countyId != null and countyId != ''">AND s.county_id = #{countyId}</if>
         <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}</if>
