@@ -6,7 +6,7 @@
 
     <select id="selectChannelDims" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         <choose>
-            <when test="query.tabType == 'active'">
+            <when test="query.tabType == 'active' or query.tabType == 'passive'">
                 SELECT DISTINCT s.channel AS keyCode,
                        COALESCE(d.key_name, s.channel) AS keyName
                 FROM t_sr_strategy_period_summary_ap s
@@ -14,10 +14,10 @@
                     SELECT key_code, MAX(key_name) AS key_name
                     FROM t_sr_dim_channel
                     WHERE status = 1 AND is_deleted = 0
-                      AND (tab_type = 'active' OR FIND_IN_SET('active', tab_type) &gt; 0)
+                      AND (tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, tab_type) &gt; 0)
                     GROUP BY key_code
                 ) d ON d.key_code = s.channel
-                WHERE s.tab_type = 'active' AND s.is_deleted = 0
+                WHERE s.tab_type = #{query.tabType} AND s.is_deleted = 0
                   AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
                   AND s.strategy_id != '999'
                   AND s.big_category != '全部' AND s.small_category != '全部'
@@ -27,7 +27,14 @@
                 <if test="query.statMonth == null or query.statMonth == ''">
                   AND s.stat_month = (SELECT MAX(latest.stat_month)
                     FROM t_sr_strategy_period_summary_ap latest
-                    WHERE latest.tab_type = 'active' AND latest.is_deleted = 0)
+                    WHERE latest.tab_type = #{query.tabType} AND latest.is_deleted = 0
+                    <if test="query.cityId != null and query.cityId != ''">
+                      AND latest.city_id = #{query.cityId}
+                    </if>
+                    <if test="query.countyId != null and query.countyId != ''">
+                      AND latest.county_id = #{query.countyId}
+                    </if>
+                  )
                 </if>
                 <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
                   AND s.strategy_class = #{query.strategyClass}
@@ -38,7 +45,7 @@
                 <if test="query.countyId != null and query.countyId != ''">
                   AND s.county_id = #{query.countyId}
                 </if>
-                <if test="query.customerGroup != null and query.customerGroup != ''">
+                <if test="query.tabType == 'active' and query.customerGroup != null and query.customerGroup != ''">
                   AND EXISTS (SELECT 1 FROM t_sr_strategy t
                     WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
                       AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
