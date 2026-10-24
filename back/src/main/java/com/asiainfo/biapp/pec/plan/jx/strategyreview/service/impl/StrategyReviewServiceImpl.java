@@ -365,7 +365,11 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
 
     @Override
     public CategoryRespVO queryCategorySummary(TouchpointQueryReq req) {
-        if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.categories(req);
+        // 降拆数据在专用表中有策略事实和合计行，但缺少分类级预汇总行；从策略事实聚合分类列表。
+        if (req.getCustomerGroup() != null || req.getProductName() != null
+                || ("active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass()))) {
+            return scopeAggregation.categories(req);
+        }
         String statMonth = requireStatMonth(req.getStatMonth());
         // 分类执行情况固定使用全渠道汇总行，不随页面当前渠道筛选拆分。
         String allChannel = "全部";

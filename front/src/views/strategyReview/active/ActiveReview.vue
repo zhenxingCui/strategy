@@ -31,7 +31,7 @@
             value-format="yyyy-MM"
             placeholder="选择数据月份"
             :clearable="false"
-            @input="changeMonth"
+            disabled
         /></label>
       </div>
       <review-state :state="panels.bootstrap" @retry="bootstrap">
@@ -57,7 +57,6 @@
             @customer-group="changeCustomerGroup"
             @channel="changeChannel"
             @strategy-class="changeStrategyClass"
-            @month="drillMonth"
           />
           <stock-execution ref="execution" :query="query" :channel-name="channelName" />
           <stock-warning :query="query" :channels="channels" @strategy="selectStrategy" />
@@ -265,12 +264,6 @@ export default {
       this.customerGroup = ''
       this.selectedStrategy = null
       this.loadChannels()
-    },
-    drillMonth(month) {
-      this.changeMonth(month)
-      this.$nextTick(() => {
-        if (this.$refs.execution) this.$refs.execution.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
     },
     selectStrategy(row) {
       this.selectedStrategy = { ...row }

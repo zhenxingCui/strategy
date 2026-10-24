@@ -122,6 +122,50 @@
                         </if>
                         ORDER BY keyName
                     </when>
+                    <!-- These active classes use strategy facts because channel aggregates may be incomplete by class. -->
+                    <when test='query.tabType == "active" and (query.strategyClass == "升接" or query.strategyClass == "稳")'>
+                        SELECT DISTINCT s.channel AS keyCode,
+                               COALESCE(d.key_name, s.channel) AS keyName
+                        FROM v_sr_strategy_period_summary_ap_read s
+                        LEFT JOIN (
+                            SELECT key_code, MAX(key_name) AS key_name
+                            FROM t_sr_dim_channel
+                            WHERE status = 1 AND is_deleted = 0
+                              AND (tab_type = 'active' OR FIND_IN_SET('active', tab_type) &gt; 0)
+                            GROUP BY key_code
+                        ) d ON d.key_code = s.channel
+                        WHERE s.tab_type = 'active' AND s.is_deleted = 0
+                          AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
+                          AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
+                          AND s.big_category != '全部' AND s.small_category != '全部'
+                          AND s.strategy_class = #{query.strategyClass}
+                        <if test="query.statMonth != null and query.statMonth != ''">
+                          AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                        </if>
+                        <if test="query.statMonth == null or query.statMonth == ''">
+                          AND s.stat_month = (SELECT MAX(latest.stat_month)
+                            FROM v_sr_strategy_period_summary_ap_read latest
+                            WHERE latest.tab_type = 'active' AND latest.is_deleted = 0
+                              AND latest.channel IS NOT NULL AND latest.channel != '' AND latest.channel != '全部'
+                              AND latest.strategy_id IS NOT NULL AND latest.strategy_id != '999'
+                              AND latest.big_category != '全部' AND latest.small_category != '全部'
+                              AND latest.strategy_class = #{query.strategyClass}
+                            <if test="query.cityId != null and query.cityId != ''">
+                              AND latest.city_id = #{query.cityId}
+                            </if>
+                            <if test="query.countyId != null and query.countyId != ''">
+                              AND latest.county_id = #{query.countyId}
+                            </if>
+                          )
+                        </if>
+                        <if test="query.cityId != null and query.cityId != ''">
+                          AND s.city_id = #{query.cityId}
+                        </if>
+                        <if test="query.countyId != null and query.countyId != ''">
+                          AND s.county_id = #{query.countyId}
+                        </if>
+                        ORDER BY keyName
+                    </when>
                     <otherwise>
                         SELECT DISTINCT c.channel AS keyCode,
                                COALESCE(d.key_name, c.channel) AS keyName

@@ -1,9 +1,7 @@
 <template>
   <section class="section">
     <h2 class="section-title">
-      重点关注策略<span class="spacer" /><span class="badge"
-        >{{ focused ? '已关注策略' : '预警策略' }} {{ hitTotal }} 条</span
-      >
+      预警管理<span class="spacer" /><span class="badge">命中策略 {{ hitTotal }} 条</span>
     </h2>
     <div class="split split--m3">
       <div class="card rules-card">
@@ -77,33 +75,17 @@
         <review-table
           :title="selectedRule ? `预警策略 · ${selectedRule.ruleName}` : '预警策略'"
           tools
-          selectable
           :columns="columns"
           :rows="hits"
           :page="hitPage"
-          :page-size="5"
+          :page-size="10"
           :total="hitTotal"
           :state="panels.hits"
           :empty-text="selectedRule ? '当前规则无命中策略' : '请选择一条生效中的规则'"
           @page="changeHitPage"
           @retry="loadHits"
-          @selection="selection = $event"
           @strategy="$emit('strategy', $event)"
-        >
-          <template slot="actions"
-            ><button class="btn" :disabled="!selection.length || busy" @click="follow(true)">关注选中</button
-            ><button v-if="focused" class="btn" :disabled="!selection.length || busy" @click="follow(false)">
-              取消关注
-            </button></template
-          >
-          <div slot="filters" class="toolbar warning-tabs">
-            <button class="seg-btn" :aria-pressed="!focused ? 'true' : 'false'" @click="setFocused(false)">
-              预警策略</button
-            ><button class="seg-btn" :aria-pressed="focused ? 'true' : 'false'" @click="setFocused(true)">
-              重点关注策略</button
-            ><span class="muted">点击左侧规则切换</span>
-          </div>
-        </review-table>
+        />
       </div>
     </div>
     <rule-create-dialog
@@ -129,7 +111,6 @@ import {
   deleteWarningRule,
   toggleWarningRuleStatus,
   getWarningHitStrategyList,
-  toggleFollowStrategy,
 } from '@/api/strategyReview'
 import RuleCreateDialog from '../components/RuleCreateDialog.vue'
 import ReviewState from './ReviewState.vue'
@@ -150,8 +131,6 @@ export default {
       hits: [],
       hitTotal: 0,
       hitPage: 1,
-      selection: [],
-      focused: false,
       draftName: '',
       draftStatus: '',
       ruleName: '',
@@ -191,7 +170,6 @@ export default {
         this.hitPage = 1
         this.hitTotal = 0
         this.hits = []
-        this.selection = []
         this.requestVersions.hits = (this.requestVersions.hits || 0) + 1
         this.$set(this.panels, 'hits', {})
         this.rulePage = 1
@@ -249,7 +227,6 @@ export default {
       this.loadHits()
     },
     loadHits() {
-      this.selection = []
       this.hits = []
       if (!this.selectedRule) {
         this.hitTotal = 0
@@ -264,14 +241,13 @@ export default {
           getWarningHitStrategyList({
             ...this.query,
             ruleId: this.selectedRule.id,
-            favorite: this.focused ? '1' : '',
             pageNum: this.hitPage,
-            pageSize: 5,
+            pageSize: 10,
           }),
         (result) => {
           this.hits = listOf(result)
           this.hitTotal = Number(result && result.total) || 0
-          const lastPage = Math.max(1, Math.ceil(this.hitTotal / 5))
+          const lastPage = Math.max(1, Math.ceil(this.hitTotal / 10))
           if (this.hitPage > lastPage) {
             this.hitPage = lastPage
             this.$nextTick(() => this.loadHits())
@@ -309,11 +285,6 @@ export default {
     },
     changeHitPage(page) {
       this.hitPage = page
-      this.loadHits()
-    },
-    setFocused(value) {
-      this.focused = value
-      this.hitPage = 1
       this.loadHits()
     },
     openCreate() {
@@ -360,24 +331,6 @@ export default {
         if (this.rules.length === 1 && this.rulePage > 1) this.rulePage--
         await this.loadRules()
         this.$message.success('规则已删除')
-      } catch (e) {
-        /* 请求拦截器展示错误 */
-      } finally {
-        this.busy = false
-      }
-    },
-    async follow(followed) {
-      if (!this.selectedRule || !this.selection.length || this.busy) return
-      this.busy = true
-      try {
-        await toggleFollowStrategy({
-          ...this.query,
-          ruleId: String(this.selectedRule.id),
-          strategyIds: this.selection.map((r) => String(r.strategyId)),
-          followed,
-        })
-        this.$message.success(followed ? '已关注' : '已取消关注')
-        await this.loadHits()
       } catch (e) {
         /* 请求拦截器展示错误 */
       } finally {

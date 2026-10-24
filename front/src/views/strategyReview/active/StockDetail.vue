@@ -90,7 +90,7 @@
             :state="panels.biz"
             :page="bizPage"
             :total="bizTotal"
-            :page-size="5"
+            :page-size="10"
             :empty-text="selected.strategyId ? '暂无业务产能数据' : '请选择左侧策略'"
             @page="changeBizPage"
             @retry="loadBiz"
@@ -109,29 +109,17 @@
         :page="dailyPage"
         :page-size="10"
         :total="dailyTotal"
-        :empty-text="selected.strategyId ? '该日期范围暂无执行明细' : '请选择上方策略'"
+        :empty-text="selected.strategyId ? '当前月份暂无执行明细' : '请选择上方策略'"
         @page="changeDailyPage"
         @retry="loadDaily"
       >
         <div slot="filters" class="toolbar daily-toolbar">
           <div class="seg">
-            <button class="seg-btn" aria-pressed="true">策略执行情况（分日）</button
-            ><button class="seg-btn" disabled title="后端尚未提供对照执行数据接口">对照执行情况（非上线）</button>
+            <button class="seg-btn" aria-pressed="true">策略执行情况（分日）</button>
           </div>
           <span class="spacer" /><span class="muted selected-name">{{
             selected.strategyName || selected.name || selected.strategyCode || '未选择策略'
           }}</span>
-          <el-date-picker
-            v-model="dailyRange"
-            type="daterange"
-            size="mini"
-            value-format="yyyy-MM-dd"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            range-separator="至"
-            :clearable="false"
-            @change="changeDailyRange"
-          />
         </div>
       </review-table>
     </div>
@@ -319,13 +307,13 @@ export default {
             manualOnly: this.favoritesOnly,
             strategyName: this.strategyName,
             pageNum: this.page,
-            pageSize: 5,
+            pageSize: 10,
             ...this.sort,
           }),
         (result) => {
           this.strategies = listOf(result)
           this.total = Number(result && result.total) || 0
-          const lastPage = Math.max(1, Math.ceil(this.total / 5))
+          const lastPage = Math.max(1, Math.ceil(this.total / 10))
           if (this.page > lastPage) {
             this.page = lastPage
             this.$nextTick(() => this.loadList())
@@ -408,7 +396,7 @@ export default {
       if (this.selected.strategyId)
         return this.request(
           'biz',
-          () => getStrategyBizCapacity(this.params({ pageNum: this.bizPage, pageSize: 5 })),
+          () => getStrategyBizCapacity(this.params({ pageNum: this.bizPage, pageSize: 10 })),
           (result) => {
             this.biz = listOf(result)
             this.bizTotal = Number(result && result.total) || 0
@@ -440,10 +428,6 @@ export default {
     },
     changeDailyPage(page) {
       this.dailyPage = page
-      this.loadDaily()
-    },
-    changeDailyRange() {
-      this.dailyPage = 1
       this.loadDaily()
     },
     async favorite() {

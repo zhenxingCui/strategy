@@ -47,10 +47,8 @@ export const metrics = [
   { prop: 'usageCount', label: '使用量' },
   { prop: 'usageRate', label: '使用率', format: percentText },
   { prop: 'reachCount', label: '触达量' },
-  { prop: 'targetConvNum', label: '目标转化量' },
-  { prop: 'targetConvRate', label: '目标转化率', format: percentText },
-  { prop: 'productConvNum', label: '全产品转化量' },
-  { prop: 'productConvRate', label: '全产品转化率', format: percentText },
+  { prop: 'targetConvNum', label: '成功量' },
+  { prop: 'targetConvRate', label: '成功率', format: percentText },
 ]
 
 export const categoryColumns = [
@@ -66,8 +64,8 @@ export const controlMetrics = [
   { prop: 'retainCount', label: '使用量' },
   { prop: 'retainRate', label: '使用率', format: percentText },
   { prop: 'dispatchCount', label: '触达量' },
-  { prop: 'successCount', label: '转化量' },
-  { prop: 'successRate', label: '转化率', format: percentText },
+  { prop: 'successCount', label: '成功量' },
+  { prop: 'successRate', label: '成功率', format: percentText },
 ]
 
 export const controlCategoryColumns = [
@@ -107,8 +105,7 @@ export function categoryLabelColumns(columns, query) {
     bigCategory: '场景大类', smallCategory: '场景小类',
     pushCount: '咨询量', usageCount: '挽留量', usageRate: '挽留率',
     reachCount: '派单量', reachRate: '派单率',
-    targetConvNum: '目标成功量', targetConvRate: '目标成功率',
-    productConvNum: '成功量', productConvRate: '成功率',
+    targetConvNum: '成功量', targetConvRate: '成功率',
     capacity: '成功量', count: '成功量',
   }
   return columns.map((column) => labels[column.prop] ? { ...column, label: labels[column.prop] } : column)

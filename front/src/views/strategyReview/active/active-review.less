@@ -319,7 +319,7 @@
   .table-wrap {
     max-width: 100%;
     overflow: auto;
-    max-height: 335px;
+    max-height: 420px;
     border: 1px solid var(--border-2);
     border-radius: 3px;
   }
@@ -755,8 +755,8 @@
       pointer-events: none;
     }
   }
-  // 降拆只有四条指标，让整组与左侧指标卡片共享垂直中心。
-  .metric-col-mid--downgrade {
+  // 四条指标时让整组与左侧指标卡片共享垂直中心。
+  .metric-col-mid--four {
     grid-template-rows: repeat(4, 52px);
     align-content: center;
   }
@@ -969,12 +969,8 @@
       font-size: 11px;
     }
   }
-  .warning-tabs {
-    border-bottom: 1px solid var(--border-2);
-    padding-bottom: 8px;
-  }
   .warning-table-card .table-wrap {
-    max-height: 335px;
+    max-height: 420px;
   }
   .detail-grid {
     display: grid;
@@ -1012,10 +1008,6 @@
   }
   .daily-card {
     margin-top: 12px;
-  }
-  .daily-toolbar .el-date-editor {
-    max-width: 100%;
-    width: 270px;
   }
   .selected-name {
     max-width: 200px;

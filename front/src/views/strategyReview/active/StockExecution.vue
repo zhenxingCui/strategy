@@ -13,6 +13,7 @@
           :columns="columns"
           :rows="pagedCategories"
           :page="page"
+          :page-size="10"
           :total="filteredCategories.length"
           :state="panels.category"
           row-clickable
@@ -48,8 +49,9 @@
         <review-table
           title="业务产能明细"
           :columns="bizColumns"
-          :rows="biz.slice((bizPage - 1) * 5, bizPage * 5)"
+          :rows="biz.slice((bizPage - 1) * 10, bizPage * 10)"
           :page="bizPage"
+          :page-size="10"
           :total="biz.length"
           :state="panels.biz"
           @page="bizPage = $event"
@@ -140,7 +142,7 @@ export default {
       )
     },
     pagedCategories() {
-      return this.filteredCategories.slice((this.page - 1) * 5, this.page * 5)
+      return this.filteredCategories.slice((this.page - 1) * 10, this.page * 10)
     },
     trendOption() {
       const trend = visibleSimulationTrend(this.query, {

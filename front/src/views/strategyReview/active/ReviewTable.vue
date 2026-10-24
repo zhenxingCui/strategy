@@ -120,7 +120,7 @@ export default {
     rows: { type: Array, default: () => [] },
     state: { type: Object, default: () => ({}) },
     page: { type: Number, default: 1 },
-    pageSize: { type: Number, default: 5 },
+    pageSize: { type: Number, default: 10 },
     total: { type: Number, default: 0 },
     activeId: { type: [String, Number], default: '' },
     rowClickable: Boolean,

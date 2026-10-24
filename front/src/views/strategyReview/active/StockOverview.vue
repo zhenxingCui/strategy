@@ -41,7 +41,7 @@
                 </span>
               </button>
             </div>
-            <div class="metric-col metric-col-mid" :class="{ 'metric-col-mid--downgrade': isDowngrade }">
+            <div class="metric-col metric-col-mid" :class="{ 'metric-col-mid--four': groups.mid.length === 4 }">
               <button
                 v-for="metric in groups.mid"
                 :key="metric.key"
@@ -158,8 +158,8 @@
           empty-text="该指标暂无历史趋势"
           @retry="loadTrend"
         >
-          <e-chart :option="trendOption" height="310px" @click="drillMonth" />
-          <p class="metric-footnote">截至 {{ query.statMonth }}，最近 12 个有数据的月份；点击柱形查看当月执行情况。</p>
+          <e-chart :option="trendOption" height="310px" />
+          <p class="metric-footnote">截至 {{ query.statMonth }}，最近 12 个有数据的月份。</p>
         </review-state>
       </div>
     </div>
@@ -255,7 +255,9 @@ export default {
         left: [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
         mid: this.isDowngrade
           ? [item('push_count', '咨询量'), item('usage_count', '挽留量'), item('reach_count', '派单量'), item('product_conv_num', '成功量')]
-          : [item('original_cust', '客群'), item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')],
+          : this.isKeyAudience
+            ? [item('original_cust', '客群'), item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')]
+            : [item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')],
         rate: this.isDowngrade
           ? [item('usage_rate', '挽留率'), item('reach_rate', '派单率'), item('product_conv_rate', '成功率')]
           : [item('usage_rate', '使用率'), item('reach_rate', '触达率'), item('product_conv_rate', '转化率')],
@@ -270,7 +272,7 @@ export default {
       return c ? c.keyName : '全部渠道'
     },
     funnel() {
-      return this.isDowngrade ? this.groups.mid : this.groups.mid.slice(1)
+      return this.groups.mid.filter((metric) => metric.key !== 'original_cust')
     },
     activeCard() {
       return this.kpis.find((k) => k.metricCode === this.activeMetric) || {}
@@ -364,13 +366,6 @@ export default {
           this.trend = result || {}
         },
       )
-    },
-    drillMonth(event) {
-      if (event.seriesType !== 'bar') return
-      // 服务端目前返回“x月”，跨年按所选账期向前匹配。
-      const m = Number(String(event.name).replace('月', '').slice(-2))
-      const [year, endMonth] = this.query.statMonth.split('-').map(Number)
-      if (m >= 1 && m <= 12) this.$emit('month', `${m > endMonth ? year - 1 : year}-${String(m).padStart(2, '0')}`)
     },
   },
 }
