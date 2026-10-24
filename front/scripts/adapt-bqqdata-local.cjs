@@ -27,6 +27,30 @@ const TABLES = [
   't_sr_strategy_reject_reason',
 ]
 
+const SPECIAL_TABLES = {
+  t_sr_strategy: 't_sr_strategy_special',
+  t_sr_strategy_period_summary_ap: 't_sr_strategy_period_summary_ap_special',
+  t_sr_strategy_daily_ap: 't_sr_strategy_daily_ap_special',
+  t_sr_channel_summary_ap: 't_sr_channel_summary_ap_special',
+  t_sr_channel_monthly_capacity_ap: 't_sr_channel_monthly_capacity_ap_special',
+  t_sr_channel_biz_capacity_ap: 't_sr_channel_biz_capacity_ap_special',
+  t_sr_strategy_biz_capacity: 't_sr_strategy_biz_capacity_special',
+  t_sr_kpi_summary: 't_sr_kpi_summary_special',
+  t_sr_strategy_reject_reason: 't_sr_strategy_reject_reason_special',
+}
+
+const PASSIVE_TABLES = {
+  t_sr_strategy: 't_sr_strategy_passive',
+  t_sr_strategy_period_summary_ap: 't_sr_strategy_period_summary_ap_passive',
+  t_sr_strategy_daily_ap: 't_sr_strategy_daily_ap_passive',
+  t_sr_channel_summary_ap: 't_sr_channel_summary_ap_passive',
+  t_sr_channel_monthly_capacity_ap: 't_sr_channel_monthly_capacity_ap_passive',
+  t_sr_channel_biz_capacity_ap: 't_sr_channel_biz_capacity_ap_passive',
+  t_sr_strategy_biz_capacity: 't_sr_strategy_biz_capacity_passive',
+  t_sr_kpi_summary: 't_sr_kpi_summary_passive',
+  t_sr_strategy_reject_reason: 't_sr_strategy_reject_reason_passive',
+}
+
 const EXPECTED_COLUMN_COUNTS = {
   t_sr_strategy: 22,
   t_sr_strategy_period_summary_ap: 53,
@@ -189,7 +213,7 @@ function normalizeValue(table, column, value) {
   if (value == null) return null
   if (column === 'stat_month') {
     const month = normalizeMonth(value)
-    return table === 't_sr_kpi_summary' ? month : `${month}-01`
+    return table === 't_sr_kpi_summary' || table === 't_sr_kpi_summary_special' ? month : `${month}-01`
   }
   return value
 }
@@ -236,16 +260,19 @@ function createBackup() {
 
 async function ensureColumns(connection) {
   for (const [table, columns] of Object.entries(EXTRA_COLUMNS)) {
-    const [existing] = await connection.query(
-      'SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?',
-      [table],
-    )
-    const existingNames = new Set(existing.map((row) => row.COLUMN_NAME || row.column_name))
-    for (const [column, definition] of Object.entries(columns)) {
-      if (existingNames.has(column)) continue
-      await connection.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`)
-      existingNames.add(column)
-      process.stdout.write(`Added ${table}.${column}\n`)
+    for (const target of [table, SPECIAL_TABLES[table], PASSIVE_TABLES[table]]) {
+      if (!target) continue
+      const [existing] = await connection.query(
+        'SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?',
+        [target],
+      )
+      const existingNames = new Set(existing.map((row) => row.COLUMN_NAME || row.column_name))
+      for (const [column, definition] of Object.entries(columns)) {
+        if (existingNames.has(column)) continue
+        await connection.query(`ALTER TABLE \`${target}\` ADD COLUMN \`${column}\` ${definition}`)
+        existingNames.add(column)
+        process.stdout.write(`Added ${target}.${column}\n`)
+      }
     }
   }
 }
@@ -283,9 +310,26 @@ async function plannedDeleteCounts(connection, month) {
     ['t_sr_strategy_biz_capacity', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
     ['t_sr_kpi_summary', 'tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
     ['t_sr_strategy_reject_reason', 'stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_special', 'tab_type = \'active\'', []],
+    ['t_sr_strategy_period_summary_ap_special', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_daily_ap_special', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_summary_ap_special', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_monthly_capacity_ap_special', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_biz_capacity_ap_special', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_biz_capacity_special', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['t_sr_kpi_summary_special', 'tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
+    ['t_sr_strategy_reject_reason_special', 'stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
   ]
   const result = {}
   for (const [table, where, params] of checks) {
+    const [exists] = await connection.query(
+      'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+      [table],
+    )
+    if (!exists.length) {
+      result[table] = 0
+      continue
+    }
     const [rows] = await connection.query(`SELECT COUNT(*) AS row_count FROM \`${table}\` WHERE ${where}`, params)
     result[table] = Number(rows[0].row_count)
   }
@@ -304,6 +348,15 @@ async function deleteSnapshot(connection, month) {
     ['DELETE FROM t_sr_strategy_biz_capacity WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
     ['DELETE FROM t_sr_kpi_summary WHERE tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
     ['DELETE FROM t_sr_strategy_reject_reason WHERE stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_special WHERE tab_type = \'active\'', []],
+    ['DELETE FROM t_sr_strategy_period_summary_ap_special WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_daily_ap_special WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_summary_ap_special WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_monthly_capacity_ap_special WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_biz_capacity_ap_special WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_biz_capacity_special WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_kpi_summary_special WHERE tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
+    ['DELETE FROM t_sr_strategy_reject_reason_special WHERE stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
   ]
   for (const [sql, params] of commands) await connection.query(sql, params)
 }
@@ -342,7 +395,12 @@ async function main() {
     if (APPLY) {
       const backup = createBackup()
       process.stdout.write(`Full backup: ${backup}\n`)
+      await connection.query(fs.readFileSync(path.resolve(ROOT, 'back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
+      await connection.query(fs.readFileSync(path.resolve(ROOT, 'back/src/main/resources/sql/strategy_review_add_strategy_biz_tab_type.sql'), 'utf8'))
+      await connection.query(fs.readFileSync(path.resolve(ROOT, 'back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql'), 'utf8'))
+      await connection.query(fs.readFileSync(path.resolve(ROOT, 'back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
       await ensureColumns(connection)
+      await connection.query(fs.readFileSync(path.resolve(ROOT, 'back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
     }
     const gaps = await sourceColumnGaps(connection, source)
     if (APPLY && Object.keys(gaps).length) throw new Error(`Database is still missing source columns: ${JSON.stringify(gaps)}`)
@@ -359,10 +417,20 @@ async function main() {
     try {
       await deleteSnapshot(connection, month)
       const insertedCounts = {}
+      const strategyClassById = new Map(source.get('t_sr_strategy').rows.map((row) => [row.strategy_code, row.strategy_class]))
       for (const [table, info] of source) {
-        insertedCounts[table] = await insertRows(connection, table, info.rows, info.columns)
-        if (insertedCounts[table] !== info.rows.length) {
-          throw new Error(`${table}: inserted ${insertedCounts[table]} rows; expected ${info.rows.length}`)
+        const specialTable = SPECIAL_TABLES[table]
+        const isSpecial = (row) => {
+          const strategyClass = row.strategy_class || strategyClassById.get(row.strategy_id)
+          return strategyClass === '降拆' || strategyClass === '离'
+        }
+        const specialRows = specialTable ? info.rows.filter(isSpecial) : []
+        const regularRows = specialTable ? info.rows.filter((row) => !isSpecial(row)) : info.rows
+        insertedCounts[table] = await insertRows(connection, table, regularRows, info.columns)
+        if (specialRows.length) insertedCounts[specialTable] = await insertRows(connection, specialTable, specialRows, info.columns)
+        const totalInserted = insertedCounts[table] + (insertedCounts[specialTable] || 0)
+        if (totalInserted !== info.rows.length) {
+          throw new Error(`${table}: inserted ${totalInserted} rows; expected ${info.rows.length}`)
         }
       }
       await connection.commit()

@@ -156,6 +156,7 @@ import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyB
 import leaveSimulation from './leaveSimulation.json'
 import customerGroupSimulation from './customerGroupSimulation.json'
 import incrementalSimulation from './incrementalSimulation.json'
+import declineSimulation from './declineSimulation.json'
 import { visibleSimulationTrend } from './simulationTrend'
 
 export default {
@@ -200,6 +201,13 @@ export default {
           customerGroupSimulation.dailyStrategyIds.includes(this.selected.strategyId) && this.dailyRange &&
           this.dailyRange[0] <= customerGroupSimulation.dailyEndDate && this.dailyRange[1] >= customerGroupSimulation.dailyStartDate) {
         return `9月及10月1—23日为按月度数据、星期权重和转化漏斗关系模拟的日明细；9月日合计与9月全月一致，10月日合计与Excel截至10月23日数据一致。10月环比比较9月与10月各自1—23日同期累计值。`
+      }
+      if (this.query.tabType === declineSimulation.tabType && this.query.cityId === declineSimulation.cityId &&
+          this.query.strategyClass === declineSimulation.strategyClass && declineSimulation.dailyAvailable === true &&
+          this.selected.strategyId && this.dailyRange &&
+          this.dailyRange[0] <= declineSimulation.dailyEndDate &&
+          this.dailyRange[1] >= declineSimulation.dailyStartDate) {
+        return `${declineSimulation.dailyStartDate}至${declineSimulation.dailyEndDate}为按固定种子的工作日/周末权重和最大余数法拆分的模拟日数据；各策略日合计与Excel月度原值一致。派单量为空及成功量大于派单量的来源情况按原值保留，此处为模拟分摊，不代表实际逐日业绩。`
       }
       if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
           !leaveSimulation.dailyStrategyIds || !leaveSimulation.dailyStrategyIds.includes(this.selected.strategyId) ||

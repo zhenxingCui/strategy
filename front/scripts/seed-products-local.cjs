@@ -14,6 +14,7 @@ async function main() {
   })
   try {
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_product_name.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
     await connection.beginTransaction()
     const [samples] = await connection.query(`SELECT id, strategy_name FROM t_sr_strategy
       WHERE tab_type='control' AND owner='本地联调-重点产品样例' AND strategy_code REGEXP '^CTL[0-9]{3}$'

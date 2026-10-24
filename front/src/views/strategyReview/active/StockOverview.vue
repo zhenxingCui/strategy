@@ -173,6 +173,7 @@ import { listOf, numberText, percentText, barLineOption, panelRequests } from '.
 import leaveSimulation from './leaveSimulation.json'
 import customerGroupSimulation from './customerGroupSimulation.json'
 import incrementalSimulation from './incrementalSimulation.json'
+import declineSimulation from './declineSimulation.json'
 import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
@@ -213,6 +214,11 @@ export default {
           (!this.query.customerGroup || this.query.customerGroup === customerGroupSimulation.customerGroup) &&
           this.query.statMonth >= customerGroupSimulation.startMonth && this.query.statMonth <= customerGroupSimulation.sourceMonth) {
         return `重点客群“拆弹客户”：2026年1—9月为模拟月度历史，10月为业务部门Excel数据（截至10月23日）。柱形展示9月全月与10月1—23日累计值；10月环比按10月1—23日与9月1—23日同期累计值计算。9月同期及10月日明细为按月度总量模拟的逐日分布，环比仅供演示。`
+      }
+      if (this.query.tabType === declineSimulation.tabType && this.query.cityId === declineSimulation.cityId &&
+          this.query.strategyClass === declineSimulation.strategyClass &&
+          this.query.statMonth >= declineSimulation.startMonth && this.query.statMonth <= declineSimulation.sourceMonth) {
+        return `“降拆”策略：${declineSimulation.startMonth.slice(5)}—${declineSimulation.endMonth.slice(5)}月为固定${declineSimulation.strategiesPerMonth}条策略的模拟月度历史；${declineSimulation.sourceMonth.slice(5)}月保留Excel月度原值，按${declineSimulation.sourceCutoff.slice(5)}展示。${declineSimulation.baselineMonth ? `${declineSimulation.baselineMonth.slice(5)}月为模拟环比基期。` : ''}${declineSimulation.dailyStartDate.slice(5)}—${declineSimulation.dailyEndDate.slice(5)}为按固定工作日/周末权重拆分的模拟日数据，各策略日合计保持Excel月值。${declineSimulation.missingReachRows}条派单量为空，${declineSimulation.successOverReachRows}条成功量大于派单量，均按来源月原值保留。来源月环比按截至日与上月日均比较，模拟结果仅供演示。`
       }
       if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
           !['离', '全部'].includes(this.query.strategyClass || '全部') ||

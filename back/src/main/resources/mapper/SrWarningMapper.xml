@@ -208,6 +208,14 @@
         <include refid="hitStrategyFilters"/>
     </sql>
 
+    <sql id="apPeriodTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
+            <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+
     <!-- control 汇总表无 tab_type 列，仅按逻辑删除过滤 -->
     <sql id="hitStrategyWhereCtrl">
         WHERE s.is_deleted = 0
@@ -238,14 +246,14 @@
         </if>
 
         <if test="customerGroup != null and customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
                 WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{customerGroup})
         </if>
 
         <if test="productName != null and productName != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy product
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
                 WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
                   AND product.is_deleted = 0 AND product.product_name = #{productName})
         </if>
@@ -317,7 +325,7 @@
                     s.reject_rate_qoq      AS rejectRateQoQ,
                     s.reject_count         AS rejectCount,
                     DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
-                    FROM t_sr_strategy_period_summary_ap s
+                    FROM <include refid="apPeriodTable"/> s
                     LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
                     <include refid="hitStrategyWhere"/>
                         and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
@@ -340,7 +348,7 @@
             </when>
             <otherwise>
                 SELECT COUNT(1)
-                FROM t_sr_strategy_period_summary_ap s
+                FROM <include refid="apPeriodTable"/> s
                 <include refid="hitStrategyWhere"/>
                 and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
                 <![CDATA[${conditionSQL}]]>

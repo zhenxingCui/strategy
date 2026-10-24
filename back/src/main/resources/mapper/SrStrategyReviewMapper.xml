@@ -2,6 +2,72 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyReviewMapper">
 
+    <!-- Incremental strategy facts live in dedicated physical tables. -->
+    <sql id="apStrategyTable">
+        <choose><when test="tabType == 'passive'">t_sr_strategy_passive</when><otherwise>v_sr_strategy_read</otherwise></choose>
+    </sql>
+    <sql id="apPeriodTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
+            <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apPeriodTableAny">
+        <choose><when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when><otherwise>v_sr_strategy_period_summary_ap_read</otherwise></choose>
+    </sql>
+    <sql id="apKpiTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_kpi_summary_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_kpi_summary_special</when>
+            <otherwise>v_sr_kpi_summary_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apKpiTableAny">
+        <choose><when test="tabType == 'passive'">t_sr_kpi_summary_passive</when><otherwise>v_sr_kpi_summary_read</otherwise></choose>
+    </sql>
+    <sql id="apChannelSummaryTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_channel_summary_ap_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_channel_summary_ap_special</when>
+            <otherwise>v_sr_channel_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apChannelSummaryTableQuery">
+        <choose>
+            <when test="query.tabType == 'passive'">t_sr_channel_summary_ap_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_channel_summary_ap_special</when>
+            <otherwise>v_sr_channel_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apMonthlyCapacityTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_channel_monthly_capacity_ap_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_channel_monthly_capacity_ap_special</when>
+            <otherwise>v_sr_channel_monthly_capacity_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apChannelBizCapacityTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_channel_biz_capacity_ap_passive</when>
+            <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_channel_biz_capacity_ap_special</when>
+            <otherwise>v_sr_channel_biz_capacity_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apStrategyBizCapacityTable">
+        <choose><when test="tabType == 'passive'">t_sr_strategy_biz_capacity_passive</when><otherwise>v_sr_strategy_biz_capacity_read</otherwise></choose>
+    </sql>
+    <sql id="apDailyTable">
+        <choose><when test="tabType == 'passive'">t_sr_strategy_daily_ap_passive</when><otherwise>v_sr_strategy_daily_ap_read</otherwise></choose>
+    </sql>
+    <sql id="apRejectReasonTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_strategy_reject_reason_passive</when>
+            <when test="tabType == 'active'">(SELECT * FROM t_sr_strategy_reject_reason UNION ALL SELECT * FROM t_sr_strategy_reject_reason_special)</when>
+            <otherwise>(SELECT * FROM t_sr_strategy_reject_reason WHERE 1 = 0)</otherwise>
+        </choose>
+    </sql>
+
     <!-- ==================== 通用枚举 ==================== -->
 
     <!-- Channel options must use the same fact source and scope as their page; the dictionary only supplies display names. -->
@@ -12,7 +78,7 @@
                     <when test="query.tabType == 'active' and query.customerGroup != null and query.customerGroup != ''">
                         SELECT DISTINCT s.channel AS keyCode,
                                COALESCE(d.key_name, s.channel) AS keyName
-                        FROM t_sr_strategy_period_summary_ap s
+                        FROM v_sr_strategy_period_summary_ap_read s
                         LEFT JOIN (
                             SELECT key_code, MAX(key_name) AS key_name
                             FROM t_sr_dim_channel
@@ -24,7 +90,7 @@
                           AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
                           AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
                           AND s.big_category != '全部' AND s.small_category != '全部'
-                          AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                          AND EXISTS (SELECT 1 FROM v_sr_strategy_read t
                             WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
                               AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
                         <if test="query.statMonth != null and query.statMonth != ''">
@@ -32,9 +98,9 @@
                         </if>
                         <if test="query.statMonth == null or query.statMonth == ''">
                           AND s.stat_month = (SELECT MAX(latest.stat_month)
-                            FROM t_sr_strategy_period_summary_ap latest
+                            FROM v_sr_strategy_period_summary_ap_read latest
                             WHERE latest.tab_type = 'active' AND latest.is_deleted = 0
-                              AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                              AND EXISTS (SELECT 1 FROM v_sr_strategy_read t
                                 WHERE t.strategy_code = latest.strategy_id AND t.tab_type = 'active'
                                   AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
                             <if test="query.cityId != null and query.cityId != ''">
@@ -59,7 +125,7 @@
                     <otherwise>
                         SELECT DISTINCT c.channel AS keyCode,
                                COALESCE(d.key_name, c.channel) AS keyName
-                        FROM t_sr_channel_summary_ap c
+                        FROM <include refid="apChannelSummaryTableQuery"/> c
                         LEFT JOIN (
                             SELECT key_code, MAX(key_name) AS key_name
                             FROM t_sr_dim_channel
@@ -80,7 +146,7 @@
                         </if>
                         <if test="query.statMonth == null or query.statMonth == ''">
                           AND c.stat_month = (SELECT MAX(latest.stat_month)
-                            FROM t_sr_channel_summary_ap latest
+                            FROM <include refid="apChannelSummaryTableQuery"/> latest
                             WHERE latest.tab_type = #{query.tabType} AND latest.is_deleted = 0
                             <choose>
                                 <when test="query.strategyClass != null and query.strategyClass != ''">
@@ -123,7 +189,7 @@
                           AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
                           AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
                           AND s.big_category != '全部' AND s.small_category != '全部'
-                          AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                          AND EXISTS (SELECT 1 FROM v_sr_strategy_read t
                             WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'control'
                               AND t.is_deleted = 0 AND t.product_name = #{query.productName})
                         <if test="query.statMonth != null and query.statMonth != ''">
@@ -133,7 +199,7 @@
                           AND s.stat_month = (SELECT MAX(latest.stat_month)
                             FROM t_sr_strategy_period_summary_ctrl latest
                             WHERE latest.is_deleted = 0
-                              AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                              AND EXISTS (SELECT 1 FROM v_sr_strategy_read t
                                 WHERE t.strategy_code = latest.strategy_id AND t.tab_type = 'control'
                                   AND t.is_deleted = 0 AND t.product_name = #{query.productName})
                             <if test="query.cityId != null and query.cityId != ''">
@@ -207,11 +273,11 @@
             <when test="tabType == 'active'">
                 SELECT s.strategy_id AS keyCode,
                        MAX(s.strategy_name) AS keyName
-                FROM t_sr_strategy_period_summary_ap s
+                FROM v_sr_strategy_period_summary_ap_read s
                 WHERE s.tab_type = 'active' AND s.is_deleted = 0
                   AND s.strategy_id != '999' AND s.strategy_name IS NOT NULL
                   AND s.stat_month = (SELECT MAX(latest.stat_month)
-                    FROM t_sr_strategy_period_summary_ap latest
+                    FROM v_sr_strategy_period_summary_ap_read latest
                     WHERE latest.tab_type = 'active' AND latest.is_deleted = 0)
                 <if test="channel != null and channel != ''">
                   AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))
@@ -230,7 +296,7 @@
             <otherwise>
                 SELECT t.strategy_code AS keyCode,
                        t.strategy_name AS keyName
-                FROM t_sr_strategy t
+                FROM <include refid="apStrategyTable"/> t
                 WHERE t.tab_type = #{tabType}
                   AND t.is_deleted = 0
                   <if test="channel != null and channel != ''">
@@ -258,7 +324,7 @@
         ORDER BY m.sort_no, m.metric_code
     </select>
 
-    <!-- ==================== 策略整体情况（t_sr_kpi_summary 长表：每指标一行） ==================== -->
+    <!-- ==================== 策略整体情况（v_sr_kpi_summary_read 长表：每指标一行） ==================== -->
 
     <sql id="kpiRegionWhere">
         <if test="cityId != null and cityId != ''">
@@ -287,7 +353,7 @@
                k.yoy         AS trendYoY,
                k.icon        AS icon,
                k.sort_no     AS sortNo
-        FROM t_sr_kpi_summary k
+        FROM <include refid="apKpiTable"/> k
         WHERE k.tab_type = #{tabType}
           AND REPLACE(k.stat_month, '-', '') = REPLACE(#{statMonth}, '-', '')
           AND k.is_deleted = 0
@@ -302,7 +368,7 @@
 
     <select id="selectLatestKpiMonth" resultType="java.lang.String">
         SELECT MAX(REPLACE(k.stat_month, '-', ''))
-        FROM t_sr_kpi_summary k
+        FROM <include refid="apKpiTableAny"/> k
         WHERE k.tab_type = #{tabType}
           AND k.is_deleted = 0
           <include refid="kpiRegionWhere"/>
@@ -312,16 +378,18 @@
     <select id="selectLatestStrategyMonth" resultType="java.lang.String">
         SELECT MAX(REPLACE(sub.stat_month, '-', ''))
         FROM (
-            SELECT stat_month FROM t_sr_strategy_period_summary_ap
+            SELECT stat_month FROM <include refid="apPeriodTableAny"/>
             WHERE is_deleted = 0
             <if test="tabType != null and tabType != ''">AND tab_type = #{tabType}</if>
             <if test="cityId != null and cityId != ''">AND city_id = #{cityId}</if>
             <if test="countyId != null and countyId != ''">AND county_id = #{countyId}</if>
-            UNION ALL
-            SELECT stat_month FROM t_sr_strategy_period_summary_ctrl
-            WHERE is_deleted = 0
-            <if test="cityId != null and cityId != ''">AND city_id = #{cityId}</if>
-            <if test="countyId != null and countyId != ''">AND county_id = #{countyId}</if>
+            <if test="tabType == 'control'">
+                UNION ALL
+                SELECT stat_month FROM t_sr_strategy_period_summary_ctrl
+                WHERE is_deleted = 0
+                <if test="cityId != null and cityId != ''">AND city_id = #{cityId}</if>
+                <if test="countyId != null and countyId != ''">AND county_id = #{countyId}</if>
+            </if>
         ) sub
     </select>
 
@@ -330,7 +398,7 @@
                k.value                        AS value,
                k.qoq                          AS qoq,
                k.unit                         AS unit
-        FROM t_sr_kpi_summary k
+        FROM <include refid="apKpiTable"/> k
         WHERE k.tab_type = #{tabType}
           AND CASE k.metric_code
                   WHEN 'PUSH_CNT' THEN 'push_count'
@@ -371,7 +439,7 @@
             <otherwise>
                 SELECT DATE_FORMAT(c.stat_month, '%Y%m') AS month,
                        c.${metricColumn} AS value, c.${metricColumn}_qoq AS qoq
-                FROM t_sr_channel_summary_ap c
+                FROM <include refid="apChannelSummaryTable"/> c
                 WHERE c.tab_type = #{tabType} AND (c.channel = #{channel} OR c.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0))) AND c.is_deleted = 0
                   AND DATE_FORMAT(c.stat_month, '%Y-%m') &lt;= #{statMonth}
                 <if test="cityId != null and cityId != ''">AND c.city_id = #{cityId}</if>
@@ -392,8 +460,8 @@
                ROUND(ROUND(c.reach_count * 100.0 / NULLIF(c.usage_count, 0), 2)
                    - ROUND(p.reach_count * 100.0 / NULLIF(p.usage_count, 0), 2), 2) AS qoq,
                '%' AS unit
-        FROM t_sr_channel_summary_ap c
-        LEFT JOIN t_sr_channel_summary_ap p
+        FROM <include refid="apChannelSummaryTable"/> c
+        LEFT JOIN <include refid="apChannelSummaryTable"/> p
           ON p.tab_type = c.tab_type AND p.strategy_class = c.strategy_class
          AND p.channel = c.channel AND p.city_id &lt;=&gt; c.city_id
          AND p.county_id &lt;=&gt; c.county_id AND p.is_deleted = 0
@@ -490,7 +558,7 @@
                        c.expected_income_qoq AS expectedIncomeQoQ,
                        c.actual_income    AS actualIncome,
                        c.actual_income_qoq AS actualIncomeQoQ
-                FROM t_sr_channel_summary_ap c
+                FROM <include refid="apChannelSummaryTable"/> c
                 LEFT JOIN t_sr_dim_channel d ON d.key_code = c.channel
                 WHERE c.tab_type = #{tabType}
                   AND DATE_FORMAT(c.stat_month, '%Y-%m') = #{statMonth}
@@ -552,7 +620,7 @@
                        SUM(c.product_conv_num)  AS productConvNum,
                        SUM(c.expected_income)   AS expectedIncome,
                        SUM(c.actual_income)     AS actualIncome
-                FROM t_sr_channel_summary_ap c
+                FROM <include refid="apChannelSummaryTable"/> c
                 WHERE c.tab_type = #{tabType}
                   AND DATE_FORMAT(c.stat_month, '%Y-%m') = #{statMonth}
                   AND c.is_deleted = 0
@@ -598,7 +666,7 @@
         </if>
 
         <if test="customerGroup != null and customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
                 WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{customerGroup})
@@ -628,7 +696,7 @@
         </if>
 
         <if test="productName != null and productName != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy product
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
                 WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
                   AND product.is_deleted = 0 AND product.product_name = #{productName})
         </if>
@@ -704,7 +772,7 @@
                        s.reject_rate          AS rejectRate,
                        s.reject_rate_qoq      AS rejectRateQoQ,
                        s.reject_count         AS rejectCount
-                FROM t_sr_strategy_period_summary_ap s
+                FROM <include refid="apPeriodTable"/> s
                 LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
                 <include refid="strategyListApWhere"/>
                 <if test="queryList !=null and queryList == 0" >
@@ -733,7 +801,7 @@
             </when>
             <otherwise>
                 SELECT COUNT(1)
-                FROM t_sr_strategy_period_summary_ap s
+                FROM <include refid="apPeriodTable"/> s
                 <include refid="strategyListApWhere"/>
                 AND s.channel != '全部' AND s.big_category != '全部' AND s.small_category != '全部' AND s.strategy_name != '全部' AND s.strategy_id != '999'
                 <if test="tabType == 'active' and (strategyClass == null or strategyClass == '' or strategyClass == '全部')">
@@ -789,7 +857,7 @@
                 SELECT m.stat_month AS month,
                        m.capacity   AS capacity,
                        m.qoq        AS qoq
-                FROM t_sr_channel_monthly_capacity_ap m
+                FROM <include refid="apMonthlyCapacityTable"/> m
                 WHERE m.tab_type = #{tabType}
                   AND m.is_deleted = 0
                 <choose>
@@ -872,7 +940,7 @@
                        b.biz_name       AS bizName,
                        b.capacity       AS capacity,
                        b.qoq            AS qoq
-                FROM t_sr_channel_biz_capacity_ap b
+                FROM <include refid="apChannelBizCapacityTable"/> b
                 WHERE b.tab_type = #{tabType}
                   AND DATE_FORMAT(b.stat_month, '%Y-%m') = #{statMonth}
                   AND b.is_deleted = 0
@@ -987,7 +1055,7 @@
                 s.reject_rate          AS rejectRate,
                 s.reject_rate_qoq      AS rejectRateQoQ,
                 s.reject_count         AS rejectCount
-                FROM t_sr_strategy_period_summary_ap s
+                FROM <include refid="apPeriodTable"/> s
                 WHERE s.tab_type = #{tabType}
                   AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
                   AND s.is_deleted = 0
@@ -1053,7 +1121,7 @@
                     </if>
                     ORDER BY stat_month DESC LIMIT 1
                 ) p
-                LEFT JOIN t_sr_strategy t ON t.strategy_code = #{strategyId} AND t.is_deleted = 0
+                LEFT JOIN v_sr_strategy_read t ON t.strategy_code = #{strategyId} AND t.tab_type = 'control' AND t.is_deleted = 0
                 LEFT JOIN t_sr_dim_channel d ON d.key_code = p.channel
                 LIMIT 1
             </when>
@@ -1076,7 +1144,7 @@
                        p.small_category               AS smallCategory
                 FROM (
                     SELECT strategy_id, strategy_name, channel, big_category, small_category
-                    FROM t_sr_strategy_period_summary_ap
+                     FROM <include refid="apPeriodTableAny"/>
                     WHERE strategy_id = #{strategyId} AND is_deleted = 0
                       AND (tab_type = #{tabType} OR tab_type IS NULL)
                       AND channel != '全部' AND big_category != '全部' AND small_category != '全部'
@@ -1088,7 +1156,7 @@
                     </if>
                     ORDER BY stat_month DESC, channel, big_category, small_category LIMIT 1
                 ) p
-                LEFT JOIN t_sr_strategy t ON t.strategy_code = #{strategyId} AND t.is_deleted = 0
+                LEFT JOIN <include refid="apStrategyTable"/> t ON t.strategy_code = #{strategyId} AND t.tab_type = #{tabType} AND t.is_deleted = 0
                 LEFT JOIN t_sr_dim_channel d ON d.key_code = p.channel
                 LIMIT 1
             </otherwise>
@@ -1127,7 +1195,7 @@
                                        / NULLIF(SUM(s.product_conv_num), 0), 2)
                        END AS qoq,
                        SUM(${metricColumn}) AS metricValue
-                FROM t_sr_strategy_period_summary_ap s
+                FROM <include refid="apPeriodTableAny"/> s
                 WHERE s.strategy_id = #{strategyId}
                   AND (s.tab_type = #{tabType} OR s.tab_type IS NULL)
                   AND s.is_deleted = 0
@@ -1157,7 +1225,7 @@
                b.count     AS count,
                b.mom_ratio AS momRatio,
                b.yoy_ratio AS yoyRatio
-        FROM t_sr_strategy_biz_capacity b
+        FROM <include refid="apStrategyBizCapacityTable"/> b
         WHERE b.tab_type = #{tabType}
           AND b.strategy_id = #{strategyId}
           AND b.stat_date &gt;= STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d')
@@ -1177,7 +1245,7 @@
         SELECT COUNT(1)
         FROM (
             SELECT b.biz_code, b.biz_name, b.count, b.mom_ratio, b.yoy_ratio
-            FROM t_sr_strategy_biz_capacity b
+            FROM <include refid="apStrategyBizCapacityTable"/> b
             WHERE b.tab_type = #{tabType}
               AND b.strategy_id = #{strategyId}
               AND b.stat_date &gt;= STR_TO_DATE(CONCAT(#{statMonth}, '-01'), '%Y-%m-%d')
@@ -1249,7 +1317,7 @@
                        d.actual_income   AS actualIncome,
                        d.reject_count    AS rejectCount,
                        d.reject_rate     AS rejectRate
-                FROM t_sr_strategy_daily_ap d
+                FROM <include refid="apDailyTable"/> d
                 WHERE d.strategy_id = #{strategyId}
                   AND (d.tab_type = #{tabType} OR d.tab_type IS NULL)
                   AND d.is_deleted = 0
@@ -1301,7 +1369,7 @@
             </when>
             <otherwise>
                 SELECT COUNT(1)
-                FROM t_sr_strategy_daily_ap d
+                FROM <include refid="apDailyTable"/> d
                 WHERE d.strategy_id = #{strategyId}
                   AND (d.tab_type = #{tabType} OR d.tab_type IS NULL)
                   AND d.is_deleted = 0
@@ -1327,11 +1395,11 @@
 
     <select id="selectStrategyRejectSummary" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO">
         SELECT s.reject_rate AS rejectRate, s.reject_rate_qoq AS rejectRateQoQ, s.reject_count AS rejectCount
-        FROM t_sr_strategy_period_summary_ap s
+        FROM <include refid="apPeriodTableAny"/> s
         WHERE s.strategy_id = #{strategyId}
           AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
           AND s.is_deleted = 0
-          AND (s.tab_type = 'active' OR s.tab_type IS NULL)
+          AND s.tab_type = #{tabType}
           AND s.strategy_class = '全部'
           AND s.big_category = '全部'
           AND s.small_category = '全部'
@@ -1354,7 +1422,7 @@
                r.reject_count  AS rejectCount,
                r.reject_ratio  AS ratio,
                r.color         AS color
-        FROM t_sr_strategy_reject_reason r
+        FROM <include refid="apRejectReasonTable"/> r
         WHERE r.strategy_id = #{strategyId}
           AND DATE_FORMAT(r.stat_month, '%Y-%m') = #{statMonth}
           AND r.is_deleted = 0

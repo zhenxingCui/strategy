@@ -14,6 +14,7 @@ async function main() {
   })
   try {
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
     await connection.beginTransaction()
     for (const [index, name] of groups.entries()) {
       await connection.execute(`UPDATE t_sr_strategy SET customer_group=?

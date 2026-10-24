@@ -367,12 +367,13 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
     public CategoryRespVO queryCategorySummary(TouchpointQueryReq req) {
         if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.categories(req);
         String statMonth = requireStatMonth(req.getStatMonth());
+        // 分类执行情况固定使用全渠道汇总行，不随页面当前渠道筛选拆分。
+        String allChannel = "全部";
         List<CategoryRowVO> list = reviewMapper.selectCategorySummary(
-                req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), req.getChannel(),req.getBigCategory(),req.getSmallCategory(),req.getStrategyClass(),"0");
-        String channel=StringUtils.isBlank(req.getChannel())?"全部":req.getChannel();
+                req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), allChannel, req.getBigCategory(), req.getSmallCategory(), req.getStrategyClass(), "0");
         String bigCategory=StringUtils.isBlank(req.getBigCategory())?"全部":req.getBigCategory();
         String smallCategory=StringUtils.isBlank(req.getSmallCategory())?"全部":req.getSmallCategory();
-        List<CategoryRowVO> calculate=reviewMapper.selectCategorySummary(req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), channel,bigCategory,smallCategory,req.getStrategyClass(),"1");
+        List<CategoryRowVO> calculate=reviewMapper.selectCategorySummary(req.getTabType(), statMonth, req.getCityId(), req.getCountyId(), allChannel, bigCategory, smallCategory, req.getStrategyClass(), "1");
         CategoryRespVO res=new CategoryRespVO();
         res.setList(list == null ? new ArrayList<>():list);
         res.setCalculate(calculate==null||calculate.size()==0?new CategoryRowVO():calculate.get(0));
@@ -457,7 +458,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         String statMonth = requireStatMonth(req.getStatMonth());
         RejectReasonRespVO resp = new RejectReasonRespVO();
         StrategyRowVO summary =
-                reviewMapper.selectStrategyRejectSummary(req.getStrategyId(), statMonth,
+                reviewMapper.selectStrategyRejectSummary(req.getTabType(), req.getStrategyId(), statMonth,
                         req.getCityId(), req.getCountyId(), req.getChannel());
         if (summary != null) {
             resp.setRejectRate(summary.getRejectRate());
@@ -465,7 +466,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             resp.setRejectCount(summary.getRejectCount());
         }
         List<RejectReasonItemVO> reasons =
-                reviewMapper.selectRejectReasons(req.getStrategyId(), statMonth,
+                reviewMapper.selectRejectReasons(req.getTabType(), req.getStrategyId(), statMonth,
                         req.getCityId(), req.getCountyId());
         if (reasons == null) {
             reasons = new ArrayList<>();

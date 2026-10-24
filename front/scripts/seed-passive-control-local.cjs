@@ -155,8 +155,8 @@ async function main() {
   try {
     const [[schema]] = await conn.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=?', [database])
     if (!schema) throw new Error(`数据库 ${database} 不存在`)
-    const [[active]] = await conn.query("SELECT COUNT(*) AS n FROM t_sr_strategy WHERE tab_type='active' AND owner='本地联调' AND is_deleted=0")
-    const [[foreignActive]] = await conn.query("SELECT COUNT(*) AS n FROM t_sr_strategy WHERE tab_type='active' AND COALESCE(owner,'')<>'本地联调' AND is_deleted=0")
+    const [[active]] = await conn.query("SELECT COUNT(*) AS n FROM v_sr_strategy_read WHERE tab_type='active' AND owner='本地联调' AND is_deleted=0")
+    const [[foreignActive]] = await conn.query("SELECT COUNT(*) AS n FROM v_sr_strategy_read WHERE tab_type='active' AND COALESCE(owner,'')<>'本地联调' AND is_deleted=0")
     if (Number(active.n) < 12 || Number(foreignActive.n) > 0) throw new Error('保护检查未通过：目标库不符合本地存量联调样例特征，未写入数据。')
     await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_product_name.sql'), 'utf8'))
 
@@ -168,13 +168,13 @@ async function main() {
 
     const passCodes = PASS_NAMES.map((_, i) => `PAS${String(i + 1).padStart(3, '0')}`)
     const ctrlCodes = CTRL_NAMES.map((_, i) => `CTL${String(i + 1).padStart(3, '0')}`)
-    const [conflicts] = await conn.query('SELECT strategy_code, tab_type, owner FROM t_sr_strategy WHERE strategy_code IN (?) AND NOT (owner IN (?,?) AND strategy_code LIKE "PAS%" OR owner IN (?,?) AND strategy_code LIKE "CTL%")', [passCodes.concat(ctrlCodes), PASS_OWNER, PASS_OWNER, CTRL_OWNER, CTRL_OWNER])
+    const [conflicts] = await conn.query('SELECT strategy_code, tab_type, owner FROM v_sr_strategy_read WHERE strategy_code IN (?) AND NOT (owner IN (?,?) AND strategy_code LIKE "PAS%" OR owner IN (?,?) AND strategy_code LIKE "CTL%")', [passCodes.concat(ctrlCodes), PASS_OWNER, PASS_OWNER, CTRL_OWNER, CTRL_OWNER])
     if (conflicts.length) throw new Error(`策略编码已被其他数据使用，拒绝覆盖：${conflicts.map((x) => x.strategy_code).join(', ')}`)
 
     // 只在标记数据范围内重跑；若库里有非本脚本的两类数据则停止，避免混合重复汇总。
     const checks = [
-      ["SELECT COUNT(*) n FROM t_sr_strategy_period_summary_ap WHERE tab_type='passive' AND city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, PASS_MARK]],
-      ["SELECT COUNT(*) n FROM t_sr_kpi_summary WHERE tab_type='passive' AND city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, PASS_MARK]],
+      ["SELECT COUNT(*) n FROM v_sr_strategy_period_summary_ap_read WHERE tab_type='passive' AND city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, PASS_MARK]],
+      ["SELECT COUNT(*) n FROM v_sr_kpi_summary_read WHERE tab_type='passive' AND city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, PASS_MARK]],
       ["SELECT COUNT(*) n FROM t_sr_strategy_period_summary_ctrl WHERE city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, CTRL_MARK]],
       ["SELECT COUNT(*) n FROM t_sr_kpi_summary WHERE tab_type='control' AND city_id=? AND (county_id IS NULL OR county_id<>?)", [CITY, CTRL_MARK]],
     ]
@@ -182,6 +182,10 @@ async function main() {
       const [[row]] = await conn.query(sql, args)
       if (Number(row.n)) throw new Error('发现非本脚本生成的增量/重点产品样例数据；为避免叠加或覆盖，请先核对本地库。')
     }
+
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_non_active_class_all.sql'), 'utf8'))
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
 
     await conn.beginTransaction()
     try {
@@ -192,21 +196,24 @@ async function main() {
         await conn.query('DELETE FROM t_sr_warning_hit WHERE rule_id IN (?)', [ruleIds])
       }
       await conn.query('DELETE FROM t_sr_warning_rule WHERE create_by=?', [RULE_CREATOR])
-      await conn.query('DELETE FROM t_sr_strategy_biz_capacity WHERE county_id IN (?,?)', [PASS_MARK, CTRL_MARK])
-      await conn.query('DELETE FROM t_sr_strategy_reject_reason WHERE county_id IN (?,?)', [PASS_MARK, CTRL_MARK])
-      await conn.query('DELETE FROM t_sr_strategy_daily_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
-      await conn.query('DELETE FROM t_sr_channel_biz_capacity_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
-      await conn.query('DELETE FROM t_sr_channel_monthly_capacity_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
-      await conn.query('DELETE FROM t_sr_channel_summary_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
-      await conn.query('DELETE FROM t_sr_strategy_period_summary_ap WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
-      await conn.query('DELETE FROM t_sr_kpi_summary WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_biz_capacity_passive WHERE county_id=?', [PASS_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_biz_capacity WHERE county_id=?', [CTRL_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_reject_reason_passive WHERE county_id=?', [PASS_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_reject_reason WHERE county_id=?', [CTRL_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_daily_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_channel_biz_capacity_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_channel_monthly_capacity_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_channel_summary_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_period_summary_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
+      await conn.query('DELETE FROM t_sr_kpi_summary_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
       await conn.query('DELETE FROM t_sr_strategy_daily_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_channel_biz_capacity_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_channel_monthly_capacity_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_channel_summary_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_strategy_period_summary_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_kpi_summary WHERE tab_type=? AND county_id=?', ['control', CTRL_MARK])
-      await conn.query('DELETE FROM t_sr_strategy WHERE owner IN (?,?)', [PASS_OWNER, CTRL_OWNER])
+      await conn.query('DELETE FROM t_sr_strategy_passive WHERE owner=?', [PASS_OWNER])
+      await conn.query('DELETE FROM t_sr_strategy WHERE owner=?', [CTRL_OWNER])
 
       const columns = new Map()
       async function insert(table, rows) {
@@ -255,7 +262,8 @@ async function main() {
         start_date: `${shiftMonth(startMonth, i % 5)}-01`, end_date: `${shiftMonth(startMonth, Math.min(11, i % 5 + 6 + (i % 3)))}-28`,
         create_time: `${shiftMonth(startMonth, i % 5)}-01 09:00:00`, is_deleted: 0,
       }))
-      await insertRows('t_sr_strategy', passStrategies.concat(ctrlStrategies))
+      await insertRows('t_sr_strategy_passive', passStrategies)
+      await insertRows('t_sr_strategy', ctrlStrategies)
 
       const passPeriods = [], passChannelSummary = [], passMonthlyCapacity = [], passChannelBiz = [], passKpis = [], passDaily = [], passCategories = [], passBiz = [], rejectRows = []
       const ctrlPeriods = [], ctrlChannelSummary = [], ctrlMonthlyCapacity = [], ctrlChannelBiz = [], ctrlKpis = [], ctrlDaily = [], ctrlCategories = [], ctrlBiz = []
@@ -377,22 +385,24 @@ async function main() {
       }
       passPeriods.push(...passCategories)
       ctrlPeriods.push(...ctrlCategories)
-      await insertRows('t_sr_strategy_period_summary_ap', passPeriods)
-      await insertRows('t_sr_kpi_summary', passKpis.concat(ctrlKpis))
-      await insertRows('t_sr_channel_summary_ap', passChannelSummary)
-      await insertRows('t_sr_channel_monthly_capacity_ap', passMonthlyCapacity)
-      await insertRows('t_sr_channel_biz_capacity_ap', passChannelBiz)
-      await insertRows('t_sr_strategy_daily_ap', passDaily)
-      await insertRows('t_sr_strategy_biz_capacity', passBiz.concat(ctrlBiz))
+      await insertRows('t_sr_strategy_period_summary_ap_passive', passPeriods)
+      await insertRows('t_sr_kpi_summary_passive', passKpis)
+      await insertRows('t_sr_kpi_summary', ctrlKpis)
+      await insertRows('t_sr_channel_summary_ap_passive', passChannelSummary)
+      await insertRows('t_sr_channel_monthly_capacity_ap_passive', passMonthlyCapacity)
+      await insertRows('t_sr_channel_biz_capacity_ap_passive', passChannelBiz)
+      await insertRows('t_sr_strategy_daily_ap_passive', passDaily)
+      await insertRows('t_sr_strategy_biz_capacity_passive', passBiz)
+      await insertRows('t_sr_strategy_biz_capacity', ctrlBiz)
       await insertRows('t_sr_strategy_period_summary_ctrl', ctrlPeriods)
       await insertRows('t_sr_channel_summary_ctrl', ctrlChannelSummary)
       await insertRows('t_sr_channel_monthly_capacity_ctrl', ctrlMonthlyCapacity)
       await insertRows('t_sr_channel_biz_capacity_ctrl', ctrlChannelBiz)
       await insertRows('t_sr_strategy_daily_ctrl', ctrlDaily)
-      await insertRows('t_sr_strategy_reject_reason', rejectRows)
+      await insertRows('t_sr_strategy_reject_reason_passive', rejectRows)
       await seedRules(conn, startMonth, currentMonth)
       await conn.commit()
-      console.log(JSON.stringify({ database, months: `${startMonth}..${currentMonth}`, passiveStrategies: passStrategies.length, controlStrategies: ctrlStrategies.length, passiveMonthlyFacts: passPeriods.length, controlMonthlyFacts: ctrlPeriods.length, passiveDailyRows: passDaily.length, controlDailyRows: ctrlDaily.length, strategyBizRows: passBiz.length + ctrlBiz.length, warningRules: 8, tablesCreated: 0 }, null, 2))
+      console.log(JSON.stringify({ database, months: `${startMonth}..${currentMonth}`, passiveStrategies: passStrategies.length, controlStrategies: ctrlStrategies.length, passiveMonthlyFacts: passPeriods.length, controlMonthlyFacts: ctrlPeriods.length, passiveDailyRows: passDaily.length, controlDailyRows: ctrlDaily.length, strategyBizRows: passBiz.length + ctrlBiz.length, warningRules: 8, passiveTableFamilyEnsured: true }, null, 2))
     } catch (error) {
       await conn.rollback()
       throw error

@@ -529,3 +529,46 @@ CREATE TABLE IF NOT EXISTS t_sr_favorite (
     PRIMARY KEY (id),
     UNIQUE KEY uk_fav_user_tab_str (user_id, tab_type, strategy_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略收藏表';
+
+-- ---------------------------------------------------------------------
+-- 存量特殊分类与增量策略专用数据表
+-- ---------------------------------------------------------------------
+-- active“降拆 / 离”单独存入 *_special；增量策略单独存入 *_passive。
+-- v_sr_*_read 作为兼容读取层，供现有查询读取原表和专用表。
+CREATE TABLE IF NOT EXISTS t_sr_strategy_special LIKE t_sr_strategy;
+CREATE TABLE IF NOT EXISTS t_sr_kpi_summary_special LIKE t_sr_kpi_summary;
+CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ap_special LIKE t_sr_channel_summary_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ap_special LIKE t_sr_strategy_period_summary_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ap_special LIKE t_sr_strategy_daily_ap;
+CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ap_special LIKE t_sr_channel_monthly_capacity_ap;
+CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ap_special LIKE t_sr_channel_biz_capacity_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity_special LIKE t_sr_strategy_biz_capacity;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_reject_reason_special LIKE t_sr_strategy_reject_reason;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_passive LIKE t_sr_strategy;
+CREATE TABLE IF NOT EXISTS t_sr_kpi_summary_passive LIKE t_sr_kpi_summary;
+CREATE TABLE IF NOT EXISTS t_sr_channel_summary_ap_passive LIKE t_sr_channel_summary_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_period_summary_ap_passive LIKE t_sr_strategy_period_summary_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_daily_ap_passive LIKE t_sr_strategy_daily_ap;
+CREATE TABLE IF NOT EXISTS t_sr_channel_monthly_capacity_ap_passive LIKE t_sr_channel_monthly_capacity_ap;
+CREATE TABLE IF NOT EXISTS t_sr_channel_biz_capacity_ap_passive LIKE t_sr_channel_biz_capacity_ap;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity_passive LIKE t_sr_strategy_biz_capacity;
+CREATE TABLE IF NOT EXISTS t_sr_strategy_reject_reason_passive LIKE t_sr_strategy_reject_reason;
+
+CREATE OR REPLACE VIEW v_sr_strategy_read AS
+SELECT * FROM t_sr_strategy UNION ALL SELECT * FROM t_sr_strategy_special UNION ALL SELECT * FROM t_sr_strategy_passive;
+CREATE OR REPLACE VIEW v_sr_kpi_summary_read AS
+SELECT * FROM t_sr_kpi_summary UNION ALL SELECT * FROM t_sr_kpi_summary_special UNION ALL SELECT * FROM t_sr_kpi_summary_passive;
+CREATE OR REPLACE VIEW v_sr_channel_summary_ap_read AS
+SELECT * FROM t_sr_channel_summary_ap UNION ALL SELECT * FROM t_sr_channel_summary_ap_special UNION ALL SELECT * FROM t_sr_channel_summary_ap_passive;
+CREATE OR REPLACE VIEW v_sr_strategy_period_summary_ap_read AS
+SELECT * FROM t_sr_strategy_period_summary_ap UNION ALL SELECT * FROM t_sr_strategy_period_summary_ap_special UNION ALL SELECT * FROM t_sr_strategy_period_summary_ap_passive;
+CREATE OR REPLACE VIEW v_sr_strategy_daily_ap_read AS
+SELECT * FROM t_sr_strategy_daily_ap UNION ALL SELECT * FROM t_sr_strategy_daily_ap_special UNION ALL SELECT * FROM t_sr_strategy_daily_ap_passive;
+CREATE OR REPLACE VIEW v_sr_channel_monthly_capacity_ap_read AS
+SELECT * FROM t_sr_channel_monthly_capacity_ap UNION ALL SELECT * FROM t_sr_channel_monthly_capacity_ap_special UNION ALL SELECT * FROM t_sr_channel_monthly_capacity_ap_passive;
+CREATE OR REPLACE VIEW v_sr_channel_biz_capacity_ap_read AS
+SELECT * FROM t_sr_channel_biz_capacity_ap UNION ALL SELECT * FROM t_sr_channel_biz_capacity_ap_special UNION ALL SELECT * FROM t_sr_channel_biz_capacity_ap_passive;
+CREATE OR REPLACE VIEW v_sr_strategy_biz_capacity_read AS
+SELECT * FROM t_sr_strategy_biz_capacity UNION ALL SELECT * FROM t_sr_strategy_biz_capacity_special UNION ALL SELECT * FROM t_sr_strategy_biz_capacity_passive;
+CREATE OR REPLACE VIEW v_sr_strategy_reject_reason_read AS
+SELECT * FROM t_sr_strategy_reject_reason UNION ALL SELECT * FROM t_sr_strategy_reject_reason_special UNION ALL SELECT * FROM t_sr_strategy_reject_reason_passive;

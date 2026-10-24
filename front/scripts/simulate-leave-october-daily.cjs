@@ -43,7 +43,7 @@ async function main(){
  const c=await mysql.createConnection({host:'127.0.0.1',user:process.env.SR_DB_USER||'root',password:process.env.SR_DB_PASSWORD||'123456',database:'strategy_review_active_class_local',dateStrings:true})
  let tx=false
  try{
-  const [monthly]=await c.query("SELECT * FROM t_sr_strategy_period_summary_ap WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND stat_month='2026-10-01' AND is_deleted=0 AND strategy_id!='999' ORDER BY strategy_id")
+  const [monthly]=await c.query("SELECT * FROM t_sr_strategy_period_summary_ap_special WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND stat_month='2026-10-01' AND is_deleted=0 AND strategy_id!='999' ORDER BY strategy_id")
   assert.equal(monthly.length,10);assert(monthly.every(r=>/^lw_10\d\d$/.test(r.strategy_id)))
   const ids=monthly.map(r=>r.strategy_id),daily=[]
   const countFields=['push_count','usage_count','reach_count','target_conv_num','product_conv_num']
@@ -83,12 +83,12 @@ async function main(){
   fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'simulated-october-daily.json'),JSON.stringify({startDate:'2026-10-01',endDate:'2026-10-21',simulated:true,method:source?'Excel category daily ratios used as weights; bounded largest-remainder allocation enforces daily usage<=push, reach<=usage, and conversion<=reach while preserving every monthly total.':'Deterministic weekday weights and bounded largest-remainder allocation; monthly source measures unchanged.',sourceSha256:source&&source.sha256,rows:daily},null,2))
   if(!apply){console.log(JSON.stringify({dryRun:true,strategies:10,days:21,rows:210,monthlyReconciliation:true}));return}
   await c.beginTransaction();tx=true
-  const [old]=await c.query("SELECT * FROM t_sr_strategy_daily_ap WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31' FOR UPDATE",[ids])
+  const [old]=await c.query("SELECT * FROM t_sr_strategy_daily_ap_special WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31' FOR UPDATE",[ids])
   const backupPath=path.join(out,`daily-backup-${Date.now()}.json`)
-  fs.writeFileSync(backupPath,JSON.stringify({database:'strategy_review_active_class_local',table:'t_sr_strategy_daily_ap',rows:old,monthlyBefore:monthly},null,2))
-  await c.query("DELETE FROM t_sr_strategy_daily_ap WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31'",[ids])
-  const keys=Object.keys(daily[0]);await c.query('INSERT INTO t_sr_strategy_daily_ap (??) VALUES ?',[keys,daily.map(r=>keys.map(k=>r[k]))])
-  const [totals]=await c.query("SELECT strategy_id,COUNT(*) n,MIN(stat_date) first_date,MAX(stat_date) last_date,SUM(push_count) push_count,SUM(usage_count) usage_count,SUM(reach_count) reach_count,SUM(target_conv_num) target_conv_num,SUM(product_conv_num) product_conv_num,SUM(expected_income) expected_income,SUM(actual_income) actual_income,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_daily_ap WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31' AND is_deleted=0 GROUP BY strategy_id",[ids])
+  fs.writeFileSync(backupPath,JSON.stringify({database:'strategy_review_active_class_local',table:'t_sr_strategy_daily_ap_special',rows:old,monthlyBefore:monthly},null,2))
+  await c.query("DELETE FROM t_sr_strategy_daily_ap_special WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31'",[ids])
+  const keys=Object.keys(daily[0]);await c.query('INSERT INTO t_sr_strategy_daily_ap_special (??) VALUES ?',[keys,daily.map(r=>keys.map(k=>r[k]))])
+  const [totals]=await c.query("SELECT strategy_id,COUNT(*) n,MIN(stat_date) first_date,MAX(stat_date) last_date,SUM(push_count) push_count,SUM(usage_count) usage_count,SUM(reach_count) reach_count,SUM(target_conv_num) target_conv_num,SUM(product_conv_num) product_conv_num,SUM(expected_income) expected_income,SUM(actual_income) actual_income,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_daily_ap_special WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN '2026-10-01' AND '2026-10-31' AND is_deleted=0 GROUP BY strategy_id",[ids])
   assert.equal(totals.length,10)
   for(const total of totals){const base=monthly.find(r=>r.strategy_id===total.strategy_id);assert.equal(Number(total.n),21);assert.equal(total.first_date,'2026-10-01');assert.equal(total.last_date,'2026-10-21');assert.equal(total.original,0);assert.equal(total.rejected,0);for(const k of [...countFields,...moneyFields])assert.equal(Number(total[k]),Number(base[k]),`${total.strategy_id}:${k}`)}
   await c.commit();tx=false

@@ -34,7 +34,7 @@ public interface IStrategyReviewService {
     /** 策略触点执行-渠道业务产能 */
     List<ChannelBizVO> queryChannelBizCapacity(TouchpointQueryReq req);
 
-    /** 策略触点执行-策略分类汇总（按大类+小类聚合） */
+    /** 策略触点执行-策略分类汇总（按大类+小类聚合，不按渠道拆分） */
     CategoryRespVO queryCategorySummary(TouchpointQueryReq req);
 
     /** 策略执行明细-策略信息 */

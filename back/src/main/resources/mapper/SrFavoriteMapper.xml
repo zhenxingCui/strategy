@@ -4,8 +4,22 @@
 
     <!-- ==================== 收藏列表 ==================== -->
 
+    <sql id="apPeriodTable">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+    <sql id="apPeriodTableClass">
+        <choose>
+            <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
+            <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+
     <sql id="favoriteListJoinAp">
-        LEFT JOIN t_sr_strategy_period_summary_ap s
+        LEFT JOIN <include refid="apPeriodTableClass"/> s
             ON s.strategy_id = f.strategy_id
            AND s.tab_type = f.tab_type
            AND s.channel = f.channel
@@ -34,21 +48,21 @@
             AND f.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')
         </if>
         <if test="tabType != 'control' and query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy_period_summary_ap p
+            AND EXISTS (SELECT 1 FROM <include refid="apPeriodTableClass"/> p
                 WHERE p.strategy_id = f.strategy_id AND p.tab_type = f.tab_type
                 AND p.strategy_class = #{query.strategyClass} AND p.is_deleted = 0
                 AND DATE_FORMAT(p.stat_month, '%Y-%m') = #{query.statMonth})
         </if>
 
         <if test="query.customerGroup != null and query.customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
                 WHERE cg.strategy_code = f.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
         </if>
 
         <if test="query.productName != null and query.productName != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy product
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
                 WHERE product.strategy_code = f.strategy_id AND product.tab_type = 'control'
                   AND product.is_deleted = 0 AND product.product_name = #{query.productName})
         </if>
@@ -213,7 +227,7 @@
         SELECT s.strategy_id   AS strategyId,
                MAX(s.strategy_name) AS strategyName,
                MIN(s.channel)       AS channel
-        FROM t_sr_strategy_period_summary_ap s
+        FROM <include refid="apPeriodTable"/> s
         WHERE s.tab_type = #{tabType}
           AND s.is_deleted = 0
           AND s.strategy_id IN

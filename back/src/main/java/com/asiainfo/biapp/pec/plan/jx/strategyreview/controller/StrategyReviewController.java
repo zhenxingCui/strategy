@@ -74,7 +74,7 @@ public class StrategyReviewController {
         return ActionResponse.getSuccessResp(reviewService.queryChannelBizCapacity(req));
     }
 
-    @ApiOperation("策略触点执行-策略分类汇总（按业务大类+小类）")
+    @ApiOperation("策略触点执行-策略分类汇总（按业务大类+小类汇总全部渠道）")
     @PostMapping("/touchpoint/categorySummary")
     public ActionResponse<CategoryRespVO> categorySummary(@Validated @RequestBody TouchpointQueryReq req) {
         return ActionResponse.getSuccessResp(reviewService.queryCategorySummary(req));

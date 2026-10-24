@@ -51,10 +51,10 @@ async function main() {
         }
         if (scope.customerGroup || scope.productName) {
           const field = scope.customerGroup ? 'customer_group' : 'product_name'
-          where.push(`strategy_id IN (SELECT strategy_code FROM t_sr_strategy WHERE tab_type=? AND is_deleted=0 AND ${field}=?)`)
+          where.push(`strategy_id IN (SELECT strategy_code FROM v_sr_strategy_read WHERE tab_type=? AND is_deleted=0 AND ${field}=?)`)
           params.push(tabType, scope.customerGroup || scope.productName)
         }
-        const table = tabType === 'control' ? 't_sr_strategy_period_summary_ctrl' : 't_sr_strategy_period_summary_ap'
+        const table = tabType === 'control' ? 't_sr_strategy_period_summary_ctrl' : 'v_sr_strategy_period_summary_ap_read'
         const metric = tabType === 'control' ? 'success_count' : 'product_conv_num'
         const [facts] = await conn.execute(`SELECT DATE_FORMAT(stat_month,'%Y-%m') month,SUM(${metric}) capacity FROM ${table} WHERE ${where.join(' AND ')} GROUP BY stat_month ORDER BY stat_month`, params)
         const expected = facts.slice(-6)

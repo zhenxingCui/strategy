@@ -248,6 +248,8 @@ public class StrategyScopeAggregationService {
 
     public CategoryRespVO categories(TouchpointQueryReq request) {
         TouchpointQueryReq req = normalize(request);
+        // 客群/产品范围下的策略分类汇总也忽略页面渠道筛选，按全部渠道合计。
+        req.setChannel(null);
         List<Map<String, Object>> current = current(rows(req, "category"), req);
         sort(current, req, "strategyCount");
         CategoryRespVO result = new CategoryRespVO();

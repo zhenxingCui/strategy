@@ -3,7 +3,7 @@
 <mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyScopeMapper">
     <select id="selectCustomerDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         SELECT DISTINCT TRIM(customer_group) AS keyCode, TRIM(customer_group) AS keyName
-        FROM t_sr_strategy
+        FROM v_sr_strategy_read
         WHERE tab_type = 'active' AND strategy_class = '重点客群' AND is_deleted = 0
           AND customer_group IS NOT NULL AND TRIM(customer_group) != ''
         ORDER BY keyName
@@ -11,7 +11,7 @@
 
     <select id="selectProductDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         SELECT DISTINCT TRIM(product_name) AS keyCode, TRIM(product_name) AS keyName
-        FROM t_sr_strategy
+        FROM v_sr_strategy_read
         WHERE tab_type = 'control' AND is_deleted = 0
           AND product_name IS NOT NULL AND TRIM(product_name) != ''
         ORDER BY keyName
@@ -20,7 +20,25 @@
     <sql id="periodTable">
         <choose>
             <when test="query.tabType == 'control'">t_sr_strategy_period_summary_ctrl</when>
-            <otherwise>t_sr_strategy_period_summary_ap</otherwise>
+            <when test="query.tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
+            <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="dailyTable">
+        <choose>
+            <when test="query.tabType == 'passive'">t_sr_strategy_daily_ap_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_daily_ap_special</when>
+            <otherwise>v_sr_strategy_daily_ap_read</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="strategyBizCapacityTable">
+        <choose>
+            <when test="query.tabType == 'passive'">t_sr_strategy_biz_capacity_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_biz_capacity_special</when>
+            <otherwise>v_sr_strategy_biz_capacity_read</otherwise>
         </choose>
     </sql>
 
@@ -32,7 +50,7 @@
         <choose>
             <when test="query.tabType == 'control'">
                 <if test="query.productName != null and query.productName != ''">
-                AND EXISTS (SELECT 1 FROM t_sr_strategy product
+                AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
                     WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
                       AND product.is_deleted = 0 AND product.product_name = #{query.productName})
                 </if>
@@ -50,7 +68,7 @@
                                 AND (s.strategy_class = '全部' OR (
                                     s.strategy_class != '全部'
                                     AND NOT EXISTS (
-                                        SELECT 1 FROM t_sr_strategy_period_summary_ap all_scope
+                                        SELECT 1 FROM v_sr_strategy_period_summary_ap_read all_scope
                                         WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
                                           AND all_scope.strategy_class = '全部'
                                           AND all_scope.stat_month = s.stat_month
@@ -68,7 +86,7 @@
                                 AND (s.strategy_class = '全部' OR (
                                     s.strategy_class != '全部'
                                     AND NOT EXISTS (
-                                        SELECT 1 FROM t_sr_strategy_period_summary_ap all_scope
+                                        SELECT 1 FROM v_sr_strategy_period_summary_ap_read all_scope
                                         WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
                                           AND all_scope.strategy_class = '全部'
                                           AND all_scope.stat_month = s.stat_month
@@ -85,7 +103,7 @@
                     </when>
                 </choose>
                 <if test="query.customerGroup != null and query.customerGroup != ''">
-                AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+                AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
                     WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                       AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                       AND cg.customer_group = #{query.customerGroup})
@@ -110,7 +128,7 @@
             AND d.strategy_class = #{query.strategyClass}
         </if>
         <if test="query.customerGroup != null and query.customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM t_sr_strategy cg
+            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
                 WHERE cg.strategy_code = d.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
@@ -161,7 +179,7 @@
 
     <select id="selectDailyCutoff" resultType="java.lang.Integer">
         SELECT DAY(MAX(d.stat_date))
-        FROM t_sr_strategy_daily_ap d
+        FROM <include refid="dailyTable"/> d
         WHERE <include refid="dailyScope"/>
           AND DATE_FORMAT(d.stat_date, '%Y-%m') = #{query.statMonth}
     </select>
@@ -182,7 +200,7 @@
         SUM(d.target_conv_num) AS targetConvNum, SUM(d.product_conv_num) AS productConvNum,
         SUM(d.expected_income) AS expectedIncome, SUM(d.actual_income) AS actualIncome,
         SUM(d.reject_count) AS rejectCount
-        FROM t_sr_strategy_daily_ap d
+        FROM <include refid="dailyTable"/> d
         WHERE <include refid="dailyScope"/>
           AND DATE_FORMAT(d.stat_date, '%Y-%m') IN (#{previousMonth}, #{query.statMonth})
           AND DAY(d.stat_date) &lt;= #{cutoffDay}
@@ -198,7 +216,7 @@
         SELECT DATE_FORMAT(s.stat_month, '%Y-%m') AS statMonth,
                s.big_category AS bigCategory, s.small_category AS smallCategory,
                b.biz_name AS bizName, SUM(b.count) AS capacity
-        FROM t_sr_strategy_biz_capacity b
+        FROM <include refid="strategyBizCapacityTable"/> b
         JOIN <include refid="periodTable"/> s ON s.strategy_id = b.strategy_id
           AND b.tab_type = #{query.tabType} AND s.city_id &lt;=&gt; b.city_id AND s.county_id &lt;=&gt; b.county_id
           AND DATE_FORMAT(s.stat_month, '%Y-%m') = DATE_FORMAT(b.stat_date, '%Y-%m')

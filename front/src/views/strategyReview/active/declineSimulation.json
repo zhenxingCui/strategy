@@ -1,0 +1,22 @@
+{
+  "tabType": "active",
+  "strategyClass": "降拆",
+  "cityId": "999",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-24",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "strategiesPerMonth": 188,
+  "dailyAvailable": true,
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-24",
+  "dailyDays": 24,
+  "dailyRowCount": 4512,
+  "dailyMethod": "固定种子的工作日/周末权重，最大余数法拆分；月度关系可行的指标按父级日量约束，源数据关系异常按月度原值保留。",
+  "missingReachRows": 47,
+  "successOverReachRows": 97,
+  "sourceFile": "存量策略_精简填报模板_3张输入表(1)V5.xlsx",
+  "sourceSha256": "f06a2e523fb0c33e08b494433496ad88d7e4b5e2ebd0e058e4b211c926428bb7"
+}

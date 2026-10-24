@@ -147,7 +147,7 @@ public interface SrStrategyReviewMapper {
                                                 @Param("smallCategory") String smallCategory,
                                                 @Param("strategyClass") String strategyClass);
 
-    /** 策略分类汇总（按大类+小类聚合） */
+    /** 策略分类汇总（按大类+小类聚合；调用方固定传入全部渠道） */
     List<CategoryRowVO> selectCategorySummary(@Param("tabType") String tabType,
                                               @Param("statMonth") String statMonth,
                                               @Param("cityId") String cityId,
@@ -212,14 +212,16 @@ public interface SrStrategyReviewMapper {
                                   @Param("endDate") String endDate);
 
     /** 策略当期拦截率/拦截量（t_sr_strategy_period_summary_ap） */
-    StrategyRowVO selectStrategyRejectSummary(@Param("strategyId") String strategyId,
+    StrategyRowVO selectStrategyRejectSummary(@Param("tabType") String tabType,
+                                              @Param("strategyId") String strategyId,
                                               @Param("statMonth") String statMonth,
                                               @Param("cityId") String cityId,
                                               @Param("countyId") String countyId,
                                               @Param("channel") String channel);
 
-    /** 策略拒绝原因列表（active） */
-    List<RejectReasonItemVO> selectRejectReasons(@Param("strategyId") String strategyId,
+    /** 策略拒绝原因列表（active/passive） */
+    List<RejectReasonItemVO> selectRejectReasons(@Param("tabType") String tabType,
+                                                 @Param("strategyId") String strategyId,
                                                  @Param("statMonth") String statMonth,
                                                  @Param("cityId") String cityId,
                                                  @Param("countyId") String countyId);

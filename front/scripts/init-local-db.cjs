@@ -144,12 +144,15 @@ async function main() {
     }
     await connection.query('USE ??', [database])
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_strategy_biz_tab_type.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
     if (refreshExisting) {
       const [seeded] = await connection.query(
-        "SELECT COUNT(*) AS seeded_count FROM t_sr_strategy WHERE tab_type = 'active' AND owner = '本地联调' AND strategy_code LIKE 'STR%' AND is_deleted = 0",
+        "SELECT COUNT(*) AS seeded_count FROM v_sr_strategy_read WHERE tab_type = 'active' AND owner = '本地联调' AND strategy_code LIKE 'STR%' AND is_deleted = 0",
       )
       const [other] = await connection.query(
-        "SELECT COUNT(*) AS other_count FROM t_sr_strategy WHERE tab_type = 'active' AND COALESCE(owner, '') <> '本地联调' AND is_deleted = 0",
+        "SELECT COUNT(*) AS other_count FROM v_sr_strategy_read WHERE tab_type = 'active' AND COALESCE(owner, '') <> '本地联调' AND is_deleted = 0",
       )
       if (Number(seeded[0].seeded_count) < 12 || Number(other[0].other_count) > 0) {
         throw new Error('刷新保护已阻止：数据库不符合本地联调样例库特征，未修改任何数据。')
@@ -176,19 +179,31 @@ async function main() {
       const generatedStrategyIds = Array.from({ length: 12 + keyAudienceNames.length }, (_, index) => `STR${String(index + 1).padStart(3, '0')}`)
       const deletes = [
         ['t_sr_strategy_reject_reason', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_strategy_reject_reason_special', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_strategy_biz_capacity', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_strategy_biz_capacity_special', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_channel_biz_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_biz_capacity_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_daily_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_daily_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_monthly_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_monthly_capacity_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_summary_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_period_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_period_summary_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_kpi_summary', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_kpi_summary_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
       ]
       for (const [table, where, params] of deletes) {
         await connection.query(`DELETE FROM ?? WHERE ${where}`, [table, ...params])
       }
       await connection.query(
         'DELETE FROM t_sr_strategy WHERE strategy_code IN (?) AND owner = ?',
+        [generatedStrategyIds, '本地联调'],
+      )
+      await connection.query(
+        'DELETE FROM t_sr_strategy_special WHERE strategy_code IN (?) AND owner = ?',
         [generatedStrategyIds, '本地联调'],
       )
     }
@@ -554,6 +569,7 @@ async function main() {
     await insert('t_sr_strategy_biz_capacity', bizRows)
     await insert('t_sr_channel_biz_capacity_ap', channelBiz.concat(channelBiz.map(row => ({ ...row, strategy_class: '全部' }))))
     await insert('t_sr_strategy_reject_reason', reasons)
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_move_nonstandard_class_data.sql'), 'utf8'))
     let ruleCount = null
     if (!refreshExisting) {
       const rules = Array.from({ length: 7 }, (_, i) => ({

@@ -83,9 +83,9 @@ async function main() {
   const c = await mysql.createConnection({ host: process.env.SR_DB_HOST || '127.0.0.1', port: Number(process.env.SR_DB_PORT || 3306), user: process.env.SR_DB_USER || 'root', password: process.env.SR_DB_PASSWORD || '123456', database, dateStrings: true, charset: 'utf8mb4' })
   let inTx = false
   try {
-    const [mastersExist] = await c.query('SELECT strategy_code,tab_type,owner FROM t_sr_strategy WHERE strategy_code IN (?) AND is_deleted=0', [source.strategies.map(x => x.strategy_code)])
+    const [mastersExist] = await c.query('SELECT strategy_code,tab_type,owner FROM v_sr_strategy_read WHERE strategy_code IN (?) AND is_deleted=0', [source.strategies.map(x => x.strategy_code)])
     assert.equal(mastersExist.length, 0, 'Source strategy code already exists; refusing cross-tab overwrite')
-    const [testOwners] = await c.query("SELECT strategy_code FROM t_sr_strategy WHERE tab_type='passive' AND owner<>? AND is_deleted=0", [TEST_OWNER])
+    const [testOwners] = await c.query("SELECT strategy_code FROM v_sr_strategy_read WHERE tab_type='passive' AND owner<>? AND is_deleted=0", [TEST_OWNER])
     assert.equal(testOwners.length, 0, 'Found non-test passive strategy data; refusing to delete or replace it')
 
     const [channels] = await c.query("SELECT * FROM t_sr_dim_channel WHERE is_deleted=0")
@@ -103,8 +103,8 @@ async function main() {
     }
     const bizNames = [...new Set(source.details.filter(r => r.detail_type === '业务产能').map(r => r.item_name))]
     const reasonNames = [...new Set(source.details.filter(r => r.detail_type === '拒绝原因').map(r => r.item_name))]
-    const [bizRows] = await c.query('SELECT DISTINCT biz_code code,biz_name name FROM t_sr_strategy_biz_capacity WHERE is_deleted=0')
-    const [reasonRows] = await c.query('SELECT DISTINCT reason_code code,reason_name name FROM t_sr_strategy_reject_reason WHERE is_deleted=0')
+    const [bizRows] = await c.query('SELECT DISTINCT biz_code code,biz_name name FROM v_sr_strategy_biz_capacity_read WHERE is_deleted=0')
+    const [reasonRows] = await c.query('SELECT DISTINCT reason_code code,reason_name name FROM v_sr_strategy_reject_reason_read WHERE is_deleted=0')
     const mappings = { channels: [...channelCodes].map(([name, code]) => ({ name, code })), businesses: [], reasons: [] }
     const resolveCodes = (names, existing, prefix, dest) => names.forEach(name => {
       const matches = [...new Set(existing.filter(x => x.name === name && x.code).map(x => x.code))]
@@ -249,10 +249,10 @@ async function main() {
     fs.writeFileSync(path.join(out, 'normalized.json'), JSON.stringify(normalized, null, 2), 'utf8')
     if (!apply) { console.log(JSON.stringify({ dryRun: true, ...normalized.records, mappings, simulation })); return }
 
-    const tables = ['t_sr_strategy','t_sr_strategy_period_summary_ap','t_sr_strategy_daily_ap','t_sr_strategy_biz_capacity','t_sr_strategy_reject_reason','t_sr_kpi_summary','t_sr_channel_summary_ap','t_sr_channel_monthly_capacity_ap','t_sr_channel_biz_capacity_ap','t_sr_dim_channel','t_sr_warning_rule','t_sr_warning_rule_condition','t_sr_warning_hit']
+    const tables = ['t_sr_strategy_passive','t_sr_strategy_period_summary_ap_passive','t_sr_strategy_daily_ap_passive','t_sr_strategy_biz_capacity_passive','t_sr_strategy_reject_reason_passive','t_sr_kpi_summary_passive','t_sr_channel_summary_ap_passive','t_sr_channel_monthly_capacity_ap_passive','t_sr_channel_biz_capacity_ap_passive','t_sr_dim_channel','t_sr_warning_rule','t_sr_warning_rule_condition','t_sr_warning_hit']
     const backup = { createdAt: new Date().toISOString(), database, source: source.source, sourceSha256: source.sha256, tables: {} }
     for (const t of tables) {
-      const where = t === 't_sr_strategy' ? ['owner=?', [TEST_OWNER]]
+      const where = t === 't_sr_strategy_passive' ? ['owner=?', [TEST_OWNER]]
         : t === 't_sr_warning_rule' ? ['create_by=?', ['local-passive-control-seed-v1']]
           : t === 't_sr_warning_rule_condition' || t === 't_sr_warning_hit' ? ['rule_id IN (SELECT id FROM t_sr_warning_rule WHERE create_by=?)', ['local-passive-control-seed-v1']]
             : t === 't_sr_dim_channel' ? ['1=0', []] : ['county_id=?', [TEST_MARK]]
@@ -274,24 +274,24 @@ async function main() {
       const ruleIds = ruleRows.map(r => r.id)
       if (ruleIds.length) { await c.query('DELETE FROM t_sr_warning_rule_condition WHERE rule_id IN (?)', [ruleIds]); await c.query('DELETE FROM t_sr_warning_hit WHERE rule_id IN (?)', [ruleIds]) }
       await c.query('DELETE FROM t_sr_warning_rule WHERE create_by=?', ['local-passive-control-seed-v1'])
-      for (const t of ['t_sr_strategy_biz_capacity','t_sr_strategy_reject_reason','t_sr_strategy_daily_ap','t_sr_channel_biz_capacity_ap','t_sr_channel_monthly_capacity_ap','t_sr_channel_summary_ap','t_sr_strategy_period_summary_ap','t_sr_kpi_summary']) await c.query('DELETE FROM ?? WHERE county_id=?', [t, TEST_MARK])
-      await c.query('DELETE FROM t_sr_strategy WHERE owner=?', [TEST_OWNER])
+      for (const t of ['t_sr_strategy_biz_capacity_passive','t_sr_strategy_reject_reason_passive','t_sr_strategy_daily_ap_passive','t_sr_channel_biz_capacity_ap_passive','t_sr_channel_monthly_capacity_ap_passive','t_sr_channel_summary_ap_passive','t_sr_strategy_period_summary_ap_passive','t_sr_kpi_summary_passive']) await c.query('DELETE FROM ?? WHERE county_id=?', [t, TEST_MARK])
+      await c.query('DELETE FROM t_sr_strategy_passive WHERE owner=?', [TEST_OWNER])
       await insert('t_sr_dim_channel', newChannels)
-      await insert('t_sr_strategy', masters)
-      await insert('t_sr_strategy_period_summary_ap', allFacts)
-      await insert('t_sr_strategy_daily_ap', daily)
-      await insert('t_sr_strategy_biz_capacity', allBusinesses)
-      await insert('t_sr_strategy_reject_reason', allReasons)
-      await insert('t_sr_kpi_summary', kpis)
-      await insert('t_sr_channel_summary_ap', channelSummary)
-      await insert('t_sr_channel_monthly_capacity_ap', capacity)
-      await insert('t_sr_channel_biz_capacity_ap', channelBiz)
-      const [verify] = await c.query("SELECT COUNT(*) n,SUM(push_count) push,SUM(usage_count) AS used,SUM(reach_count) reach,SUM(target_conv_num) target,SUM(product_conv_num) product,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_period_summary_ap WHERE tab_type='passive' AND city_id=? AND strategy_class='全部' AND strategy_id<>'999' AND stat_month=? AND is_deleted=0", [CITY, `${month}-01`])
+      await insert('t_sr_strategy_passive', masters)
+      await insert('t_sr_strategy_period_summary_ap_passive', allFacts)
+      await insert('t_sr_strategy_daily_ap_passive', daily)
+      await insert('t_sr_strategy_biz_capacity_passive', allBusinesses)
+      await insert('t_sr_strategy_reject_reason_passive', allReasons)
+      await insert('t_sr_kpi_summary_passive', kpis)
+      await insert('t_sr_channel_summary_ap_passive', channelSummary)
+      await insert('t_sr_channel_monthly_capacity_ap_passive', capacity)
+      await insert('t_sr_channel_biz_capacity_ap_passive', channelBiz)
+      const [verify] = await c.query("SELECT COUNT(*) n,SUM(push_count) push,SUM(usage_count) AS used,SUM(reach_count) reach,SUM(target_conv_num) target,SUM(product_conv_num) product,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_period_summary_ap_passive WHERE tab_type='passive' AND city_id=? AND strategy_class='全部' AND strategy_id<>'999' AND stat_month=? AND is_deleted=0", [CITY, `${month}-01`])
       assert.equal(Number(verify[0].n), masters.length)
       assert.equal(Number(verify[0].push), base.reduce((s, r) => s + r.push_count, 0))
       assert.equal(Number(verify[0].product), base.reduce((s, r) => s + r.product_conv_num, 0))
       assert.equal(Number(verify[0].original), 0); assert.equal(Number(verify[0].rejected), 0)
-      const [dailySums] = await c.query("SELECT strategy_id,SUM(push_count) push,SUM(usage_count) AS used,SUM(reach_count) reach,SUM(target_conv_num) target,SUM(actual_income) actual,COUNT(*) days FROM t_sr_strategy_daily_ap WHERE tab_type='passive' AND city_id=? AND stat_date BETWEEN '2026-10-01' AND '2026-10-21' AND is_deleted=0 GROUP BY strategy_id", [CITY])
+      const [dailySums] = await c.query("SELECT strategy_id,SUM(push_count) push,SUM(usage_count) AS used,SUM(reach_count) reach,SUM(target_conv_num) target,SUM(actual_income) actual,COUNT(*) days FROM t_sr_strategy_daily_ap_passive WHERE tab_type='passive' AND city_id=? AND stat_date BETWEEN '2026-10-01' AND '2026-10-21' AND is_deleted=0 GROUP BY strategy_id", [CITY])
       for (const s of dailySums) {
         const m = base.find(r => r.strategy_id === s.strategy_id)
         assert.equal(Number(s.push), m.push_count); assert.equal(Number(s.used), m.usage_count); assert.equal(Number(s.reach), m.reach_count); assert.equal(Number(s.target), m.target_conv_num); assert.equal(Number(s.actual), m.actual_income); assert.equal(Number(s.days), cutoffDay)

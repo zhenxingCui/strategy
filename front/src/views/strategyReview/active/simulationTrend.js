@@ -1,9 +1,10 @@
 import provenance from './leaveSimulation.json'
 import incremental from './incrementalSimulation.json'
+import decline from './declineSimulation.json'
 
 // Baseline data stays queryable for comparison; presentation starts at the declared simulation month.
 export function visibleSimulationTrend(query, trend, valueKey = 'values', strategyId = '') {
-  const source = [provenance, incremental].find(p => query.tabType === p.tabType && query.cityId === p.cityId &&
+  const source = [decline, provenance, incremental].find(p => query.tabType === p.tabType && query.cityId === p.cityId &&
     (query.strategyClass === p.strategyClass || (p.dailyStrategyIds || []).includes(strategyId)))
   if (!source || !source.baselineMonth || !Array.isArray(trend.months)) return trend
   const [year, endMonth] = query.statMonth.split('-').map(Number)

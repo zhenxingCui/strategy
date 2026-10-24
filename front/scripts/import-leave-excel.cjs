@@ -62,7 +62,7 @@ async function main(){
   try {
     const ids=source.strategies.map(r=>r.strategy_code)
     assert.equal(new Set(ids).size,10)
-    const [oldStrategies]=await c.query("SELECT * FROM t_sr_strategy WHERE tab_type='active' AND strategy_class='离' AND is_deleted=0")
+    const [oldStrategies]=await c.query("SELECT * FROM t_sr_strategy_special WHERE tab_type='active' AND strategy_class='离' AND is_deleted=0")
     assert(oldStrategies.every(r=>r.owner==='本地联调'||ids.includes(r.strategy_code)),'Non-sample leave strategies exist; refusing replacement')
     const oldIds=oldStrategies.map(r=>r.strategy_code).filter(id=>!ids.includes(id))
     const mappings={channels:[],businesses:[],reasons:[]}
@@ -75,8 +75,8 @@ async function main(){
       if(!mappings.channels.some(r=>r.name===name))mappings.channels.push({name,code:row.key_code})
       return row.key_code
     }
-    const [bizExisting]=await c.query('SELECT DISTINCT biz_code code,biz_name name FROM t_sr_strategy_biz_capacity WHERE is_deleted=0 AND biz_code IS NOT NULL')
-    const [reasonExisting]=await c.query('SELECT DISTINCT reason_code code,reason_name name FROM t_sr_strategy_reject_reason WHERE is_deleted=0 AND reason_code IS NOT NULL')
+    const [bizExisting]=await c.query('SELECT DISTINCT biz_code code,biz_name name FROM v_sr_strategy_biz_capacity_read WHERE is_deleted=0 AND biz_code IS NOT NULL')
+    const [reasonExisting]=await c.query('SELECT DISTINCT reason_code code,reason_name name FROM v_sr_strategy_reject_reason_read WHERE is_deleted=0 AND reason_code IS NOT NULL')
     function code(name,type){const mapping=mappings[type];let row=mapping.find(r=>r.name===name);if(row)return row.code
       const existing=type==='businesses'?bizExisting:reasonExisting;const matches=existing.filter(r=>r.name===name)
       const unique=[...new Set(matches.map(r=>r.code))];assert(unique.length<=1,`Ambiguous existing code for ${name}`)
@@ -120,9 +120,9 @@ async function main(){
     }
     if(preserveHistory){
       simulationManifest=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../src/views/strategyReview/active/leaveSimulation.json'),'utf8'))
-      const [history]=await c.query("SELECT * FROM t_sr_strategy_period_summary_ap WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND strategy_id IN (?) AND stat_month < ? AND is_deleted=0",[ids,month+'-01'])
-      const [historyBiz]=await c.query("SELECT * FROM t_sr_strategy_biz_capacity WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date < ? AND is_deleted=0",[ids,month+'-01'])
-      const [historyReasons]=await c.query("SELECT * FROM t_sr_strategy_reject_reason WHERE city_id='999' AND strategy_id IN (?) AND stat_month < ? AND is_deleted=0",[ids,month+'-01'])
+      const [history]=await c.query("SELECT * FROM t_sr_strategy_period_summary_ap_special WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND strategy_id IN (?) AND stat_month < ? AND is_deleted=0",[ids,month+'-01'])
+      const [historyBiz]=await c.query("SELECT * FROM t_sr_strategy_biz_capacity_special WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?) AND stat_date < ? AND is_deleted=0",[ids,month+'-01'])
+      const [historyReasons]=await c.query("SELECT * FROM t_sr_strategy_reject_reason_special WHERE city_id='999' AND strategy_id IN (?) AND stat_month < ? AND is_deleted=0",[ids,month+'-01'])
       assert.equal(history.filter(r=>r.stat_month>='2026-01-01').length,90,'Expected nine months of ten historical strategies')
       execution.push(...history);businesses.push(...historyBiz);reasons.push(...historyReasons)
       Object.assign(simulationManifest,{sourceFile:path.basename(source.source),sourceSha256:source.sha256})
@@ -146,7 +146,7 @@ async function main(){
         for(const r of rows){const adjacent=previous&&previous.stat_date.slice(0,7)===previousMonth(r.stat_date.slice(0,7));r.mom_ratio=adjacent?(isPartialSourceMonth&&r.stat_date.slice(0,7)===month?partialChange(r.count,previous.count,sourceMonthDays,previousMonthDays):pct(r.count-previous.count,previous.count)):null;previous=r}
       }
     }
-    const tables=['t_sr_strategy','t_sr_strategy_period_summary_ap','t_sr_strategy_daily_ap','t_sr_strategy_biz_capacity','t_sr_strategy_reject_reason','t_sr_kpi_summary','t_sr_channel_summary_ap','t_sr_channel_monthly_capacity_ap','t_sr_channel_biz_capacity_ap','t_sr_dim_channel']
+    const tables=['t_sr_strategy','t_sr_strategy_special','t_sr_strategy_period_summary_ap','t_sr_strategy_period_summary_ap_special','t_sr_strategy_daily_ap','t_sr_strategy_daily_ap_special','t_sr_strategy_biz_capacity','t_sr_strategy_biz_capacity_special','t_sr_strategy_reject_reason','t_sr_strategy_reject_reason_special','t_sr_kpi_summary','t_sr_kpi_summary_special','t_sr_channel_summary_ap','t_sr_channel_summary_ap_special','t_sr_channel_monthly_capacity_ap','t_sr_channel_monthly_capacity_ap_special','t_sr_channel_biz_capacity_ap','t_sr_channel_biz_capacity_ap_special','t_sr_dim_channel']
     const backup={createdAt:new Date().toISOString(),database,source:source.source,sourceSha256:source.sha256,tables:{}}
     for(const t of tables){const [rows]=await c.query('SELECT * FROM ??',[t]);backup.tables[t]=rows}
     const oldFacts=backup.tables.t_sr_strategy_period_summary_ap.filter(r=>r.tab_type==='active'&&r.city_id==='999'&&!r.is_deleted&&r.strategy_id!=='999'&&r.channel!=='全部'&&r.big_category!=='全部'&&r.small_category!=='全部'&&r.strategy_class!=='离'&&!ids.includes(r.strategy_id))
@@ -188,6 +188,11 @@ async function main(){
     for(const cls of ['离','全部'])for(const rows of group(baseBiz.filter(r=>cls==='全部'||r.strategy_class===cls),['stat_month','channel','big_category','small_category','biz_name'])){
       const r=rows[0];channelBusinesses.push({...common,strategy_class:cls,stat_month:r.stat_month,channel:r.channel,big_category:r.big_category,small_category:r.small_category,biz_name:r.biz_name,capacity:rows.reduce((a,b)=>a+Number(b.capacity),0),qoq:null})
     }
+    const specialCategories=categories.filter(r=>r.strategy_class==='离'),allCategories=categories.filter(r=>r.strategy_class==='全部')
+    const specialKpis=kpis.filter(r=>r.strategy_class==='离'),allKpis=kpis.filter(r=>r.strategy_class==='全部')
+    const specialSummaries=summaries.filter(r=>r.strategy_class==='离'),allSummaries=summaries.filter(r=>r.strategy_class==='全部')
+    const specialCapacities=capacities.filter(r=>r.strategy_class==='离'),allCapacities=capacities.filter(r=>r.strategy_class==='全部')
+    const specialChannelBusinesses=channelBusinesses.filter(r=>r.strategy_class==='离'),allChannelBusinesses=channelBusinesses.filter(r=>r.strategy_class==='全部')
     const prepared={rules:{city_id:'999',county_id:null,cutoff:'2026-10-21',rounding:'largest remainder; preserves rounded group totals',original_cust:null,reject_count:null,product_conv_num:'target_conv_num',expected_income:'actual_income',noSyntheticHistory:!(simulate||preserveHistory),preserveHistory},simulationManifest,mappings,masters,execution,businesses,reasons}
     fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'normalized.json'),JSON.stringify(prepared,null,2))
     if(!apply){console.log(JSON.stringify({dryRun:true,strategies:masters.length,monthly:execution.length,businesses:businesses.length,reasons:reasons.length,mappings}));return}
@@ -196,17 +201,23 @@ async function main(){
     async function insert(t,rows){if(!rows.length)return;if(!columns[t]){const [cols]=await c.query('SHOW COLUMNS FROM ??',[t]);columns[t]=new Set(cols.map(r=>r.Field))}const keys=Object.keys(rows[0]).filter(k=>columns[t].has(k)&&k!=='id');for(let i=0;i<rows.length;i+=300)await c.query('INSERT INTO ?? (??) VALUES ?',[t,keys,rows.slice(i,i+300).map(r=>keys.map(k=>r[k]??null))])}
     await c.beginTransaction();transaction=true
     for(const channel of newChannels)await insert('t_sr_dim_channel',[channel])
-    if(oldIds.length)await c.query("UPDATE t_sr_strategy SET is_deleted=1 WHERE tab_type='active' AND strategy_code IN (?) AND owner='本地联调'",[oldIds])
-    for(const master of masters){const [existing]=await c.query('SELECT id FROM t_sr_strategy WHERE strategy_code=? AND tab_type=\'active\'',[master.strategy_code]);assert(existing.length<=1);if(existing.length)await c.query('UPDATE t_sr_strategy SET ? WHERE id=?',[master,existing[0].id]);else await insert('t_sr_strategy',[master])}
+    if(oldIds.length)await c.query("UPDATE t_sr_strategy_special SET is_deleted=1 WHERE tab_type='active' AND strategy_code IN (?) AND owner='本地联调'",[oldIds])
+    for(const master of masters){const [existing]=await c.query('SELECT id FROM t_sr_strategy_special WHERE strategy_code=? AND tab_type=\'active\'',[master.strategy_code]);assert(existing.length<=1);if(existing.length)await c.query('UPDATE t_sr_strategy_special SET ? WHERE id=?',[master,existing[0].id]);else await insert('t_sr_strategy_special',[master])}
     const affected=[...ids,...oldIds]
-    await c.query("UPDATE t_sr_strategy_period_summary_ap SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND (strategy_class='离' OR strategy_id IN (?) OR (strategy_id='999' AND strategy_class='全部'))",[affected])
-    if(!keepDaily)await c.query("UPDATE t_sr_strategy_daily_ap SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?)",[affected])
-    await c.query("UPDATE t_sr_strategy_biz_capacity SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?)",[affected])
-    await c.query("UPDATE t_sr_strategy_reject_reason SET is_deleted=1 WHERE city_id='999' AND strategy_id IN (?)",[affected])
-    for(const t of ['t_sr_kpi_summary','t_sr_channel_summary_ap','t_sr_channel_monthly_capacity_ap','t_sr_channel_biz_capacity_ap'])await c.query("UPDATE ?? SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_class IN ('离','全部')",[t])
-    await insert('t_sr_strategy_period_summary_ap',[...execution,...categories]);await insert('t_sr_strategy_biz_capacity',businesses);await insert('t_sr_strategy_reject_reason',reasons)
-    await insert('t_sr_kpi_summary',kpis);await insert('t_sr_channel_summary_ap',summaries);await insert('t_sr_channel_monthly_capacity_ap',capacities);await insert('t_sr_channel_biz_capacity_ap',channelBusinesses)
-    const [check]=await c.query("SELECT COUNT(*) n,SUM(push_count) push,SUM(product_conv_num) conversion,SUM(expected_income) expected,SUM(actual_income) actual,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_period_summary_ap WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND strategy_id!='999' AND stat_month='2026-10-01' AND is_deleted=0")
+    await c.query("UPDATE t_sr_strategy_period_summary_ap_special SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND (strategy_class='离' OR strategy_id IN (?))",[affected])
+    await c.query("UPDATE t_sr_strategy_period_summary_ap SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_id='999' AND strategy_class='全部'")
+    if(!keepDaily)await c.query("UPDATE t_sr_strategy_daily_ap_special SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?)",[affected])
+    await c.query("UPDATE t_sr_strategy_biz_capacity_special SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_id IN (?)",[affected])
+    await c.query("UPDATE t_sr_strategy_reject_reason_special SET is_deleted=1 WHERE city_id='999' AND strategy_id IN (?)",[affected])
+    for(const t of ['t_sr_kpi_summary_special','t_sr_channel_summary_ap_special','t_sr_channel_monthly_capacity_ap_special','t_sr_channel_biz_capacity_ap_special'])await c.query("UPDATE ?? SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_class='离'",[t])
+    for(const t of ['t_sr_kpi_summary','t_sr_channel_summary_ap','t_sr_channel_monthly_capacity_ap','t_sr_channel_biz_capacity_ap'])await c.query("UPDATE ?? SET is_deleted=1 WHERE tab_type='active' AND city_id='999' AND strategy_class='全部'",[t])
+    await insert('t_sr_strategy_period_summary_ap_special',[...execution,...specialCategories]);await insert('t_sr_strategy_period_summary_ap',allCategories)
+    await insert('t_sr_strategy_biz_capacity_special',businesses);await insert('t_sr_strategy_reject_reason_special',reasons)
+    await insert('t_sr_kpi_summary_special',specialKpis);await insert('t_sr_kpi_summary',allKpis)
+    await insert('t_sr_channel_summary_ap_special',specialSummaries);await insert('t_sr_channel_summary_ap',allSummaries)
+    await insert('t_sr_channel_monthly_capacity_ap_special',specialCapacities);await insert('t_sr_channel_monthly_capacity_ap',allCapacities)
+    await insert('t_sr_channel_biz_capacity_ap_special',specialChannelBusinesses);await insert('t_sr_channel_biz_capacity_ap',allChannelBusinesses)
+    const [check]=await c.query("SELECT COUNT(*) n,SUM(push_count) push,SUM(product_conv_num) conversion,SUM(expected_income) expected,SUM(actual_income) actual,COUNT(original_cust) original,COUNT(reject_count) rejected FROM t_sr_strategy_period_summary_ap_special WHERE tab_type='active' AND strategy_class='离' AND city_id='999' AND strategy_id!='999' AND stat_month='2026-10-01' AND is_deleted=0")
     const october=metrics(execution.filter(r=>r.stat_month===month+'-01'))
     assert.equal(Number(check[0].n),10);assert.equal(Number(check[0].push),october.push_count);assert.equal(Number(check[0].conversion),october.product_conv_num);assert.equal(Number(check[0].original),0);assert.equal(Number(check[0].rejected),0);assert.equal(check[0].expected,check[0].actual)
     await c.commit();transaction=false
