@@ -4,53 +4,191 @@
 
     <!-- ==================== 通用枚举 ==================== -->
 
+    <!-- Channel options must use the same fact source and scope as their page; the dictionary only supplies display names. -->
     <select id="selectChannelDims" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         <choose>
             <when test="query.tabType == 'active' or query.tabType == 'passive'">
-                SELECT DISTINCT s.channel AS keyCode,
-                       COALESCE(d.key_name, s.channel) AS keyName
-                FROM t_sr_strategy_period_summary_ap s
-                LEFT JOIN (
-                    SELECT key_code, MAX(key_name) AS key_name
-                    FROM t_sr_dim_channel
-                    WHERE status = 1 AND is_deleted = 0
-                      AND (tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, tab_type) &gt; 0)
-                    GROUP BY key_code
-                ) d ON d.key_code = s.channel
-                WHERE s.tab_type = #{query.tabType} AND s.is_deleted = 0
-                  AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
-                  AND s.strategy_id != '999'
-                  AND s.big_category != '全部' AND s.small_category != '全部'
-                <if test="query.statMonth != null and query.statMonth != ''">
-                  AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
-                </if>
-                <if test="query.statMonth == null or query.statMonth == ''">
-                  AND s.stat_month = (SELECT MAX(latest.stat_month)
-                    FROM t_sr_strategy_period_summary_ap latest
-                    WHERE latest.tab_type = #{query.tabType} AND latest.is_deleted = 0
-                    <if test="query.cityId != null and query.cityId != ''">
-                      AND latest.city_id = #{query.cityId}
-                    </if>
-                    <if test="query.countyId != null and query.countyId != ''">
-                      AND latest.county_id = #{query.countyId}
-                    </if>
-                  )
-                </if>
-                <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
-                  AND s.strategy_class = #{query.strategyClass}
-                </if>
-                <if test="query.cityId != null and query.cityId != ''">
-                  AND s.city_id = #{query.cityId}
-                </if>
-                <if test="query.countyId != null and query.countyId != ''">
-                  AND s.county_id = #{query.countyId}
-                </if>
-                <if test="query.tabType == 'active' and query.customerGroup != null and query.customerGroup != ''">
-                  AND EXISTS (SELECT 1 FROM t_sr_strategy t
-                    WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
-                      AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
-                </if>
-                ORDER BY keyName
+                <choose>
+                    <when test="query.tabType == 'active' and query.customerGroup != null and query.customerGroup != ''">
+                        SELECT DISTINCT s.channel AS keyCode,
+                               COALESCE(d.key_name, s.channel) AS keyName
+                        FROM t_sr_strategy_period_summary_ap s
+                        LEFT JOIN (
+                            SELECT key_code, MAX(key_name) AS key_name
+                            FROM t_sr_dim_channel
+                            WHERE status = 1 AND is_deleted = 0
+                              AND (tab_type = 'active' OR FIND_IN_SET('active', tab_type) &gt; 0)
+                            GROUP BY key_code
+                        ) d ON d.key_code = s.channel
+                        WHERE s.tab_type = 'active' AND s.is_deleted = 0
+                          AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
+                          AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
+                          AND s.big_category != '全部' AND s.small_category != '全部'
+                          AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                            WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'active'
+                              AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
+                        <if test="query.statMonth != null and query.statMonth != ''">
+                          AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                        </if>
+                        <if test="query.statMonth == null or query.statMonth == ''">
+                          AND s.stat_month = (SELECT MAX(latest.stat_month)
+                            FROM t_sr_strategy_period_summary_ap latest
+                            WHERE latest.tab_type = 'active' AND latest.is_deleted = 0
+                              AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                                WHERE t.strategy_code = latest.strategy_id AND t.tab_type = 'active'
+                                  AND t.is_deleted = 0 AND t.customer_group = #{query.customerGroup})
+                            <if test="query.cityId != null and query.cityId != ''">
+                              AND latest.city_id = #{query.cityId}
+                            </if>
+                            <if test="query.countyId != null and query.countyId != ''">
+                              AND latest.county_id = #{query.countyId}
+                            </if>
+                          )
+                        </if>
+                        <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+                          AND s.strategy_class = #{query.strategyClass}
+                        </if>
+                        <if test="query.cityId != null and query.cityId != ''">
+                          AND s.city_id = #{query.cityId}
+                        </if>
+                        <if test="query.countyId != null and query.countyId != ''">
+                          AND s.county_id = #{query.countyId}
+                        </if>
+                        ORDER BY keyName
+                    </when>
+                    <otherwise>
+                        SELECT DISTINCT c.channel AS keyCode,
+                               COALESCE(d.key_name, c.channel) AS keyName
+                        FROM t_sr_channel_summary_ap c
+                        LEFT JOIN (
+                            SELECT key_code, MAX(key_name) AS key_name
+                            FROM t_sr_dim_channel
+                            WHERE status = 1 AND is_deleted = 0
+                              AND (tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, tab_type) &gt; 0)
+                            GROUP BY key_code
+                        ) d ON d.key_code = c.channel
+                        WHERE c.tab_type = #{query.tabType} AND c.is_deleted = 0
+                          AND c.channel IS NOT NULL AND c.channel != '' AND c.channel != '全部'
+                        <choose>
+                            <when test="query.strategyClass != null and query.strategyClass != ''">
+                              AND c.strategy_class = #{query.strategyClass}
+                            </when>
+                            <otherwise>AND c.strategy_class = '全部'</otherwise>
+                        </choose>
+                        <if test="query.statMonth != null and query.statMonth != ''">
+                          AND DATE_FORMAT(c.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                        </if>
+                        <if test="query.statMonth == null or query.statMonth == ''">
+                          AND c.stat_month = (SELECT MAX(latest.stat_month)
+                            FROM t_sr_channel_summary_ap latest
+                            WHERE latest.tab_type = #{query.tabType} AND latest.is_deleted = 0
+                            <choose>
+                                <when test="query.strategyClass != null and query.strategyClass != ''">
+                                  AND latest.strategy_class = #{query.strategyClass}
+                                </when>
+                                <otherwise>AND latest.strategy_class = '全部'</otherwise>
+                            </choose>
+                            <if test="query.cityId != null and query.cityId != ''">
+                              AND latest.city_id = #{query.cityId}
+                            </if>
+                            <if test="query.countyId != null and query.countyId != ''">
+                              AND latest.county_id = #{query.countyId}
+                            </if>
+                          )
+                        </if>
+                        <if test="query.cityId != null and query.cityId != ''">
+                          AND c.city_id = #{query.cityId}
+                        </if>
+                        <if test="query.countyId != null and query.countyId != ''">
+                          AND c.county_id = #{query.countyId}
+                        </if>
+                        ORDER BY keyName
+                    </otherwise>
+                </choose>
+            </when>
+            <when test="query.tabType == 'control'">
+                <choose>
+                    <when test="query.productName != null and query.productName != ''">
+                        SELECT DISTINCT s.channel AS keyCode,
+                               COALESCE(d.key_name, s.channel) AS keyName
+                        FROM t_sr_strategy_period_summary_ctrl s
+                        LEFT JOIN (
+                            SELECT key_code, MAX(key_name) AS key_name
+                            FROM t_sr_dim_channel
+                            WHERE status = 1 AND is_deleted = 0
+                              AND (tab_type = 'control' OR FIND_IN_SET('control', tab_type) &gt; 0)
+                            GROUP BY key_code
+                        ) d ON d.key_code = s.channel
+                        WHERE s.is_deleted = 0
+                          AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
+                          AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
+                          AND s.big_category != '全部' AND s.small_category != '全部'
+                          AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                            WHERE t.strategy_code = s.strategy_id AND t.tab_type = 'control'
+                              AND t.is_deleted = 0 AND t.product_name = #{query.productName})
+                        <if test="query.statMonth != null and query.statMonth != ''">
+                          AND DATE_FORMAT(s.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                        </if>
+                        <if test="query.statMonth == null or query.statMonth == ''">
+                          AND s.stat_month = (SELECT MAX(latest.stat_month)
+                            FROM t_sr_strategy_period_summary_ctrl latest
+                            WHERE latest.is_deleted = 0
+                              AND EXISTS (SELECT 1 FROM t_sr_strategy t
+                                WHERE t.strategy_code = latest.strategy_id AND t.tab_type = 'control'
+                                  AND t.is_deleted = 0 AND t.product_name = #{query.productName})
+                            <if test="query.cityId != null and query.cityId != ''">
+                              AND latest.city_id = #{query.cityId}
+                            </if>
+                            <if test="query.countyId != null and query.countyId != ''">
+                              AND latest.county_id = #{query.countyId}
+                            </if>
+                          )
+                        </if>
+                        <if test="query.cityId != null and query.cityId != ''">
+                          AND s.city_id = #{query.cityId}
+                        </if>
+                        <if test="query.countyId != null and query.countyId != ''">
+                          AND s.county_id = #{query.countyId}
+                        </if>
+                        ORDER BY keyName
+                    </when>
+                    <otherwise>
+                        SELECT DISTINCT c.channel AS keyCode,
+                               COALESCE(d.key_name, c.channel) AS keyName
+                        FROM t_sr_channel_summary_ctrl c
+                        LEFT JOIN (
+                            SELECT key_code, MAX(key_name) AS key_name
+                            FROM t_sr_dim_channel
+                            WHERE status = 1 AND is_deleted = 0
+                              AND (tab_type = 'control' OR FIND_IN_SET('control', tab_type) &gt; 0)
+                            GROUP BY key_code
+                        ) d ON d.key_code = c.channel
+                        WHERE c.is_deleted = 0
+                          AND c.channel IS NOT NULL AND c.channel != '' AND c.channel != '全部'
+                        <if test="query.statMonth != null and query.statMonth != ''">
+                          AND DATE_FORMAT(c.stat_month, '%Y%m') = REPLACE(#{query.statMonth}, '-', '')
+                        </if>
+                        <if test="query.statMonth == null or query.statMonth == ''">
+                          AND c.stat_month = (SELECT MAX(latest.stat_month)
+                            FROM t_sr_channel_summary_ctrl latest
+                            WHERE latest.is_deleted = 0
+                            <if test="query.cityId != null and query.cityId != ''">
+                              AND latest.city_id = #{query.cityId}
+                            </if>
+                            <if test="query.countyId != null and query.countyId != ''">
+                              AND latest.county_id = #{query.countyId}
+                            </if>
+                          )
+                        </if>
+                        <if test="query.cityId != null and query.cityId != ''">
+                          AND c.city_id = #{query.cityId}
+                        </if>
+                        <if test="query.countyId != null and query.countyId != ''">
+                          AND c.county_id = #{query.countyId}
+                        </if>
+                        ORDER BY keyName
+                    </otherwise>
+                </choose>
             </when>
             <otherwise>
                 SELECT d.key_code AS keyCode,
