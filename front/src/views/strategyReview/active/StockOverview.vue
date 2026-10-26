@@ -249,8 +249,15 @@ export default {
         }
       }
       return {
-        left: this.isDowngrade || this.isLeave
-          ? [item('strategy_count', '策略数'), item(this.isDowngrade ? (this.downgradeMetrics.capacity || 'product_conv_num') : 'product_conv_num', '产能', '产能采用成功量')]
+        left: this.isDowngrade || this.isLeave || this.isStable
+          ? [
+              item('strategy_count', '策略数'),
+              item(
+                this.isDowngrade ? (this.downgradeMetrics.capacity || 'product_conv_num') : 'product_conv_num',
+                '产能',
+                this.isDowngrade || this.isLeave ? '产能采用成功量' : '产能采用全产品转化量',
+              ),
+            ]
           : [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
         mid: this.isDowngrade
           ? this.downgradeMetrics.funnel.map((metric) => item(metric.key, metric.label))
