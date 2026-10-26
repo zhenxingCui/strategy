@@ -9,6 +9,14 @@ export function numberText(value) {
   return Number.isFinite(n) ? n.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : String(value)
 }
 
+export function oneDecimalText(value) {
+  if (value === null || value === undefined || value === '') return '—'
+  const n = Number(String(value).replace(/,/g, ''))
+  return Number.isFinite(n)
+    ? n.toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : String(value)
+}
+
 export function percentText(value) {
   return value === null || value === undefined || value === '' ? '—' : `${numberText(value)}%`
 }
@@ -274,6 +282,8 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
     values = values.map((value) => Number(value) / 10000)
     unit = unit === '元' ? '万元' : `万${unit}`
   }
+  const displayUnit = options.omitTimesUnit ? String(unit).replace(/次/g, '') : unit
+  const formatValue = options.fractionDigits === 1 ? oneDecimalText : numberText
   if (!months.length) {
     return {
       title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#86909c', fontSize: 12, fontWeight: 400 } },
@@ -288,7 +298,7 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
       renderMode: 'richText',
       formatter: (params) => {
         const index = params[0].dataIndex
-        return `${months[index]}\n${label}：${numberText(values[index])}${unit}\n环比：${qoq[index] == null ? '—' : numberText(qoq[index]) + (unit === '%' ? 'pp' : '%')}`
+        return `${months[index]}\n${label}：${formatValue(values[index])}${displayUnit}\n环比：${qoq[index] == null ? '—' : formatValue(qoq[index]) + (displayUnit === '%' ? 'pp' : '%')}`
       },
     },
     legend: { data: [label, '环比'], top: 0, textStyle: { color: '#86909c', fontSize: 11 } },
@@ -311,8 +321,8 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
     yAxis: [
       {
         type: 'value',
-        name: unit,
-        axisLabel: { color: '#86909c', fontSize: 10 },
+        name: displayUnit,
+        axisLabel: { color: '#86909c', fontSize: 10, formatter: (value) => formatValue(value) },
         splitLine: { lineStyle: { color: '#eef1f5', type: 'dashed' } },
       },
       {
@@ -327,7 +337,16 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
       },
     ],
     series: [
-      { name: label, type: 'bar', data: values, barMaxWidth: 30, itemStyle: { borderRadius: [3, 3, 0, 0] } },
+      {
+        name: label,
+        type: 'bar',
+        data: values,
+        barMaxWidth: 30,
+        itemStyle: { borderRadius: [3, 3, 0, 0] },
+        ...(options.fractionDigits === 1
+          ? { label: { formatter: (p) => p.value == null ? '' : formatValue(p.value) } }
+          : {}),
+      },
       {
         name: '环比',
         type: 'line',
@@ -338,7 +357,7 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
         smooth: false,
         connectNulls: false,
         label: {
-          formatter: (p) => p.value == null ? '' : numberText(p.value) + (unit === '%' ? 'pp' : '%'),
+          formatter: (p) => p.value == null ? '' : formatValue(p.value) + (displayUnit === '%' ? 'pp' : '%'),
         },
       },
     ],

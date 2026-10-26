@@ -27,20 +27,20 @@
             </div>
           </div>
           <div class="kpi-value">
-            {{ item.value }}
-            <span class="unit">{{ item.unit }}</span>
+            {{ formatOverviewNumber(item.value) }}
+            <span class="unit">{{ displayOverviewUnit(item.unit) }}</span>
           </div>
           <div class="kpi-trend">
             <div class="kpi-trend-row">
               <span class="kpi-trend-label">环比</span>
               <span class="kpi-trend-value" :class="item.trendQoQ >= 0 ? 'up' : 'down'">
-                {{ item.trendQoQ >= 0 ? '+' : '-' }}{{ Math.abs(item.trendQoQ) }}%
+                {{ item.trendQoQ >= 0 ? '+' : '-' }}{{ formatOverviewNumber(Math.abs(item.trendQoQ)) }}%
               </span>
             </div>
             <div class="kpi-trend-row">
               <span class="kpi-trend-label">同比</span>
               <span class="kpi-trend-value" :class="item.trendYoY >= 0 ? 'up' : 'down'">
-                {{ item.trendYoY >= 0 ? '+' : '-' }}{{ Math.abs(item.trendYoY) }}%
+                {{ item.trendYoY >= 0 ? '+' : '-' }}{{ formatOverviewNumber(Math.abs(item.trendYoY)) }}%
               </span>
             </div>
           </div>
@@ -69,7 +69,7 @@
 import EChart from '@/components/EChart.vue'
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
-import { currentYearChartRows } from '../active/reviewData'
+import { currentYearChartRows, oneDecimalText } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 // 默认高亮指标从 KPI 卡片第一条数据获取，不再写死
@@ -181,11 +181,8 @@ export default {
         }
       }
 
-      const formatVal = (val) => {
-        if (unit === '个') return String(val)
-        if (unit === '%') return val.toFixed(2) + '%'
-        return val  + unit
-      }
+      const displayUnit = this.displayOverviewUnit(unit)
+      const formatVal = (val) => `${this.formatOverviewNumber(val)}${unit === '%' ? '%' : displayUnit}`
 
       // 柱状图Y轴自然范围
       const maxValue = Math.max(...chartValues.map(Number))
@@ -214,7 +211,7 @@ export default {
             const monthStr = chartMonths[idx] || monthLabels[idx]
             let html = `<div style="font-weight:500;margin-bottom:4px;">${monthStr}</div>`
             params.forEach(p => {
-              const val = p.seriesName === '环比' ? (p.value == null ? '—' : p.value + '%') : formatVal(p.value)
+              const val = p.seriesName === '环比' ? (p.value == null ? '—' : this.formatOverviewNumber(p.value) + '%') : formatVal(p.value)
               html += `<div style="display:flex;justify-content:space-between;gap:16px;"><span>${p.marker}${p.seriesName}</span><span style="font-weight:600;">${val}</span></div>`
             })
             return html
@@ -240,9 +237,7 @@ export default {
               color: '#9ca3af',
               fontSize: 10,
               formatter: (val) => {
-                if (unit === '个') return val
-                if (unit === '%') return val + '%'
-                return val
+                return this.formatOverviewNumber(val)
               }
             },
             splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
@@ -290,7 +285,7 @@ export default {
               // 白色描边：标签落在蓝色柱子上时依然清晰可读
               textBorderColor: '#fff',
               textBorderWidth: 3,
-              formatter: (p) => (p.value >= 0 ? '+' : '') + p.value + '%'
+              formatter: (p) => (p.value >= 0 ? '+' : '') + this.formatOverviewNumber(p.value) + '%'
             },
             // 所有环比点都显示具体数值，不因标签接近而自动隐藏。
             labelLayout: { hideOverlap: false }
@@ -317,6 +312,12 @@ export default {
     this.fetchKpi()
   },
   methods: {
+    formatOverviewNumber (value) {
+      return oneDecimalText(value)
+    },
+    displayOverviewUnit (unit) {
+      return String(unit || '').replace(/次/g, '')
+    },
     handleMetricClick (item) {
       this.activeMetric = item.label
       this.activeMetricCode = item.metricCode || this.activeMetricCode

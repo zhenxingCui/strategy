@@ -31,8 +31,7 @@
             @strategy-class="changeStrategyClass"
           />
           <stock-execution ref="execution" :query="query" :channel-name="channelName" />
-          <stock-warning :query="query" :channels="channels" @strategy="selectStrategy" />
-          <stock-detail ref="detail" :query="query" :external-strategy="selectedStrategy" />
+          <stock-detail ref="detail" :query="query" />
         </template>
       </review-state>
     </main>
@@ -44,19 +43,20 @@ import { getCityId, getUserId, touchActivity } from '@/utils/auth'
 import ReviewState from './ReviewState.vue'
 import StockOverview from './StockOverview.vue'
 import StockExecution from './StockExecution.vue'
-import StockWarning from './StockWarning.vue'
 import StockDetail from './StockDetail.vue'
 import { listOf, monthRange, panelRequests } from './reviewData'
 
+const DEFAULT_UPGRADE_CHANNEL = '热线-外呼'
+
 export default {
   name: 'ActiveReview',
-  components: { ReviewState, StockOverview, StockExecution, StockWarning, StockDetail },
+  components: { ReviewState, StockOverview, StockExecution, StockDetail },
   mixins: [panelRequests],
   props: { tabType: { type: String, default: 'active' } },
   data() {
     return {
       month: '',
-      channel: '',
+      channel: this.tabType === 'active' ? DEFAULT_UPGRADE_CHANNEL : '',
       strategyClass: this.tabType === 'active' ? '升接' : '',
       customerGroup: '',
       customerGroups: [],
@@ -72,7 +72,6 @@ export default {
       channelsLoading: false,
       channelError: false,
       channelsRequestVersion: 0,
-      selectedStrategy: null,
     }
   },
   computed: {
@@ -110,11 +109,10 @@ export default {
   watch: {
     tabType() {
       this.month = ''
-      this.channel = ''
+      this.channel = this.tabType === 'active' ? DEFAULT_UPGRADE_CHANNEL : ''
       this.strategyClass = this.tabType === 'active' ? '升接' : ''
       this.customerGroup = ''
       this.productName = ''
-      this.selectedStrategy = null
       this.bootstrap()
       this.loadChannels()
       this.loadCustomerGroups()
@@ -142,7 +140,6 @@ export default {
     changeProduct(productName) {
       if (this.productName === productName) return
       this.productName = productName
-      this.selectedStrategy = null
     },
     async loadCustomerGroups() {
       const version = ++this.customerGroupsRequestVersion
@@ -165,7 +162,6 @@ export default {
     changeCustomerGroup(customerGroup) {
       if (this.customerGroup === customerGroup) return
       this.customerGroup = customerGroup
-      this.selectedStrategy = null
       this.loadChannels()
     },
     bootstrap() {
@@ -196,14 +192,17 @@ export default {
           (c) => !['全部', '全部渠道'].includes(c.keyName),
         )
         if (this.channel && !this.channels.some((c) => c.keyName === this.channel)) {
-          this.channel = this.tabType === 'active' && this.strategyClass === '降拆' ? '整体' : ''
-          this.selectedStrategy = null
+          this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
+            ? '整体'
+            : this.tabType === 'active' && this.strategyClass === '升接' ? DEFAULT_UPGRADE_CHANNEL : ''
         }
         this.channelError = false
       } catch (e) {
         if (version === this.channelsRequestVersion) {
           this.channels = []
-          if (!(this.tabType === 'active' && this.strategyClass === '降拆')) this.channel = ''
+          this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
+            ? '整体'
+            : this.tabType === 'active' && this.strategyClass === '升接' ? DEFAULT_UPGRADE_CHANNEL : ''
           this.channelError = true
         }
       } finally {
@@ -213,13 +212,11 @@ export default {
     changeMonth(month) {
       if (!month) return
       this.month = month
-      this.selectedStrategy = null
       this.$emit('dateRangeChange', monthRange(month))
       this.loadChannels()
     },
     changeChannel(channel) {
       this.channel = channel
-      this.selectedStrategy = null
     },
     changeStrategyClass(strategyClass) {
       if (this.strategyClass === strategyClass) return
@@ -228,18 +225,13 @@ export default {
       if (this.tabType === 'active' && strategyClass === '降拆') {
         // “整体”是降拆数据中的真实渠道，需要按该渠道查询。
         this.channel = '整体'
+      } else if (this.tabType === 'active' && strategyClass === '升接') {
+        this.channel = DEFAULT_UPGRADE_CHANNEL
       } else if (this.tabType === 'active' && previousStrategyClass === '降拆' && this.channel === '整体') {
         this.channel = ''
       }
       this.customerGroup = strategyClass === '重点客群' ? '零低流量客户' : ''
-      this.selectedStrategy = null
       this.loadChannels()
-    },
-    selectStrategy(row) {
-      this.selectedStrategy = { ...row }
-      this.$nextTick(() => {
-        if (this.$refs.detail) this.$refs.detail.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
     },
   },
 }

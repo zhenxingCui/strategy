@@ -157,7 +157,7 @@ export default {
   name: 'StockDetail',
   components: { EChart, ReviewState, ReviewTable },
   mixins: [panelRequests],
-  props: { query: { type: Object, required: true }, externalStrategy: { type: Object, default: null } },
+  props: { query: { type: Object, required: true } },
   data() {
     return {
       strategies: [],
@@ -280,9 +280,6 @@ export default {
         this.loadList()
         this.loadCategoryOptions()
       },
-    },
-    externalStrategy(row) {
-      if (row && row.strategyId) this.selectStrategy(row)
     },
   },
   created() {

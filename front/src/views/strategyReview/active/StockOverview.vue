@@ -170,7 +170,7 @@
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
-import { listOf, numberText, percentText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows } from './reviewData'
+import { listOf, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows } from './reviewData'
 import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
@@ -318,7 +318,7 @@ export default {
         trend.qoq,
         (metric && metric.label) || this.activeCard.label || '指标',
         this.trend.unit || this.activeCard.unit || '',
-        { scaleByTenThousand: true },
+        { scaleByTenThousand: true, fractionDigits: 1, omitTimesUnit: true },
       )
     },
   },
@@ -345,8 +345,8 @@ export default {
         ? this.keyAudienceCount()
         : (this.card(metric) || {}).value
       return this.usesMyriadUnit(metric) && rawValue !== null && rawValue !== undefined && rawValue !== ''
-        ? numberText(Number(rawValue) / 10000)
-        : numberText(rawValue)
+        ? oneDecimalText(Number(rawValue) / 10000)
+        : oneDecimalText(rawValue)
     },
     keyAudienceCount() {
       return KEY_AUDIENCE_COUNTS[this.query.customerGroup || '零低流量客户'] || KEY_AUDIENCE_COUNTS['零低流量客户']
@@ -355,8 +355,10 @@ export default {
       const rawUnit = this.isKeyAudience && metric.key === 'original_cust'
         ? ((this.card(metric) || {}).unit || '人')
         : ((this.card(metric) || {}).unit || '')
-      if (!rawUnit || !this.usesMyriadUnit(metric)) return rawUnit
-      return rawUnit === '元' ? '万元' : `万${rawUnit}`
+      const displayUnit = !rawUnit || !this.usesMyriadUnit(metric)
+        ? rawUnit
+        : rawUnit === '元' ? '万元' : `万${rawUnit}`
+      return displayUnit.replace(/次/g, '')
     },
     usesMyriadUnit(metric) {
       const rawUnit = (this.card(metric) || {}).unit || (metric.key === 'original_cust' ? '人' : '')
@@ -364,7 +366,9 @@ export default {
     },
     qoq(metric) {
       const card = this.card(metric) || {}
-      return card.unit === '%' && card.trendQoQ != null ? `${numberText(card.trendQoQ)}pp` : percentText(card.trendQoQ)
+      return card.unit === '%' && card.trendQoQ != null
+        ? `${oneDecimalText(card.trendQoQ)}pp`
+        : card.trendQoQ == null ? '—' : `${oneDecimalText(card.trendQoQ)}%`
     },
     direction(metric) {
       const n = (this.card(metric) || {}).trendQoQ
