@@ -194,7 +194,7 @@ export default {
         if (this.channel && !this.channels.some((c) => c.keyName === this.channel)) {
           this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
             ? '整体'
-            : this.tabType === 'active' && this.strategyClass === '升接' ? DEFAULT_UPGRADE_CHANNEL : ''
+            : this.tabType === 'active' && ['升接', '稳'].includes(this.strategyClass) ? DEFAULT_UPGRADE_CHANNEL : ''
         }
         this.channelError = false
       } catch (e) {
@@ -202,7 +202,7 @@ export default {
           this.channels = []
           this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
             ? '整体'
-            : this.tabType === 'active' && this.strategyClass === '升接' ? DEFAULT_UPGRADE_CHANNEL : ''
+            : this.tabType === 'active' && ['升接', '稳'].includes(this.strategyClass) ? DEFAULT_UPGRADE_CHANNEL : ''
           this.channelError = true
         }
       } finally {
@@ -225,7 +225,7 @@ export default {
       if (this.tabType === 'active' && strategyClass === '降拆') {
         // “整体”是降拆数据中的真实渠道，需要按该渠道查询。
         this.channel = '整体'
-      } else if (this.tabType === 'active' && strategyClass === '升接') {
+      } else if (this.tabType === 'active' && ['升接', '稳'].includes(strategyClass)) {
         this.channel = DEFAULT_UPGRADE_CHANNEL
       } else if (this.tabType === 'active' && previousStrategyClass === '降拆' && this.channel === '整体') {
         this.channel = ''
