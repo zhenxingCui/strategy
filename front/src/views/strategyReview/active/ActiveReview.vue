@@ -1,28 +1,8 @@
 <template>
-  <div class="active-review" :class="{ 'theme-dark': dark }">
-    <header class="app-bar">
-      <nav class="app-nav" aria-label="主导航">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          :aria-current="tab.key === tabType ? 'page' : null"
-          @click="$emit('tabChange', tab.key)"
-        >
-          {{ tab.label }}
-        </button>
-      </nav>
-      <span class="spacer" /><button
-        class="icon-btn"
-        :aria-label="dark ? '切换浅色主题' : '切换深色主题'"
-        @click="toggleTheme"
-      >
-        <i :class="dark ? 'el-icon-sunny' : 'el-icon-moon'" />
-      </button>
-    </header>
+  <div class="active-review">
     <main ref="main" class="page-main">
       <div class="page-head">
-        <h1>{{ pageTitle }}</h1>
-        <span class="muted">策略复盘与预警</span>
+        <h1>运营策略</h1>
         <span class="spacer" />
         <span v-if="month" class="data-month">数据月份 {{ month }}</span>
       </div>
@@ -93,18 +73,9 @@ export default {
       channelError: false,
       channelsRequestVersion: 0,
       selectedStrategy: null,
-      dark: false,
-      tabs: [
-        { key: 'active', label: '存量策略' },
-        { key: 'passive', label: '增量策略' },
-        { key: 'control', label: '重点产品' },
-      ],
     }
   },
   computed: {
-    pageTitle() {
-      return { active: '存量策略', passive: '增量策略', control: '重点产品' }[this.tabType] || '策略复盘'
-    },
     query() {
       return {
         tabType: this.tabType,
@@ -123,11 +94,6 @@ export default {
     },
   },
   created() {
-    try {
-      this.dark = localStorage.getItem('sr_active_theme') === 'dark'
-    } catch (e) {
-      /* 存储不可用时使用浅色主题 */
-    }
     this.bootstrap()
     this.loadChannels()
     this.loadCustomerGroups()
@@ -274,14 +240,6 @@ export default {
       this.$nextTick(() => {
         if (this.$refs.detail) this.$refs.detail.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
-    },
-    toggleTheme() {
-      this.dark = !this.dark
-      try {
-        localStorage.setItem('sr_active_theme', this.dark ? 'dark' : 'light')
-      } catch (e) {
-        /* 存储不可用不影响主题切换 */
-      }
     },
   },
 }

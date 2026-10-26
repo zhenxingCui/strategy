@@ -29,18 +29,6 @@
     scrollbar-width: thin;
     scrollbar-color: #c9cfd8 transparent;
   }
-  &.theme-dark {
-    --brand: #6aa2ff;
-    --brand-weak: #1b2740;
-    --bg: #14181f;
-    --surface: #1c222b;
-    --border: #343e4c;
-    --border-2: #2a313c;
-    --text: #e6e9ef;
-    --text-2: #aeb6c2;
-    --muted: #a0acbc;
-    --head-bg: #232b37;
-  }
   h1,
   h2,
   p,
@@ -81,58 +69,6 @@
   .down,
   .danger {
     color: var(--neg);
-  }
-  .app-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 64px;
-    padding: 0 34px;
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
-  .app-nav {
-    display: flex;
-    align-items: stretch;
-    height: 100%;
-    gap: 24px;
-  }
-  .app-nav button {
-    position: relative;
-    padding: 0 14px;
-    background: transparent;
-    border: 0;
-    color: var(--text-2);
-    font-size: 16px;
-    white-space: nowrap;
-  }
-  .app-nav button[aria-current='page'] {
-    color: var(--brand);
-    font-weight: 600;
-    &::after {
-      content: '';
-      position: absolute;
-      left: 12px;
-      right: 12px;
-      bottom: 0;
-      height: 3px;
-      background: var(--brand);
-      border-radius: 3px 3px 0 0;
-    }
-  }
-  .icon-btn {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-2);
-    background: var(--surface);
-    font-size: 17px;
   }
   .page-main {
     padding: 20px 30px 36px;
@@ -1050,17 +986,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  &.theme-dark .el-input__inner,
-  &.theme-dark .el-range-input {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--text);
-  }
-  &.theme-dark .el-pagination.is-background .el-pager li,
-  &.theme-dark .el-pagination.is-background button {
-    background: var(--head-bg);
-    color: var(--text-2);
-  }
   @media (min-width: 1800px) {
     .metric-snapshot {
       gap: 14px;
@@ -1111,17 +1036,6 @@
     }
   }
   @media (max-width: 760px) {
-    .app-bar {
-      padding: 0 12px;
-      height: 54px;
-    }
-    .app-nav {
-      gap: 4px;
-    }
-    .app-nav button {
-      padding: 0 10px;
-      font-size: 14px;
-    }
     .page-main {
       padding: 12px;
     }
