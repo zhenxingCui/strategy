@@ -220,15 +220,35 @@ export function downgradeChannelMetrics(channel) {
   return downgradeMetricSets.overall
 }
 
+// 升接和稳类的在线呼入触点使用推荐相关名称。
+export function isOnlineInboundReview(query) {
+  return Boolean(
+    query &&
+    query.tabType === 'active' &&
+    ['升接', '稳'].includes(query.strategyClass) &&
+    String(query.channel || '').replace(/[\s-]/g, '') === '在线呼入',
+  )
+}
+
 // 存量“降拆”页按渠道显示咨询/接单/派单/成功指标，并使用统一比率口径。
 export function categoryLabelColumns(columns, query) {
   if (!query || query.tabType !== 'active') return columns
+  const isOnlineInbound = isOnlineInboundReview(query)
+  const onlineInboundLabels = {
+    pushCount: '呼入量',
+    usageCount: '可推荐量',
+    usageRate: '可推荐率',
+    reachCount: '推荐量',
+    reachRate: '推荐率',
+  }
   // All stock views display product conversions as successful quantity/rate.
   if (query.strategyClass !== '降拆') {
     return columns.map((column) => {
-      if (column.prop === 'targetConvNum') return { ...column, prop: 'productConvNum' }
-      if (column.prop === 'targetConvRate') return { ...column, prop: 'productConvRate' }
-      return column
+      let result = column
+      if (column.prop === 'targetConvNum') result = { ...result, prop: 'productConvNum' }
+      if (column.prop === 'targetConvRate') result = { ...result, prop: 'productConvRate' }
+      const label = isOnlineInbound && onlineInboundLabels[column.prop]
+      return label ? { ...result, label } : result
     })
   }
   const metricSet = downgradeChannelMetrics(query.channel)

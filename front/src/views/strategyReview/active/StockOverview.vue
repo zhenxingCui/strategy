@@ -170,7 +170,7 @@
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
-import { listOf, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows } from './reviewData'
+import { listOf, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows, isOnlineInboundReview } from './reviewData'
 import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
@@ -217,6 +217,9 @@ export default {
     isStable() {
       return this.query.tabType === 'active' && this.query.strategyClass === '稳'
     },
+    isOnlineInbound() {
+      return isOnlineInboundReview(this.query)
+    },
     isUpgrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '升接'
     },
@@ -248,6 +251,9 @@ export default {
           rate: [item('retain_rate', '使用率'), item('reach_rate', '触达率'), item('success_rate', '转化率')],
         }
       }
+      const labels = this.isOnlineInbound
+        ? { push: '呼入量', usage: '可推荐量', reach: '推荐量', usageRate: '可推荐率', reachRate: '推荐率' }
+        : { push: '推送量', usage: '使用量', reach: '触达量', usageRate: '使用率', reachRate: '触达率' }
       return {
         left: this.isDowngrade || this.isLeave || this.isStable
           ? [
@@ -262,11 +268,11 @@ export default {
         mid: this.isDowngrade
           ? this.downgradeMetrics.funnel.map((metric) => item(metric.key, metric.label))
           : this.isKeyAudience
-            ? [item('original_cust', '客群'), item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')]
-            : [item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')],
+            ? [item('original_cust', '客群'), item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')]
+            : [item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')],
         rate: this.isDowngrade
           ? this.downgradeMetrics.rates.map((metric) => item(metric.key, metric.label))
-          : [item('usage_rate', '使用率'), item('reach_rate', '触达率'), item('product_conv_rate', '转化率')],
+          : [item('usage_rate', labels.usageRate), item('reach_rate', labels.reachRate), item('product_conv_rate', '转化率')],
       }
     },
     categoryName() {
@@ -315,7 +321,7 @@ export default {
       return { ...trend, months: points.months, values: points.values, qoq: points.comparison }
     },
     trendOption() {
-      const metric = this.isDowngrade
+      const metric = this.isDowngrade || this.isOnlineInbound
         ? this.groups.mid.concat(this.groups.rate, this.groups.left).find((item) => item.key === this.activeMetric)
         : null
       const trend = this.currentYearTrend
