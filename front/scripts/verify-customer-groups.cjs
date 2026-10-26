@@ -40,8 +40,8 @@ async function main() {
     const groups = await api('/dim', { type: '客群分类' })
     assert.ok(groups.length >= 4)
     assert.ok(groups.every(group => group.keyCode === group.keyName && group.keyName.trim() === group.keyName))
-    const [facts] = await connection.query(`SELECT p.*, s.customer_group FROM t_sr_strategy_period_summary_ap p
-      JOIN t_sr_strategy s ON s.strategy_code=p.strategy_id AND s.tab_type=p.tab_type AND s.is_deleted=0
+    const [facts] = await connection.query(`SELECT p.*, s.customer_group FROM t_sr_strategy_period_summary_ap_key_audience p
+      JOIN t_sr_strategy_key_audience s ON s.strategy_code=p.strategy_id AND s.tab_type=p.tab_type AND s.is_deleted=0
       WHERE p.tab_type='active' AND p.strategy_class='重点客群' AND p.city_id='999' AND p.is_deleted=0 AND p.strategy_id!='999'`)
     const channels = ['', ...(await api('/dim', { type: '触点渠道' })).map(channel => channel.keyCode)]
     for (const group of groups) {

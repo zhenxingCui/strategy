@@ -37,6 +37,10 @@ public class WarningRuleQueryReq extends BaseRegionReq {
     @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群，空=全部")
     private String strategyClass;
 
+    @ApiModelProperty(value = "页面范围，例如 active:重点客群", required = true)
+    @NotBlank(message = "页面范围pageScope不能为空")
+    private String pageScope;
+
     @ApiModelProperty(value = "用户编码，按创建人过滤")
     private String userCode;
 
@@ -55,7 +59,7 @@ public class WarningRuleQueryReq extends BaseRegionReq {
         return "active".equals(tabType) && "重点客群".equals(strategyClass)
                 && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
     }
-    @ApiModelProperty("重点产品名称，空=全部产品；仅control生效")
+    @ApiModelProperty("重点产品名称，匹配control事实表small_category；空=全部产品，仅control生效")
     private String productName;
 
     public String getProductName() {

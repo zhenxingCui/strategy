@@ -17,12 +17,12 @@ async function main() {
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
     await connection.beginTransaction()
     for (const [index, name] of groups.entries()) {
-      await connection.execute(`UPDATE t_sr_strategy SET customer_group=?
+      await connection.execute(`UPDATE t_sr_strategy_key_audience SET customer_group=?
         WHERE strategy_code=? AND owner='本地联调' AND tab_type='active' AND strategy_class='重点客群'
         AND is_deleted=0 AND (customer_group IS NULL OR TRIM(customer_group)='')`, [name, `STR${String(index + 13).padStart(3, '0')}`])
     }
     await connection.commit()
-    const [rows] = await connection.query("SELECT customer_group, COUNT(*) AS strategies FROM t_sr_strategy WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0 GROUP BY customer_group")
+    const [rows] = await connection.query("SELECT customer_group, COUNT(*) AS strategies FROM t_sr_strategy_key_audience WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0 GROUP BY customer_group")
     console.log(rows)
   } catch (error) {
     await connection.rollback()

@@ -28,13 +28,16 @@ public interface IStrategyReviewService {
     /** 策略触点执行-策略列表（分页） */
     PageResultVO<StrategyRowVO> queryStrategyList(TouchpointQueryReq req);
 
+    /** 逐策略列表的分类选项，沿用明细过滤条件且不受分页限制。 */
+    List<StrategyCategoryOptionVO> queryStrategyCategoryOptions(TouchpointQueryReq req);
+
     /** 策略触点执行-渠道产能趋势（近6个月） */
     List<ChannelTrendVO> queryChannelCapacityTrend(TouchpointQueryReq req);
 
     /** 策略触点执行-渠道业务产能 */
     List<ChannelBizVO> queryChannelBizCapacity(TouchpointQueryReq req);
 
-    /** 策略触点执行-策略分类汇总（按大类+小类聚合，不按渠道拆分） */
+    /** 策略触点执行-策略分类汇总（按大类+小类聚合，支持按渠道筛选） */
     CategoryRespVO queryCategorySummary(TouchpointQueryReq req);
 
     /** 策略执行明细-策略信息 */
@@ -49,7 +52,7 @@ public interface IStrategyReviewService {
     /** 策略执行明细-日粒度明细（分页） */
     PageResultVO<StrategyDailyVO> queryStrategyDailyDetail(ExecutionQueryReq req);
 
-    /** 策略执行明细 - 拒绝原因（active） */
+    /** 策略执行明细 - 拒绝原因 */
     RejectReasonRespVO queryRejectReason(ExecutionQueryReq req);
 
     /** 获取最新数据日期（yyyy-MM-dd 格式，用于前端初始化日期范围） */

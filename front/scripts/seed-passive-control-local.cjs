@@ -118,7 +118,14 @@ function apMetrics(rows) {
 }
 function ctrlMetrics(rows) {
   const m = {}
-  for (const key of ['strategy_count', 'consult_count', 'retain_count', 'dispatch_count', 'success_count', 'income']) m[key] = sum(rows, key)
+  const fields = {
+    strategy_count: ['strategy_count'], consult_count: ['consult_count', 'push_count'],
+    retain_count: ['retain_count', 'usage_count'], dispatch_count: ['dispatch_count', 'reach_count'],
+    success_count: ['success_count', 'product_conv_num'], income: ['income', 'actual_income'],
+  }
+  for (const [key, candidates] of Object.entries(fields)) {
+    m[key] = rows.reduce((value, row) => value + Number(row[candidates.find(field => row[field] != null)] || 0), 0)
+  }
   m.retain_rate = pct(m.retain_count, m.consult_count)
   m.success_rate = pct(m.success_count, m.dispatch_count)
   return m
@@ -136,9 +143,18 @@ function apBase({ type = 'passive', month, channel, big, small, id, name, metric
   }
 }
 function ctrlBase({ month, channel, big, small, id, code, name, metrics, prior }) {
+  const qoq = withQoq(metrics, prior)
   return {
-    strategy_id: id, strategy_code: code || id, strategy_name: name, channel, big_category: big,
-    small_category: small, stat_month: `${month}-01`, ...withQoq(metrics, prior),
+    tab_type: 'control', strategy_class: '全部', strategy_id: id, strategy_code: code || id,
+    strategy_name: name, channel, big_category: big, small_category: small, stat_month: `${month}-01`,
+    strategy_count: metrics.strategy_count, push_count: metrics.consult_count,
+    push_count_qoq: qoq.consult_count_qoq, usage_count: metrics.retain_count,
+    usage_count_qoq: qoq.retain_count_qoq, usage_rate: metrics.retain_rate,
+    usage_rate_qoq: qoq.retain_rate_qoq, reach_count: metrics.dispatch_count,
+    reach_count_qoq: qoq.dispatch_count_qoq, product_conv_num: metrics.success_count,
+    product_conv_num_qoq: qoq.success_count_qoq, product_conv_rate: metrics.success_rate,
+    product_conv_rate_qoq: qoq.success_rate_qoq, actual_income: metrics.income,
+    actual_income_qoq: qoq.income_qoq,
     city_id: CITY, county_id: CTRL_MARK, is_deleted: 0,
   }
 }
@@ -186,6 +202,8 @@ async function main() {
     await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_customer_group.sql'), 'utf8'))
     await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_non_active_class_all.sql'), 'utf8'))
     await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_control_monthly_trend_manual.sql'), 'utf8'))
+    await conn.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_control_strategy_monthly_trend_manual.sql'), 'utf8'))
 
     await conn.beginTransaction()
     try {
@@ -198,7 +216,8 @@ async function main() {
       await conn.query('DELETE FROM t_sr_warning_rule WHERE create_by=?', [RULE_CREATOR])
       await conn.query('DELETE FROM t_sr_strategy_biz_capacity_passive WHERE county_id=?', [PASS_MARK])
       await conn.query('DELETE FROM t_sr_strategy_biz_capacity WHERE county_id=?', [CTRL_MARK])
-      await conn.query('DELETE FROM t_sr_strategy_reject_reason_passive WHERE county_id=?', [PASS_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_reject_reason_passive WHERE county_id IN (?, ?)', [PASS_MARK, CTRL_MARK])
+      await conn.query('DELETE FROM t_sr_strategy_reject_reason_ctrl WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_strategy_reject_reason WHERE county_id=?', [CTRL_MARK])
       await conn.query('DELETE FROM t_sr_strategy_daily_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
       await conn.query('DELETE FROM t_sr_channel_biz_capacity_ap_passive WHERE tab_type=? AND county_id=?', ['passive', PASS_MARK])
@@ -265,7 +284,8 @@ async function main() {
       await insertRows('t_sr_strategy_passive', passStrategies)
       await insertRows('t_sr_strategy', ctrlStrategies)
 
-      const passPeriods = [], passChannelSummary = [], passMonthlyCapacity = [], passChannelBiz = [], passKpis = [], passDaily = [], passCategories = [], passBiz = [], rejectRows = []
+      const passPeriods = [], passChannelSummary = [], passMonthlyCapacity = [], passChannelBiz = [], passKpis = [], passDaily = [], passCategories = [], passBiz = [], passRejectRows = []
+      const ctrlRejectRows = []
       const ctrlPeriods = [], ctrlChannelSummary = [], ctrlMonthlyCapacity = [], ctrlChannelBiz = [], ctrlKpis = [], ctrlDaily = [], ctrlCategories = [], ctrlBiz = []
       const passPriorStrategy = new Map(), passPriorChannel = new Map(), ctrlPriorStrategy = new Map(), ctrlPriorChannel = new Map()
       const monthStrings = Array.from({ length: 12 }, (_, i) => shiftMonth(startMonth, i))
@@ -304,7 +324,7 @@ async function main() {
           const bizSplit = splitTotal(product, PASS_BUSINESSES.length)
           PASS_BUSINESSES.forEach((bizName, bi) => passBiz.push({ tab_type: 'passive', strategy_id: s.strategy_code, stat_date: `${month}-01`, biz_code: `PB${String(bi + 1).padStart(2, '0')}`, biz_name: bizName, count: bizSplit[bi], mom_ratio: between(-18, 24), yoy_ratio: null, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 }))
           const reasons = ['暂无办理需求', '资费与预期不符', '现有产品已满足需求', '希望稍后联系', '触达失败或号码无效']
-          splitTotal(rejected, reasons.length).forEach((count, ri) => rejectRows.push({ strategy_id: s.strategy_code, stat_month: `${month}-01`, reason_code: `PR${ri + 1}`, reason_name: reasons[ri], reject_count: count, reject_ratio: pct(count, rejected), color: ['#3b82f6', '#5ac4d1', '#a78bfa', '#f6bd60', '#94a3b8'][ri], sort_no: ri + 1, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 }))
+          splitTotal(rejected, reasons.length).forEach((count, ri) => passRejectRows.push({ strategy_id: s.strategy_code, stat_month: `${month}-01`, reason_code: `PR${ri + 1}`, reason_name: reasons[ri], reject_count: count, reject_ratio: pct(count, rejected), color: ['#3b82f6', '#5ac4d1', '#a78bfa', '#f6bd60', '#94a3b8'][ri], sort_no: ri + 1, city_id: CITY, county_id: PASS_MARK, is_deleted: 0 }))
         })
         const passiveTotal = apMetrics(passiveRows)
         const priorTotal = mi ? apMetrics(passPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
@@ -352,12 +372,12 @@ async function main() {
           const [year, mm] = month.split('-').map(Number); const days = new Date(year, mm, 0).getDate()
           for (let day = 1; day <= days; day++) {
             const d = Object.fromEntries(Object.entries(daily).map(([key, values]) => [key, values[day - 1]]))
-            ctrlDaily.push({ strategy_id: s.strategy_code, stat_date: `${month}-${String(day).padStart(2, '0')}`, channel: s.channel, big_category: big, small_category: small, strategy_name: s.strategy_name, ...d, retain_rate: pct(d.retain_count, d.consult_count), success_rate: pct(d.success_count, d.dispatch_count), city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
+            ctrlDaily.push({ tab_type: 'control', strategy_class: '全部', strategy_id: s.strategy_code, strategy_code: s.strategy_code, stat_month: `${month}-${String(day).padStart(2, '0')}`, channel: s.channel, big_category: big, small_category: small, strategy_name: s.strategy_name, push_count: d.consult_count, usage_count: d.retain_count, usage_rate: pct(d.retain_count, d.consult_count), reach_count: d.dispatch_count, product_conv_num: d.success_count, product_conv_rate: pct(d.success_count, d.dispatch_count), city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 })
           }
           splitTotal(success, CTRL_BUSINESSES.length).forEach((count, bi) => ctrlBiz.push({ tab_type: 'control', strategy_id: s.strategy_code, stat_date: `${month}-01`, biz_code: `CB${String(bi + 1).padStart(2, '0')}`, biz_name: CTRL_BUSINESSES[bi], count, mom_ratio: between(-20, 26), yoy_ratio: null, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 }))
           const reasons = ['当前套餐仍满足需求', '优惠力度不足', '计划后续办理', '希望先解决服务问题', '已通过其他渠道办理']
           const lost = Math.max(0, consult - retain)
-          splitTotal(lost, reasons.length).forEach((count, ri) => rejectRows.push({ strategy_id: s.strategy_code, stat_month: `${month}-01`, reason_code: `CR${ri + 1}`, reason_name: reasons[ri], reject_count: count, reject_ratio: pct(count, lost), color: ['#3b82f6', '#5ac4d1', '#a78bfa', '#f6bd60', '#94a3b8'][ri], sort_no: ri + 1, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 }))
+          splitTotal(lost, reasons.length).forEach((count, ri) => ctrlRejectRows.push({ strategy_id: s.strategy_code, stat_month: `${month}-01`, reason_code: `CR${ri + 1}`, reason_name: reasons[ri], reject_count: count, reject_ratio: pct(count, lost), color: ['#3b82f6', '#5ac4d1', '#a78bfa', '#f6bd60', '#94a3b8'][ri], sort_no: ri + 1, city_id: CITY, county_id: CTRL_MARK, is_deleted: 0 }))
         })
         const total = ctrlMetrics(controlRows)
         const ctrlPriorTotal = mi ? ctrlMetrics(ctrlPeriods.filter((r) => r.stat_month === `${monthStrings[mi - 1]}-01` && r.strategy_id !== '999')) : null
@@ -399,10 +419,13 @@ async function main() {
       await insertRows('t_sr_channel_monthly_capacity_ctrl', ctrlMonthlyCapacity)
       await insertRows('t_sr_channel_biz_capacity_ctrl', ctrlChannelBiz)
       await insertRows('t_sr_strategy_daily_ctrl', ctrlDaily)
-      await insertRows('t_sr_strategy_reject_reason_passive', rejectRows)
+      await insertRows('t_sr_strategy_reject_reason_passive', passRejectRows)
+      await insertRows('t_sr_strategy_reject_reason_ctrl', ctrlRejectRows)
+      const controlTrendSummary = await require('./seed-control-monthly-trend-manual-local.cjs').seed(conn)
+      const controlStrategyTrendSummary = await require('./seed-control-strategy-monthly-trend-manual-local.cjs').seed(conn)
       await seedRules(conn, startMonth, currentMonth)
       await conn.commit()
-      console.log(JSON.stringify({ database, months: `${startMonth}..${currentMonth}`, passiveStrategies: passStrategies.length, controlStrategies: ctrlStrategies.length, passiveMonthlyFacts: passPeriods.length, controlMonthlyFacts: ctrlPeriods.length, passiveDailyRows: passDaily.length, controlDailyRows: ctrlDaily.length, strategyBizRows: passBiz.length + ctrlBiz.length, warningRules: 8, passiveTableFamilyEnsured: true }, null, 2))
+      console.log(JSON.stringify({ database, months: `${startMonth}..${currentMonth}`, passiveStrategies: passStrategies.length, controlStrategies: ctrlStrategies.length, passiveMonthlyFacts: passPeriods.length, controlMonthlyFacts: ctrlPeriods.length, passiveDailyRows: passDaily.length, controlDailyRows: ctrlDaily.length, strategyBizRows: passBiz.length + ctrlBiz.length, passiveRejectReasonRows: passRejectRows.length, controlRejectReasonRows: ctrlRejectRows.length, controlTrendSummary, controlStrategyTrendSummary, warningRules: 8, passiveTableFamilyEnsured: true, controlRejectReasonTableEnsured: true }, null, 2))
     } catch (error) {
       await conn.rollback()
       throw error

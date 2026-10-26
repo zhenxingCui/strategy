@@ -1,0 +1,6 @@
+FROM mysql:5.7.44
+
+ENV MYSQL_DATABASE=strategy_review_active_class_local
+ENV TZ=Asia/Shanghai
+
+COPY docker/mysql57/init/01-strategy-review.sql.gz /docker-entrypoint-initdb.d/01-strategy-review.sql.gz

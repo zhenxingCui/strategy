@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS t_sr_strategy_detail_biz_capacity_qoq_manual (
+    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    tab_type        VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT '策略类型',
+    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：存量升接/稳/重点客群；增量填全部',
+    strategy_id     VARCHAR(64)   NOT NULL COMMENT '策略ID，与策略执行明细关联',
+    strategy_name   VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '策略名称，便于维护核对',
+    stat_month      DATE          NOT NULL COMMENT '账期月份，统一存每月1日',
+    biz_code        VARCHAR(64)   NOT NULL DEFAULT '' COMMENT '业务编码；空值时按业务名称匹配',
+    biz_name        VARCHAR(128)  NOT NULL COMMENT '业务名称，与策略业务产能明细一致',
+    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示通用值',
+    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示通用值',
+    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '人工维护环比百分数，例如1表示1%；不从源数据计算',
+    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待填写/停用，1已发布',
+    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
+    created_by      VARCHAR(64)   DEFAULT NULL COMMENT '创建人',
+    updated_by      VARCHAR(64)   DEFAULT NULL COMMENT '最后修改人',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_strategy_detail_biz_qoq_scope (tab_type, strategy_class, strategy_id, stat_month, biz_code, biz_name, city_id, county_id),
+    KEY idx_strategy_detail_biz_qoq_lookup (tab_type, strategy_class, strategy_id, stat_month, status),
+    KEY idx_strategy_detail_biz_qoq_biz (biz_name, stat_month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='存量及增量策略执行明细业务产能人工环比';

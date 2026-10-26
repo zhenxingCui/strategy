@@ -27,7 +27,8 @@ const round = value => Math.round((value + Number.EPSILON) * 100) / 100
 const pct = (a, b) => b ? round(a / b * 100) : null
 function metrics(rows) {
   const values = { strategy_count: new Set(rows.map(row => row.strategy_id)).size }
-  for (const field of ['consult_count', 'retain_count', 'dispatch_count', 'success_count', 'income']) values[field] = rows.reduce((sum, row) => sum + Number(row[field]), 0)
+  const fields = { consult_count: 'push_count', retain_count: 'usage_count', dispatch_count: 'reach_count', success_count: 'product_conv_num', income: 'actual_income' }
+  for (const [field, column] of Object.entries(fields)) values[field] = rows.reduce((sum, row) => sum + Number(row[column] || 0), 0)
   for (const [name, numerator, denominator] of [['retain_rate', 'retain_count', 'consult_count'], ['reach_rate', 'dispatch_count', 'retain_count'], ['success_rate', 'success_count', 'dispatch_count']]) values[name] = pct(values[numerator], values[denominator])
   return values
 }
@@ -47,14 +48,13 @@ async function main() {
     for (const metric of metricOptions) if (metricLabels[metric.keyCode]) assert.equal(metric.keyName, metricLabels[metric.keyCode])
     assert.ok(groups.length >= 5)
     assert.ok(groups.every(group => group.keyCode === group.keyName && group.keyName.trim() === group.keyName))
-    const [facts] = await connection.query(`SELECT p.*, s.product_name FROM t_sr_strategy_period_summary_ctrl p
-      JOIN t_sr_strategy s ON s.strategy_code=p.strategy_id AND s.tab_type='control' AND s.is_deleted=0
+    const [facts] = await connection.query(`SELECT p.* FROM t_sr_strategy_period_summary_ctrl p
       WHERE p.city_id='999' AND p.is_deleted=0 AND p.strategy_id!='999'`)
     const channels = ['', ...(await api('/dim', { type: '触点渠道' })).map(channel => channel.keyCode)]
     for (const group of groups) {
       for (const channel of channels) {
         const scope = { statMonth: latest, productName: group.keyCode, channel }
-        const selected = facts.filter(row => row.product_name === group.keyCode && (!channel || row.channel === channel))
+        const selected = facts.filter(row => row.small_category === group.keyCode && (!channel || row.channel === channel))
         const current = selected.filter(row => row.stat_month.startsWith(latest))
         const previous = selected.filter(row => row.stat_month.startsWith(previousMonth))
         const expected = metrics(current), prior = metrics(previous)
@@ -86,7 +86,7 @@ async function main() {
         if (current.length) assert.equal(capacity.at(-1).capacity, expected.success_count)
       }
     }
-    const group = groups.find(group => [latest, previousMonth].every(month => facts.some(row => row.product_name === group.keyCode && row.stat_month.startsWith(month)))).keyCode
+    const group = groups.find(group => [latest, previousMonth].every(month => facts.some(row => row.small_category === group.keyCode && row.stat_month.startsWith(month)))).keyCode
     const scope = { statMonth: latest, productName: group }
     assert.deepEqual(await api('/overview/kpi', { ...scope, productName: ` ${group} ` }), await api('/overview/kpi', scope))
     for (const tabType of ['active', 'passive']) {
@@ -98,30 +98,30 @@ async function main() {
     assert.deepEqual(await api('/overview/kpi', { ...scope, countyId: 'other-county' }), [])
     assert.deepEqual(await api('/overview/kpi', { ...scope, statMonth: '2000-01' }), [])
     const historical = await api('/overview/kpi', { ...scope, statMonth: previousMonth })
-    assert.equal(historical.find(card => card.metricCode === 'success_count').value, metrics(facts.filter(row => row.product_name === group && row.stat_month.startsWith(previousMonth))).success_count)
+    assert.equal(historical.find(card => card.metricCode === 'success_count').value, metrics(facts.filter(row => row.small_category === group && row.stat_month.startsWith(previousMonth))).success_count)
     const all = await api('/touchpoint/strategyList', { statMonth: latest, pageSize: 500 })
     ids = all.list.map(row => row.strategyId)
     await api('/favorite/add', { strategyIds: ids })
     const favorites = await api('/favorite/list', { ...scope, pageSize: 500 })
     assert.ok(favorites.total > 0)
-    assert.ok(favorites.list.every(row => facts.some(fact => fact.strategy_id === row.strategyId && fact.product_name === group)))
+    assert.ok(favorites.list.every(row => facts.some(fact => fact.strategy_id === row.strategyId && fact.small_category === group)))
     ruleId = await api('/warning/ruleCreate', {
       ruleName: userId, startDate: '2000-01-01', endDate: '2099-12-31', dataStartDate: latest + '-01', dataEndDate: latest + '-28',
       channels: [], strategies: [], logic: 'or', conditions: [{ metricCode: 'consult_count', metricName: '咨询量', operator: 'gt', threshold: 0, unit: '次' }],
     })
     assert.equal((await api('/warning/ruleDetail', { id: ruleId })).conditions[0].metricName, '推送量')
     const hits = await api('/warning/hitStrategyList', { ...scope, ruleId, pageSize: 500 })
-    assert.equal(hits.total, facts.filter(row => row.product_name === group && row.stat_month.startsWith(latest)).length)
-    assert.ok(hits.list.every(row => facts.some(fact => fact.strategy_id === row.strategyId && fact.product_name === group)))
+    assert.equal(hits.total, facts.filter(row => row.small_category === group && row.stat_month.startsWith(latest)).length)
+    assert.ok(hits.list.every(row => facts.some(fact => fact.strategy_id === row.strategyId && fact.small_category === group)))
     assert.equal((await api('/warning/hitStrategyList', { ...scope, ruleId, channel: 'unknown' })).total, 0)
     const id = hits.list[0].strategyId
     assert.equal((await api('/execution/strategyInfo', { ...scope, strategyId: id })).strategyId, id)
     assert.ok((await api('/execution/dailyDetail', { ...scope, strategyId: id, startDate: latest + '-01', endDate: latest + '-28' })).total > 0)
-    // Unassigned strategies remain in all-products results, but leave the named product.
-    const sample = facts.find(row => row.stat_month.startsWith(latest) && row.product_name && row.product_name.trim())
+    // product_name on the strategy master must not affect the product filter; small_category is the fact dimension.
+    const sample = facts.find(row => row.stat_month.startsWith(latest) && row.small_category && row.small_category.trim())
     assert.ok(sample)
     const [master] = await connection.execute("SELECT product_name FROM t_sr_strategy WHERE strategy_code=? AND tab_type='control'", [sample.strategy_id])
-    const originalName = master[0].product_name
+    const originalProductName = master[0].product_name
     const beforeAll = await api('/overview/kpi', { statMonth: latest })
     assert.equal(beforeAll.find(card => card.metricCode === 'reach_rate').value, metrics(facts.filter(row => row.stat_month.startsWith(latest))).reach_rate)
     for (const card of beforeAll) if (metricLabels[card.metricCode]) assert.equal(card.label, metricLabels[card.metricCode])
@@ -134,10 +134,10 @@ async function main() {
       await connection.execute("UPDATE t_sr_strategy SET product_name=NULL WHERE strategy_code=? AND tab_type='control'", [sample.strategy_id])
       assert.deepEqual(await api('/overview/kpi', { statMonth: latest }), beforeAll)
       assert.ok((await api('/touchpoint/strategyList', { statMonth: latest, pageSize: 500 })).list.some(row => row.strategyId === sample.strategy_id))
-      assert.ok(!(await api('/touchpoint/strategyList', { statMonth: latest, productName: originalName, pageSize: 500 })).list.some(row => row.strategyId === sample.strategy_id))
+      assert.ok((await api('/touchpoint/strategyList', { statMonth: latest, productName: sample.small_category, pageSize: 500 })).list.some(row => row.strategyId === sample.strategy_id))
       assert.ok(!(await api('/dim', { type: '产品名称' })).some(row => !row.keyName.trim()))
     } finally {
-      await connection.execute("UPDATE t_sr_strategy SET product_name=? WHERE strategy_code=? AND tab_type='control'", [originalName, sample.strategy_id])
+      await connection.execute("UPDATE t_sr_strategy SET product_name=? WHERE strategy_code=? AND tab_type='control'", [originalProductName, sample.strategy_id])
     }
     console.log(`PASS: ${checks} API checks; all product/channel combinations, weighted rates, exact monthly QoQ, paging totals, business/category/channel consistency, historical/empty/region cases, favorites and warning isolation`)
   } finally {

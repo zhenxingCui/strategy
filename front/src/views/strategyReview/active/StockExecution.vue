@@ -12,6 +12,7 @@
           tools
           :columns="columns"
           :rows="pagedCategories"
+          :export-data="filteredCategories"
           :page="page"
           :page-size="10"
           :total="filteredCategories.length"
@@ -39,7 +40,7 @@
       </div>
       <div class="card chart-card">
         <div class="sub-title">
-          触点产能趋势<span class="spacer" /><span class="muted">{{ channelName }}</span>
+          产能趋势<span class="spacer" /><span class="muted">{{ trendChannelName }}</span>
         </div>
         <review-state :state="panels.trend" :empty="!trend.length" @retry="loadTrend"
           ><e-chart :option="trendOption" height="285px"
@@ -96,12 +97,20 @@ export default {
         smallCategory: this.selectedCategory ? this.selectedCategory.smallCategory : this.small,
       }
     },
+    trendChannelName() {
+      return this.channelName
+    },
     scopeLabel() {
       const { bigCategory, smallCategory } = this.capacityQuery
-      return [bigCategory, smallCategory].filter(Boolean).join(' / ') || `全部${this.categoryPrefix}分类`
+      const category = [bigCategory, smallCategory].filter(Boolean).join(' / ') || `全部${this.categoryPrefix}分类`
+      return `${this.channelName} / ${category}`
     },
     columns() {
-      return categoryLabelColumns(this.query.tabType === 'control' ? controlCategoryColumns : categoryColumns, this.query)
+      const columns = categoryLabelColumns(this.query.tabType === 'control' ? controlCategoryColumns : categoryColumns, this.query)
+      if (this.query.tabType === 'active' && ['升接', '稳', '重点客群'].includes(this.query.strategyClass)) {
+        return [...columns, { prop: 'actualIncome', label: '收入(元)' }]
+      }
+      return columns
     },
     isDowngrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
@@ -145,17 +154,15 @@ export default {
       return this.filteredCategories.slice((this.page - 1) * 10, this.page * 10)
     },
     trendOption() {
-      const trend = visibleSimulationTrend(this.query, {
+      const sourceTrend = {
         months: this.trend.map((r) => r.monthLabel || r.month),
         capacity: this.trend.map((r) => r.capacity),
         qoq: this.trend.map((r) => r.qoq),
-      }, 'capacity')
-      return barLineOption(
-        trend.months,
-        trend.capacity,
-        trend.qoq,
-        '产能',
-      )
+      }
+      const trend = this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
+        ? sourceTrend
+        : visibleSimulationTrend(this.query, sourceTrend, 'capacity')
+      return barLineOption(trend.months, trend.capacity, trend.qoq, '成功量')
     },
   },
   watch: {
@@ -201,6 +208,9 @@ export default {
         (result) => {
           this.categories = listOf(result)
           this.page = 1
+          if (!this.selectedCategory && this.filteredCategories.length) {
+            this.selectCategory(this.filteredCategories[0])
+          }
         },
       )
     },
@@ -229,11 +239,13 @@ export default {
       this.small = this.draftSmall
       this.page = 1
       this.selectedCategory = null
-      this.loadCapacity()
+      if (this.filteredCategories.length) this.selectCategory(this.filteredCategories[0])
+      else this.loadCapacity()
     },
     reset() {
       this.resetFilters()
-      this.loadCapacity()
+      if (this.filteredCategories.length) this.selectCategory(this.filteredCategories[0])
+      else this.loadCapacity()
     },
     resetFilters() {
       this.selectedCategory = null

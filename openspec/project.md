@@ -127,10 +127,10 @@ npm run serve
 
 ## 7. 踩坑记录与关键约定（MUST 遵守）
 
-### 7.1 控损表无 `tab_type` 列
-- `t_sr_strategy_period_summary_ap` 有 `tab_type` 列（用于区分 active/passive）。
-- `t_sr_strategy_period_summary_ctrl` **没有** `tab_type` 列，不要对其用 `s.tab_type = #{tabType}` 过滤，否则报 `Unknown column 'tab_type'`。
-- 控损专用查询请单独写 WHERE（如 `hitStrategyWhereCtrl`，仅按 `is_deleted = 0` 过滤）。
+### 7.1 重点产品事实表字段对齐
+- `t_sr_strategy_period_summary_ctrl` 与 `t_sr_strategy_period_summary_ap` 使用相同字段结构；`t_sr_strategy_daily_ctrl` 对齐日表指标字段，日期列为 `stat_month`。
+- 重点产品记录使用 `tab_type='control'`、`strategy_class='全部'`；本地旧库迁移先保留旧表备份，再运行 `front/scripts/align-control-product-tables-local.cjs` 执行字段映射。
+- 产品筛选维度取事实表 `small_category`；`t_sr_strategy.product_name` 不参与事实分组或筛选。
 
 ### 7.2 预警条件操作符编码
 - 前端/保存使用编码：`gte`(≥)、`lte`(≤)、`gt`(＞)、`lt`(＜)、`eq`(＝)。
@@ -139,7 +139,7 @@ npm run serve
 
 ### 7.3 动态 SQL 注入防护
 - 命中策略查询的 `$conditionSQL` 由服务层拼接后以 `${}` 注入，属高风险点。
-- 排序字段 MUST 走白名单校验（如 `product_conv_num` / `success_count`），禁止直接拼接用户输入作为列名/排序方向。
+- 排序字段 MUST 走白名单校验（如 `product_conv_num`），禁止直接拼接用户输入作为列名/排序方向。
 - `ORDER BY` MUST 有明确的排序字段，不能留空。
 
 ### 7.4 前后端字段对齐：`metricCode`

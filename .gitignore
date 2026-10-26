@@ -34,3 +34,16 @@ back/lib/*.jar
 html.zip
 *.tmp
 ~$*
+/strategy-review-docker.tar.gz
+/strategy-review-image.tar
+# Local database exports and generated deployment artifacts
+/outputs/
+/strategy-review-docker*.tar
+/strategy-review-docker*.tar.gz
+/strategy-review-docker*.sha256
+/strategy-review-mysql57-images.tar*
+/docker/mysql/init/*.sql.gz
+/docker/mysql57/init/*.sql.gz
+/front/scripts/__pycache__/
+*.py[cod]
+/t_sr_strategy_biz_capacity

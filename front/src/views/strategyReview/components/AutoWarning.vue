@@ -154,7 +154,6 @@
                 <el-table-column prop="targetConvRate" label="目标转化率" align="right" min-width="80" />
                 <el-table-column prop="productConvNum" label="全产品转化量" align="right" min-width="90" :formatter="formatNum" />
                 <el-table-column prop="productConvRate" label="全产品转化率" align="right" min-width="90" />
-                <el-table-column prop="expectedIncome" label="预期收入(元)" align="right" min-width="90" :formatter="formatNum" />
                 <el-table-column prop="actualIncome" label="实际收入(元)" align="right" min-width="90" :formatter="formatNum" />
               </template>
               <template v-else>
@@ -257,7 +256,6 @@
                 <el-table-column prop="targetConvRate" label="目标转化率" align="right" min-width="80" />
                 <el-table-column prop="productConvNum" label="全产品转化量" align="right" min-width="90" :formatter="formatNum" />
                 <el-table-column prop="productConvRate" label="全产品转化率" align="right" min-width="90" />
-                <el-table-column prop="expectedIncome" label="预期收入(元)" align="right" min-width="90" :formatter="formatNum" />
                 <el-table-column prop="actualIncome" label="实际收入(元)" align="right" min-width="90" :formatter="formatNum" />
               </template>
               <template v-else>
@@ -292,6 +290,7 @@
       :mode="dialogMode"
       :rule="editingRule"
       :tab-type="tabType"
+      :page-scope="pageScope"
       :channel-options="channelOptions"
       :strategy-options="strategyNameOptions"
       :metric-options="metricOptions"
@@ -422,6 +421,7 @@ export default {
     isActive () { return this.tabType === 'active' },
     isPassive () { return this.tabType === 'passive' },
     isControl () { return this.tabType === 'control' },
+    pageScope () { return `${this.tabType}:全部` },
     // 筛选后的规则列表
     filteredRules () {
       return this.historyRules
@@ -494,7 +494,7 @@ export default {
     // ===== 规则列表 =====
     async fetchRules () {
       try {
-        const params = { tabType: this.tabType, cityId: getCityId(), userId: getUserId() }
+        const params = { tabType: this.tabType, pageScope: this.pageScope, cityId: getCityId(), userId: getUserId() }
         if (this.userCodeFilter) params.userCode = this.userCodeFilter
         const res = await getWarningRuleList(params)
         let list = []
@@ -557,6 +557,7 @@ export default {
       try {
         const res = await getWarningHitStrategyList({
           tabType: this.tabType,
+          pageScope: this.pageScope,
           ruleId: Number(ruleId),
           statMonth: this.statMonth,
           cityId: getCityId(),
@@ -602,6 +603,7 @@ export default {
       try {
         const res = await getWarningHitStrategyList({
           tabType: this.tabType,
+          pageScope: this.pageScope,
           ruleId: Number(ruleId),
           favorite: ruleId,
           statMonth: this.statMonth,
@@ -638,7 +640,7 @@ export default {
       const ruleId = this.warningActiveTab ? this.warningActiveTab.replace('rule_', '') : ''
       if (!strategyIds.length) return
       try {
-        await toggleFollowStrategy({ strategyIds, followed: true, ruleId:ruleId,tabType: this.tabType })
+        await toggleFollowStrategy({ strategyIds, followed: true, ruleId:ruleId,tabType: this.tabType, pageScope: this.pageScope })
 
         this.$message.success(`已关注 ${strategyIds.length} 项策略`)
         this.fetchHitStrategies()
@@ -704,7 +706,7 @@ export default {
         await this.$confirm('确定删除该预警规则？', '提示', { type: 'warning' })
       } catch { return }
       try {
-        await deleteWarningRule({ id: rule.id })
+        await deleteWarningRule({ id: rule.id, pageScope: this.pageScope })
         this.$message.success('删除成功')
         this.fetchRules()
       } catch (e) {
@@ -717,7 +719,7 @@ export default {
       this.detailModalVisible = true
       this.detailLoading = true
       try {
-        const res = await getWarningRuleDetail({ id: rule.id })
+        const res = await getWarningRuleDetail({ id: rule.id, pageScope: this.pageScope })
         const detail = (res && res.data) || res || {}
         if (detail.id) {
           this.detailRule = { ...rule, ...detail }

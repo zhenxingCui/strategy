@@ -38,13 +38,11 @@
               v-for="rule in rules"
               :key="rule.id"
               class="rule-item"
-              :class="{ selected: selectedRule && selectedRule.id === rule.id }"
-              @click="chooseRule(rule)"
             >
-              <button class="rule-pick" @click.stop="chooseRule(rule)">
+              <div class="rule-pick">
                 <strong>{{ rule.ruleName }}</strong
                 ><span class="status" :class="{ live: rule.status === '生效中' }">{{ rule.status }}</span>
-              </button>
+              </div>
               <p class="rule-condition">{{ conditionText(rule) }}</p>
               <p class="muted">生效：{{ rule.dateRange || `${rule.startDate || '—'} 至 ${rule.endDate || '—'}` }}</p>
               <div class="rule-footer">
@@ -73,19 +71,46 @@
       </div>
       <div class="card warning-table-card">
         <review-table
-          :title="selectedRule ? `预警策略 · ${selectedRule.ruleName}` : '预警策略'"
+          ref="hitTable"
+          title="预警策略"
           tools
+          :exporting="exportingHits"
           :columns="columns"
           :rows="hits"
           :page="hitPage"
           :page-size="10"
           :total="hitTotal"
           :state="panels.hits"
-          :empty-text="selectedRule ? '当前规则无命中策略' : '请选择一条生效中的规则'"
+          :empty-text="selectedRule ? '当前规则无命中策略' : '暂无生效中的预警规则'"
           @page="changeHitPage"
+          @export-all="exportAllHits"
           @retry="loadHits"
           @strategy="$emit('strategy', $event)"
-        />
+        >
+          <template slot="filters">
+            <review-state
+              v-if="panels.liveRules && panels.liveRules.error"
+              :state="panels.liveRules"
+              @retry="loadLiveRules"
+            />
+            <div v-else class="warning-rule-tabs" role="tablist" aria-label="预警规则">
+              <span v-if="!liveRules.length" class="muted">暂无生效中的预警规则</span>
+              <button
+                v-for="rule in liveRules"
+                :key="rule.id"
+                type="button"
+                class="warning-rule-tab"
+                :class="{ active: selectedRule && String(selectedRule.id) === String(rule.id) }"
+                role="tab"
+                :aria-selected="Boolean(selectedRule && String(selectedRule.id) === String(rule.id))"
+                :title="rule.ruleName"
+                @click="chooseRule(rule)"
+              >
+                {{ rule.ruleName }}
+              </button>
+            </div>
+          </template>
+        </review-table>
       </div>
     </div>
     <rule-create-dialog
@@ -95,6 +120,7 @@
       :rule="editingRule"
       full-edit
       :tab-type="query.tabType"
+      :page-scope="pageScope"
       :channel-options="channels"
       :metric-options="metricOptions"
       @close="dialogMode = ''"
@@ -104,6 +130,7 @@
   </section>
 </template>
 <script>
+import { Message } from 'element-ui'
 import {
   getDim,
   getWarningRuleList,
@@ -116,6 +143,7 @@ import RuleCreateDialog from '../components/RuleCreateDialog.vue'
 import ReviewState from './ReviewState.vue'
 import ReviewTable from './ReviewTable.vue'
 import { listOf, strategyColumns, controlStrategyColumns, categoryLabelColumns, panelRequests } from './reviewData'
+import { fetchAllPagedRows } from './fetchAllPagedRows'
 
 export default {
   name: 'StockWarning',
@@ -125,12 +153,14 @@ export default {
   data() {
     return {
       rules: [],
+      liveRules: [],
       ruleTotal: 0,
       rulePage: 1,
       selectedRule: null,
       hits: [],
       hitTotal: 0,
       hitPage: 1,
+      exportingHits: false,
       draftName: '',
       draftStatus: '',
       ruleName: '',
@@ -144,6 +174,16 @@ export default {
     }
   },
   computed: {
+    pageScope() {
+      const pageKey = this.query.tabType === 'active' ? (this.query.strategyClass || '升接') : '全部'
+      return `${this.query.tabType}:${pageKey}`
+    },
+    isDowngrade() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
+    },
+    isLeave() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '离'
+    },
     columns() {
       const detail = this.query.tabType === 'control'
         ? controlStrategyColumns
@@ -157,9 +197,9 @@ export default {
         },
         { prop: 'channelName', label: '触点', text: true, format: (value, row) => value || row.channel || '—' },
         ...categoryLabelColumns(detail, this.query),
-        ...(this.query.tabType === 'control'
+        ...(this.query.tabType === 'control' || this.isDowngrade || this.isLeave
           ? []
-          : [{ prop: 'expectedIncome', label: '预期收入(元)' }, { prop: 'actualIncome', label: '实际收入(元)' }]),
+          : [{ prop: 'actualIncome', label: '实际收入(元)' }]),
       ]
     },
   },
@@ -175,14 +215,17 @@ export default {
         this.rulePage = 1
         this.selectedRule = null
         this.rules = []
+        this.liveRules = []
         this.loadDimensions()
         this.loadRules()
+        this.loadLiveRules()
       },
     },
   },
   created() {
     this.loadDimensions()
     this.loadRules()
+    this.loadLiveRules()
   },
   methods: {
     async loadDimensions() {
@@ -193,12 +236,13 @@ export default {
         this.dimensionError = '规则指标加载失败，请重试'
       }
     },
-    loadRules(preferredId) {
+    loadRules() {
       return this.request(
         'rules',
         () =>
           getWarningRuleList({
             ...this.query,
+            pageScope: this.pageScope,
             ruleName: this.ruleName,
             status: this.status,
             pageNum: this.rulePage,
@@ -207,21 +251,44 @@ export default {
         (result) => {
           this.rules = listOf(result)
           this.ruleTotal = Number(result && result.total) || 0
+        },
+      )
+    },
+    loadLiveRules(preferredId) {
+      return this.request(
+        'liveRules',
+        async () => {
+          const params = {
+            ...this.query,
+            pageScope: this.pageScope,
+            ruleName: '',
+            status: '生效中',
+            pageNum: 1,
+            pageSize: 500,
+          }
+          const firstPage = await getWarningRuleList(params)
+          const liveRules = listOf(firstPage)
+          const total = Number(firstPage && firstPage.total) || liveRules.length
+          for (let pageNum = 2; liveRules.length < total; pageNum++) {
+            const page = await getWarningRuleList({ ...params, pageNum })
+            const nextPage = listOf(page)
+            if (!nextPage.length) break
+            liveRules.push(...nextPage)
+          }
+          return { ...(firstPage || {}), list: liveRules, total }
+        },
+        (result) => {
+          this.liveRules = listOf(result)
           const id = preferredId || (this.selectedRule && this.selectedRule.id)
           this.selectedRule =
-            this.rules.find((r) => String(r.id) === String(id) && r.status === '生效中') ||
-            this.rules.find((r) => r.status === '生效中') ||
-            null
+            this.liveRules.find((rule) => String(rule.id) === String(id)) || this.liveRules[0] || null
           this.hitPage = 1
           this.loadHits()
         },
       )
     },
     chooseRule(rule) {
-      if (rule.status !== '生效中') {
-        this.$message.info('该规则当前未生效')
-        return
-      }
+      if (this.selectedRule && String(this.selectedRule.id) === String(rule.id)) return
       this.selectedRule = rule
       this.hitPage = 1
       this.loadHits()
@@ -240,6 +307,7 @@ export default {
         () =>
           getWarningHitStrategyList({
             ...this.query,
+            pageScope: this.pageScope,
             ruleId: this.selectedRule.id,
             pageNum: this.hitPage,
             pageSize: 10,
@@ -287,6 +355,28 @@ export default {
       this.hitPage = page
       this.loadHits()
     },
+    async exportAllHits() {
+      if (this.exportingHits || !this.selectedRule || !this.hitTotal) return
+      this.exportingHits = true
+      const params = {
+        ...this.query,
+        pageScope: this.pageScope,
+        ruleId: this.selectedRule.id,
+      }
+      try {
+        const rows = await fetchAllPagedRows(
+          (pageNum, pageSize) => getWarningHitStrategyList({ ...params, pageNum, pageSize }),
+          this.hitTotal,
+        )
+        if (this.$refs.hitTable) this.$refs.hitTable.exportRows(rows)
+      } catch (error) {
+        if (error && error.message === '导出数据未完整加载，请重试') {
+          Message.error(error.message)
+        }
+      } finally {
+        this.exportingHits = false
+      }
+    },
     openCreate() {
       this.editingRule = null
       this.dialogKey++
@@ -295,7 +385,7 @@ export default {
     async edit(rule) {
       this.busy = true
       try {
-        this.editingRule = await getWarningRuleDetail({ ...this.query, id: rule.id })
+        this.editingRule = await getWarningRuleDetail({ ...this.query, pageScope: this.pageScope, id: rule.id })
         this.dialogKey++
         this.dialogMode = 'edit'
       } catch (e) {
@@ -309,10 +399,11 @@ export default {
       try {
         await toggleWarningRuleStatus({
           ...this.query,
+          pageScope: this.pageScope,
           id: rule.id,
           status: rule.status === '生效中' ? '已停用' : '生效中',
         })
-        await this.loadRules()
+        await Promise.all([this.loadRules(), this.loadLiveRules()])
       } catch (e) {
         /* 请求拦截器展示错误 */
       } finally {
@@ -327,9 +418,9 @@ export default {
       }
       this.busy = true
       try {
-        await deleteWarningRule({ ...this.query, id: rule.id })
+        await deleteWarningRule({ ...this.query, pageScope: this.pageScope, id: rule.id })
         if (this.rules.length === 1 && this.rulePage > 1) this.rulePage--
-        await this.loadRules()
+        await Promise.all([this.loadRules(), this.loadLiveRules()])
         this.$message.success('规则已删除')
       } catch (e) {
         /* 请求拦截器展示错误 */
@@ -344,11 +435,11 @@ export default {
       this.ruleName = ''
       this.draftStatus = ''
       this.status = ''
-      await this.loadRules(id)
+      await Promise.all([this.loadRules(), this.loadLiveRules(id)])
     },
     savedRule() {
       this.dialogMode = ''
-      this.loadRules()
+      Promise.all([this.loadRules(), this.loadLiveRules()])
     },
   },
 }

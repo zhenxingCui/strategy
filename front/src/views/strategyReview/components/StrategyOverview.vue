@@ -69,7 +69,7 @@
 import EChart from '@/components/EChart.vue'
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
-import { chartRows } from '../active/reviewData'
+import { currentYearChartRows } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 // 默认高亮指标从 KPI 卡片第一条数据获取，不再写死
@@ -170,7 +170,7 @@ export default {
   computed: {
     chartOption () {
       const { months, values, qoq, unit } = this.trendData
-      const points = chartRows(months, values, qoq)
+      const points = currentYearChartRows(months, values, qoq, this.buildParams().statMonth)
       const chartMonths = points.months
       const chartValues = points.values
       const chartQoq = points.comparison
@@ -189,7 +189,7 @@ export default {
 
       // 柱状图Y轴自然范围
       const maxValue = Math.max(...chartValues.map(Number))
-      const barMax = (maxValue || 1) * 1.05
+      const barMax = (maxValue || 1) * 1.12
 
       // 环比Y轴：按数据实际范围自适应，上下各留25%标签余量，0必须在区间内
       // 不再用"固定0%线位置"的魔法常数，避免大环比量级下正区间被压缩、标签被裁剪
@@ -266,12 +266,7 @@ export default {
             itemStyle: { color: '#3b82f6', borderRadius: [3, 3, 0, 0] },
             barWidth: '40%',
             label: {
-              show: true,
-              // 数值放柱内顶部（白字），柱外空间留给环比标签，避免两者重叠
-              position: 'insideTop',
-              distance: 4,
-              color: '#fff',
-              fontSize: 10,
+              // 保留指标单位格式，柱顶位置和可读样式由 EChart 组件统一设置。
               formatter: (p) => formatVal(p.value)
             }
           },
@@ -297,8 +292,8 @@ export default {
               textBorderWidth: 3,
               formatter: (p) => (p.value >= 0 ? '+' : '') + p.value + '%'
             },
-            // 环比标签与柱内数值标签重叠时自动隐藏（tooltip 仍可查看），兜底保护
-            labelLayout: { hideOverlap: true }
+            // 所有环比点都显示具体数值，不因标签接近而自动隐藏。
+            labelLayout: { hideOverlap: false }
           }
         ]
       }

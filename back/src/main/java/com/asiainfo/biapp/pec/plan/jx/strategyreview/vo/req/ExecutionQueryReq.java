@@ -22,6 +22,12 @@ public class ExecutionQueryReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "策略ID（t_sr_strategy.id）")
     private String strategyId;
+    @ApiModelProperty("策略分类：升接/稳/降拆/离/重点客群；用于选择分类专属事实表")
+    private String strategyClass;
+    @ApiModelProperty("策略大类：用于限定策略产能趋势到当前选中策略行")
+    private String bigCategory;
+    @ApiModelProperty("策略小类：用于限定策略产能趋势到当前选中策略行")
+    private String smallCategory;
     @ApiModelProperty(value = "触点渠道，策略明细从渠道行进入时用于限定对应渠道")
     private String channel;
 

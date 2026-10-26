@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 拒绝原因响应（active 策略）
+ * 拒绝原因响应
  */
 @Data
 @ApiModel("拒绝原因响应")

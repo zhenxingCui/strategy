@@ -17,7 +17,7 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Aggregates strategy facts for selected customer groups or products; totals use existing summary queries. */
+/** Aggregates strategy facts for selected customer groups, products, and the stock "全部" scope. */
 @Service
 public class StrategyScopeAggregationService {
     @Autowired private SrStrategyScopeMapper mapper;
@@ -53,6 +53,11 @@ public class StrategyScopeAggregationService {
         {"income", "income", "收入", "元"}
     };
 
+    private static final List<String> KEY_AUDIENCE_TREND_METRICS = Arrays.asList(
+        "strategy_count", "original_cust", "push_count", "usage_count", "reach_count",
+        "product_conv_num", "actual_income", "usage_rate", "reach_rate", "product_conv_rate"
+    );
+
     private static String[][] metrics(String tabType) {
         return "control".equals(tabType) ? CONTROL_METRICS : METRICS;
     }
@@ -76,7 +81,10 @@ public class StrategyScopeAggregationService {
         BeanUtils.copyProperties(req, copy);
         String month = copy.getStatMonth();
         if (month == null || month.trim().isEmpty()) {
-            month = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId());
+            month = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
+        }
+        if (month == null || month.trim().isEmpty()) {
+            month = reviewMapper.selectLatestStrategyMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
         }
         if (month == null || month.trim().isEmpty()) month = YearMonth.now().toString();
         if (month.matches("[0-9]{6}")) month = month.substring(0, 4) + "-" + month.substring(4);
@@ -98,6 +106,67 @@ public class StrategyScopeAggregationService {
         row.put(name, percent(number(row, numerator), number(row, denominator)));
     }
 
+    private static void rateWhenComplete(Map<String, Object> row, String name, String numerator,
+                                        String denominator, String numeratorKnownRows,
+                                        String denominatorKnownRows) {
+        BigDecimal rows = number(row, "metricRowCount");
+        if (rows == null) rows = number(row, "strategyCount");
+        BigDecimal knownNumerators = number(row, numeratorKnownRows);
+        BigDecimal knownDenominators = number(row, denominatorKnownRows);
+        if (rows == null || knownNumerators == null || knownDenominators == null
+                || rows.compareTo(knownNumerators) != 0 || rows.compareTo(knownDenominators) != 0) {
+            row.put(name, null);
+            return;
+        }
+        rate(row, name, numerator, denominator);
+    }
+
+    private Set<String> declineCityServiceChannelCodes(TouchpointQueryReq req) {
+        if (!"active".equals(req.getTabType()) || !"降拆".equals(req.getStrategyClass())) return Collections.emptySet();
+        DimQueryReq dimensions = new DimQueryReq();
+        dimensions.setTabType(req.getTabType());
+        return reviewMapper.selectChannelDims(dimensions).stream()
+            .filter(item -> "市级-营服".equals(item.getKeyName()))
+            .map(DimItemVO::getKeyCode)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    }
+
+    private static boolean isDeclineCityServiceRow(TouchpointQueryReq req, Map<String, Object> row,
+                                                    Set<String> cityServiceCodes) {
+        if (!"active".equals(req.getTabType()) || !"降拆".equals(req.getStrategyClass())) return false;
+        if ("市级-营服".equals(req.getChannel())) return true;
+        return cityServiceCodes.contains(Objects.toString(row.get("channel"), ""));
+    }
+
+    private void applyMetricRates(TouchpointQueryReq req, Map<String, Object> row,
+                                  Set<String> cityServiceCodes) {
+        if ("active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())) {
+            // V3: all channels keep success in reach_count and dispatch in target/product.
+            rate(row, "reachRate", "reachCount", "pushCount");
+            rate(row, "targetConvRate", "targetConvNum", "pushCount");
+            rate(row, "productConvRate", "productConvNum", "pushCount");
+            rate(row, "usageRate", "usageCount", "pushCount");
+            rate(row, "rejectRate", "rejectCount", "pushCount");
+            return;
+        }
+        rate(row, "usageRate", "usageCount", "pushCount");
+        rate(row, "reachRate", "reachCount", reachRateDenominator(req));
+        rate(row, "targetConvRate", "targetConvNum", "reachCount");
+        rate(row, "productConvRate", "productConvNum", productConvRateDenominator(req));
+        rate(row, "rejectRate", "rejectCount", "pushCount");
+    }
+
+    private static String productConvRateDenominator(TouchpointQueryReq req) {
+        return "active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())
+            ? "pushCount" : "reachCount";
+    }
+
+    private static String reachRateDenominator(TouchpointQueryReq req) {
+        return "active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())
+            ? "pushCount" : "usageCount";
+    }
+
     private static List<Object> key(Map<String, Object> row, String month) {
         return Arrays.asList(month, row.get("channel"), row.get("bigCategory"), row.get("smallCategory"), row.get("bizName"));
     }
@@ -105,18 +174,20 @@ public class StrategyScopeAggregationService {
     private List<Map<String, Object>> rows(TouchpointQueryReq req, String dimension) {
         List<Map<String, Object>> rows = "business".equals(dimension)
             ? mapper.selectBusiness(req) : mapper.selectMetrics(req, dimension);
+        if (rows == null) rows = new ArrayList<>();
+        if ("business".equals(dimension)) reconcileBusinessRows(rows, req);
+        Set<String> cityServiceCodes = declineCityServiceChannelCodes(req);
         Map<List<Object>, Map<String, Object>> byMonth = new HashMap<>();
         for (Map<String, Object> row : rows) {
             if (!"business".equals(dimension) && "control".equals(req.getTabType())) {
-                rate(row, "retainRate", "retainCount", "consultCount");
-                rate(row, "reachRate", "dispatchCount", "retainCount");
-                rate(row, "successRate", "successCount", "dispatchCount");
+                rateWhenComplete(row, "retainRate", "retainCount", "consultCount",
+                    "retainKnownRows", "consultKnownRows");
+                rateWhenComplete(row, "reachRate", "dispatchCount", "retainCount",
+                    "dispatchKnownRows", "retainKnownRows");
+                rateWhenComplete(row, "successRate", "successCount", "dispatchCount",
+                    "successKnownRows", "dispatchKnownRows");
             } else if (!"business".equals(dimension)) {
-                rate(row, "usageRate", "usageCount", "pushCount");
-                rate(row, "reachRate", "reachCount", "usageCount");
-                rate(row, "targetConvRate", "targetConvNum", "reachCount");
-                rate(row, "productConvRate", "productConvNum", "reachCount");
-                rate(row, "rejectRate", "rejectCount", "pushCount");
+                applyMetricRates(req, row, cityServiceCodes);
             }
             byMonth.put(key(row, row.get("statMonth").toString()), row);
         }
@@ -134,6 +205,8 @@ public class StrategyScopeAggregationService {
                     Map<String, Object> previousComparable = samePeriod.get(key(row, previousMonth));
                     if (completeComparablePeriod(currentComparable, previousComparable)) {
                         applyChanges(row, currentComparable, previousComparable, req.getTabType());
+                    } else if (currentComparable != null && previous != null) {
+                        applyPartialMonthChanges(row, previous, currentComparable, req.getTabType());
                     }
                 }
             }
@@ -148,12 +221,9 @@ public class StrategyScopeAggregationService {
         String previousMonth = YearMonth.parse(req.getStatMonth()).minusMonths(1).toString();
         List<Map<String, Object>> comparable = mapper.selectSamePeriodMetrics(req, dimension, previousMonth, cutoff);
         Map<List<Object>, Map<String, Object>> result = new HashMap<>();
+        Set<String> cityServiceCodes = declineCityServiceChannelCodes(req);
         for (Map<String, Object> row : comparable) {
-            rate(row, "usageRate", "usageCount", "pushCount");
-            rate(row, "reachRate", "reachCount", "usageCount");
-            rate(row, "targetConvRate", "targetConvNum", "reachCount");
-            rate(row, "productConvRate", "productConvNum", "reachCount");
-            rate(row, "rejectRate", "rejectCount", "pushCount");
+            applyMetricRates(req, row, cityServiceCodes);
             result.put(key(row, row.get("statMonth").toString()), row);
         }
         return result;
@@ -170,6 +240,28 @@ public class StrategyScopeAggregationService {
             currentMax.compareTo(previousMax) == 0 && currentDays.compareTo(currentMax) == 0;
     }
 
+    /** Normalize an incomplete current month to the previous month's calendar span when matching daily rows are unavailable. */
+    private static void applyPartialMonthChanges(Map<String, Object> target, Map<String, Object> previous,
+                                                 Map<String, Object> currentComparable, String tabType) {
+        BigDecimal cutoffValue = number(currentComparable, "maxDay");
+        if (cutoffValue == null || cutoffValue.signum() <= 0) return;
+        int spanDays = YearMonth.parse(target.get("statMonth").toString()).minusMonths(1).lengthOfMonth();
+        BigDecimal span = BigDecimal.valueOf(spanDays);
+        for (String[] metric : metrics(tabType)) {
+            BigDecimal current = number(target, metric[0]);
+            BigDecimal before = number(previous, metric[0]);
+            if (current == null || before == null) {
+                target.put(metric[0] + "QoQ", null);
+            } else if ("%".equals(metric[3]) || "strategyCount".equals(metric[0])) {
+                target.put(metric[0] + "QoQ", change(current, before, "%".equals(metric[3])));
+            } else {
+                BigDecimal normalized = current.multiply(span)
+                    .divide(cutoffValue, 8, RoundingMode.HALF_UP);
+                target.put(metric[0] + "QoQ", change(normalized, before, false));
+            }
+        }
+    }
+
     private static void applyChanges(Map<String, Object> target, Map<String, Object> current,
                                      Map<String, Object> previous, String tabType) {
         for (String[] metric : metrics(tabType)) target.put(metric[0] + "QoQ",
@@ -179,6 +271,109 @@ public class StrategyScopeAggregationService {
     private static BigDecimal change(BigDecimal current, BigDecimal previous, boolean rate) {
         if (current == null || previous == null) return null;
         return rate ? current.subtract(previous) : percent(current.subtract(previous), previous);
+    }
+
+    private static String businessTargetMetric(TouchpointQueryReq req) {
+        if ("control".equals(req.getTabType())) return "successCount";
+        if ("active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())) return "reachCount";
+        if ("active".equals(req.getTabType())) return "productConvNum";
+        return "targetConvNum";
+    }
+
+    /** Reallocate business counts to the page success total, preserving their proportions and exact sum. */
+    private void reconcileBusinessRows(List<Map<String, Object>> businessRows, TouchpointQueryReq req) {
+        List<Map<String, Object>> metricRows = mapper.selectMetrics(req, "total");
+        if (metricRows == null || metricRows.isEmpty()) return;
+
+        String targetMetric = businessTargetMetric(req);
+        Map<String, BigDecimal> targetByMonth = new HashMap<>();
+        for (Map<String, Object> metricRow : metricRows) {
+            Object month = metricRow.get("statMonth");
+            BigDecimal target = number(metricRow, targetMetric);
+            if (month != null && target != null) targetByMonth.put(month.toString(), target);
+        }
+        if (targetByMonth.isEmpty()) return;
+
+        Map<String, List<Map<String, Object>>> rowsByMonth = new HashMap<>();
+        for (Map<String, Object> row : businessRows) {
+            Object month = row.get("statMonth");
+            if (month != null) rowsByMonth.computeIfAbsent(month.toString(), key -> new ArrayList<>()).add(row);
+        }
+
+        for (Map.Entry<String, BigDecimal> entry : targetByMonth.entrySet()) {
+            String month = entry.getKey();
+            BigDecimal target = entry.getValue();
+            if (target.signum() < 0) continue;
+
+            List<Map<String, Object>> monthRows = rowsByMonth.computeIfAbsent(month, key -> new ArrayList<>());
+            BigDecimal totalWeight = BigDecimal.ZERO;
+            List<BusinessAllocation> allocations = new ArrayList<>();
+            for (Map<String, Object> row : monthRows) {
+                BigDecimal capacity = number(row, "capacity");
+                BigDecimal weight = capacity == null || capacity.signum() < 0 ? BigDecimal.ZERO : capacity;
+                totalWeight = totalWeight.add(weight);
+                allocations.add(new BusinessAllocation(row, weight));
+            }
+
+            if (monthRows.isEmpty() || totalWeight.signum() == 0) {
+                businessRows.removeIf(row -> month.equals(String.valueOf(row.get("statMonth"))));
+                monthRows.clear();
+                if (target.signum() > 0) {
+                    Map<String, Object> unassigned = new HashMap<>();
+                    unassigned.put("statMonth", month);
+                    unassigned.put("bizName", "未分配");
+                    unassigned.put("capacity", target);
+                    businessRows.add(unassigned);
+                    monthRows.add(unassigned);
+                }
+                continue;
+            }
+
+            int scale = Math.max(0, target.stripTrailingZeros().scale());
+            BigDecimal normalizedTarget = target.setScale(scale, RoundingMode.HALF_UP);
+            BigDecimal unit = BigDecimal.ONE.movePointLeft(scale);
+            BigDecimal allocatedTotal = BigDecimal.ZERO;
+            for (BusinessAllocation allocation : allocations) {
+                BigDecimal exact = allocation.weight.multiply(normalizedTarget)
+                    .divide(totalWeight, Math.max(12, scale + 8), RoundingMode.HALF_UP);
+                BigDecimal allocated = exact.setScale(scale, RoundingMode.DOWN);
+                allocation.row.put("capacity", allocated);
+                allocation.remainder = exact.subtract(allocated);
+                allocatedTotal = allocatedTotal.add(allocated);
+            }
+
+            int remainingUnits = normalizedTarget.subtract(allocatedTotal)
+                .divide(unit, 0, RoundingMode.UNNECESSARY).intValueExact();
+            allocations.sort((left, right) -> {
+                int byRemainder = right.remainder.compareTo(left.remainder);
+                if (byRemainder != 0) return byRemainder;
+                return String.valueOf(left.row.get("bizName")).compareTo(String.valueOf(right.row.get("bizName")));
+            });
+            for (int i = 0; i < remainingUnits && i < allocations.size(); i++) {
+                BusinessAllocation allocation = allocations.get(i);
+                allocation.row.put("capacity", number(allocation.row, "capacity").add(unit));
+            }
+            BigDecimal reconciledTotal = BigDecimal.ZERO;
+            for (BusinessAllocation allocation : allocations) {
+                reconciledTotal = reconciledTotal.add(number(allocation.row, "capacity"));
+            }
+            BigDecimal roundingRemainder = normalizedTarget.subtract(reconciledTotal);
+            if (roundingRemainder.signum() != 0 && !allocations.isEmpty()) {
+                BusinessAllocation allocation = allocations.get(0);
+                allocation.row.put("capacity", number(allocation.row, "capacity").add(roundingRemainder));
+            }
+        }
+    }
+
+    private static final class BusinessAllocation {
+        private final Map<String, Object> row;
+        private final BigDecimal weight;
+        private BigDecimal remainder = BigDecimal.ZERO;
+
+        private BusinessAllocation(Map<String, Object> row, BigDecimal weight) {
+            this.row = row;
+            this.weight = weight;
+        }
     }
 
     private List<Map<String, Object>> current(List<Map<String, Object>> rows, TouchpointQueryReq req) {
@@ -197,6 +392,303 @@ public class StrategyScopeAggregationService {
         return total.isEmpty() ? null : total.get(0);
     }
 
+    private static String normalizeAudienceMonth(String month) {
+        if (month == null || month.trim().isEmpty()) return null;
+        String normalized = month.trim();
+        if (normalized.matches("[0-9]{6}")) return normalized.substring(0, 4) + "-" + normalized.substring(4);
+        if (normalized.length() >= 7) return normalized.substring(0, 7);
+        return normalized;
+    }
+
+    public List<KpiCardVO> audienceManualKpis(OverviewQueryReq request) {
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) {
+            statMonth = mapper.selectLatestAudienceTrendMonth(request);
+        }
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+
+        Map<String, Map<String, Object>> rowsByMetric = new HashMap<>();
+        for (Map<String, Object> row : mapper.selectAudienceManualKpis(request, statMonth)) {
+            rowsByMetric.put(Objects.toString(row.get("metricCode"), ""), row);
+        }
+        List<KpiCardVO> result = new ArrayList<>();
+        for (String metricCode : KEY_AUDIENCE_TREND_METRICS) {
+            Map<String, Object> row = rowsByMetric.get(metricCode);
+            if (row == null || number(row, "metricValue") == null) continue;
+            String[] metadata = Arrays.stream(METRICS).filter(metric -> metricCode.equals(metric[1]))
+                .findFirst().orElse(null);
+            if (metadata == null) continue;
+            KpiCardVO card = new KpiCardVO();
+            card.setMetricCode(metricCode);
+            card.setLabel(metadata[2]);
+            card.setUnit(metadata[3]);
+            card.setValue(number(row, "metricValue"));
+            card.setTrendQoQ(number(row, "manualQoq"));
+            result.add(card);
+        }
+        return result;
+    }
+
+    public List<KpiCardVO> upgradeStableManualKpis(OverviewQueryReq request) {
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableTrendMonth(request);
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+
+        Map<String, Map<String, Object>> rowsByMetric = new HashMap<>();
+        for (Map<String, Object> row : mapper.selectUpgradeStableManualKpis(request, statMonth)) {
+            rowsByMetric.put(Objects.toString(row.get("metricCode"), ""), row);
+        }
+        List<KpiCardVO> result = new ArrayList<>();
+        for (String metricCode : KEY_AUDIENCE_TREND_METRICS) {
+            Map<String, Object> row = rowsByMetric.get(metricCode);
+            if (row == null || number(row, "metricValue") == null) continue;
+            String[] metadata = Arrays.stream(METRICS).filter(metric -> metricCode.equals(metric[1]))
+                .findFirst().orElse(null);
+            if (metadata == null) continue;
+            KpiCardVO card = new KpiCardVO();
+            card.setMetricCode(metricCode);
+            card.setLabel(metadata[2]);
+            card.setUnit(metadata[3]);
+            card.setValue(number(row, "metricValue"));
+            card.setTrendQoQ(number(row, "manualQoq"));
+            result.add(card);
+        }
+        return result;
+    }
+
+    public KpiTrendVO audienceManualTrend(OverviewQueryReq request) {
+        String[] metadata = Arrays.stream(METRICS)
+            .filter(metric -> metric[1].equals(request.getMetricCode()))
+            .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) {
+            statMonth = mapper.selectLatestAudienceTrendMonth(request);
+        }
+
+        KpiTrendVO result = new KpiTrendVO();
+        result.setUnit(metadata[3]);
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            result.setMonths(Collections.emptyList());
+            result.setValues(Collections.emptyList());
+            result.setQoq(Collections.emptyList());
+            return result;
+        }
+        List<Map<String, Object>> rows = mapper.selectAudienceManualTrend(request, request.getMetricCode(), statMonth);
+        Collections.reverse(rows);
+        result.setMonths(rows.stream().map(row -> monthLabel(Objects.toString(row.get("month"), "")))
+            .collect(Collectors.toList()));
+        result.setValues(rows.stream().map(row -> number(row, "value")).collect(Collectors.toList()));
+        result.setQoq(rows.stream().map(row -> number(row, "qoq")).collect(Collectors.toList()));
+        return result;
+    }
+
+    public KpiTrendVO upgradeStableManualTrend(OverviewQueryReq request) {
+        String[] metadata = Arrays.stream(METRICS)
+            .filter(metric -> metric[1].equals(request.getMetricCode()))
+            .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableTrendMonth(request);
+
+        KpiTrendVO result = new KpiTrendVO();
+        result.setUnit(metadata[3]);
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            result.setMonths(Collections.emptyList());
+            result.setValues(Collections.emptyList());
+            result.setQoq(Collections.emptyList());
+            return result;
+        }
+        List<Map<String, Object>> rows = mapper.selectUpgradeStableManualTrend(
+            request, request.getMetricCode(), statMonth);
+        Collections.reverse(rows);
+        result.setMonths(rows.stream().map(row -> monthLabel(Objects.toString(row.get("month"), "")))
+            .collect(Collectors.toList()));
+        result.setValues(rows.stream().map(row -> number(row, "value")).collect(Collectors.toList()));
+        result.setQoq(rows.stream().map(row -> number(row, "qoq")).collect(Collectors.toList()));
+        return result;
+    }
+
+    public List<ChannelTrendVO> audienceManualCapacityTrend(TouchpointQueryReq request) {
+        TouchpointQueryReq req = new TouchpointQueryReq();
+        BeanUtils.copyProperties(request, req);
+        String statMonth = normalizeAudienceMonth(req.getStatMonth());
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            statMonth = mapper.selectLatestAudienceCapacityTrendMonth(req);
+        }
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+        req.setStatMonth(normalizeAudienceMonth(statMonth));
+        List<Map<String, Object>> rows = mapper.selectAudienceManualCapacityTrend(req, req.getStatMonth());
+        Collections.reverse(rows);
+        return rows.stream().map(row -> {
+            ChannelTrendVO item = new ChannelTrendVO();
+            item.setMonth(Objects.toString(row.get("month"), ""));
+            item.setMonthLabel(monthLabel(item.getMonth()));
+            item.setCapacity(number(row, "capacity"));
+            item.setQoq(number(row, "qoq"));
+            return item;
+        }).collect(Collectors.toList());
+    }
+
+    public List<KpiCardVO> passiveManualKpis(OverviewQueryReq request) {
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestPassiveTrendMonth(request);
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+
+        Map<String, Map<String, Object>> rowsByMetric = new HashMap<>();
+        for (Map<String, Object> row : mapper.selectPassiveManualKpis(request, statMonth)) {
+            rowsByMetric.put(Objects.toString(row.get("metricCode"), ""), row);
+        }
+        List<KpiCardVO> result = new ArrayList<>();
+        for (String metricCode : KEY_AUDIENCE_TREND_METRICS) {
+            Map<String, Object> row = rowsByMetric.get(metricCode);
+            if (row == null || number(row, "metricValue") == null) continue;
+            String[] metadata = Arrays.stream(METRICS).filter(metric -> metricCode.equals(metric[1]))
+                .findFirst().orElse(null);
+            if (metadata == null) continue;
+            KpiCardVO card = new KpiCardVO();
+            card.setMetricCode(metricCode);
+            card.setLabel(metadata[2]);
+            card.setUnit(metadata[3]);
+            card.setValue(number(row, "metricValue"));
+            card.setTrendQoQ(number(row, "manualQoq"));
+            result.add(card);
+        }
+        return result;
+    }
+
+    public KpiTrendVO passiveManualTrend(OverviewQueryReq request) {
+        String[] metadata = Arrays.stream(METRICS)
+            .filter(metric -> metric[1].equals(request.getMetricCode()))
+            .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestPassiveTrendMonth(request);
+
+        KpiTrendVO result = new KpiTrendVO();
+        result.setUnit(metadata[3]);
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            result.setMonths(Collections.emptyList());
+            result.setValues(Collections.emptyList());
+            result.setQoq(Collections.emptyList());
+            return result;
+        }
+        List<Map<String, Object>> rows = mapper.selectPassiveManualTrend(request, request.getMetricCode(), statMonth);
+        Collections.reverse(rows);
+        result.setMonths(rows.stream().map(row -> monthLabel(Objects.toString(row.get("month"), "")))
+            .collect(Collectors.toList()));
+        result.setValues(rows.stream().map(row -> number(row, "value")).collect(Collectors.toList()));
+        result.setQoq(rows.stream().map(row -> number(row, "qoq")).collect(Collectors.toList()));
+        return result;
+    }
+
+    public List<ChannelTrendVO> passiveManualCapacityTrend(TouchpointQueryReq request) {
+        TouchpointQueryReq req = new TouchpointQueryReq();
+        BeanUtils.copyProperties(request, req);
+        String statMonth = normalizeAudienceMonth(req.getStatMonth());
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            statMonth = mapper.selectLatestPassiveCapacityTrendMonth(req);
+        }
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+        req.setStatMonth(normalizeAudienceMonth(statMonth));
+        List<Map<String, Object>> rows = mapper.selectPassiveManualCapacityTrend(req, req.getStatMonth());
+        Collections.reverse(rows);
+        return rows.stream().map(row -> {
+            ChannelTrendVO item = new ChannelTrendVO();
+            item.setMonth(Objects.toString(row.get("month"), ""));
+            item.setMonthLabel(monthLabel(item.getMonth()));
+            item.setCapacity(number(row, "capacity"));
+            item.setQoq(number(row, "qoq"));
+            return item;
+        }).collect(Collectors.toList());
+    }
+
+    public List<ChannelTrendVO> upgradeStableManualCapacityTrend(TouchpointQueryReq request) {
+        TouchpointQueryReq req = new TouchpointQueryReq();
+        BeanUtils.copyProperties(request, req);
+        String statMonth = normalizeAudienceMonth(req.getStatMonth());
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            statMonth = mapper.selectLatestUpgradeStableCapacityTrendMonth(req);
+        }
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+        req.setStatMonth(normalizeAudienceMonth(statMonth));
+        List<Map<String, Object>> rows = mapper.selectUpgradeStableManualCapacityTrend(req, req.getStatMonth());
+        Collections.reverse(rows);
+        return rows.stream().map(row -> {
+            ChannelTrendVO item = new ChannelTrendVO();
+            item.setMonth(Objects.toString(row.get("month"), ""));
+            item.setMonthLabel(monthLabel(item.getMonth()));
+            item.setCapacity(number(row, "capacity"));
+            item.setQoq(number(row, "qoq"));
+            return item;
+        }).collect(Collectors.toList());
+    }
+
+    public List<KpiCardVO> controlManualKpis(OverviewQueryReq request) {
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestControlTrendMonth(request);
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+
+        Map<String, Map<String, Object>> rowsByMetric = new HashMap<>();
+        for (Map<String, Object> row : mapper.selectControlManualKpis(request, statMonth)) {
+            rowsByMetric.put(Objects.toString(row.get("metricCode"), ""), row);
+        }
+        List<KpiCardVO> result = new ArrayList<>();
+        for (String[] metadata : CONTROL_METRICS) {
+            Map<String, Object> row = rowsByMetric.get(metadata[1]);
+            if (row == null || number(row, "metricValue") == null) continue;
+            KpiCardVO card = new KpiCardVO();
+            card.setMetricCode(metadata[1]);
+            card.setLabel(metadata[2]);
+            card.setUnit(metadata[3]);
+            card.setValue(number(row, "metricValue"));
+            card.setTrendQoQ(number(row, "manualQoq"));
+            result.add(card);
+        }
+        return result;
+    }
+
+    public KpiTrendVO controlManualTrend(OverviewQueryReq request) {
+        String[] metadata = Arrays.stream(CONTROL_METRICS)
+            .filter(metric -> metric[1].equals(request.getMetricCode()))
+            .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
+        String statMonth = normalizeAudienceMonth(request.getStatMonth());
+        if (statMonth == null) statMonth = mapper.selectLatestControlTrendMonth(request);
+
+        KpiTrendVO result = new KpiTrendVO();
+        result.setUnit(metadata[3]);
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            result.setMonths(Collections.emptyList());
+            result.setValues(Collections.emptyList());
+            result.setQoq(Collections.emptyList());
+            return result;
+        }
+        List<Map<String, Object>> rows = mapper.selectControlManualTrend(request, request.getMetricCode(), statMonth);
+        Collections.reverse(rows);
+        result.setMonths(rows.stream().map(row -> monthLabel(Objects.toString(row.get("month"), "")))
+            .collect(Collectors.toList()));
+        result.setValues(rows.stream().map(row -> number(row, "value")).collect(Collectors.toList()));
+        result.setQoq(rows.stream().map(row -> number(row, "qoq")).collect(Collectors.toList()));
+        return result;
+    }
+
+    public List<ChannelTrendVO> controlManualCapacityTrend(TouchpointQueryReq request) {
+        TouchpointQueryReq req = new TouchpointQueryReq();
+        BeanUtils.copyProperties(request, req);
+        String statMonth = normalizeAudienceMonth(req.getStatMonth());
+        if (statMonth == null || statMonth.trim().isEmpty()) {
+            statMonth = mapper.selectLatestControlCapacityTrendMonth(req);
+        }
+        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
+        List<Map<String, Object>> rows = mapper.selectControlManualCapacityTrend(req, normalizeAudienceMonth(statMonth));
+        Collections.reverse(rows);
+        return rows.stream().map(row -> {
+            ChannelTrendVO item = new ChannelTrendVO();
+            item.setMonth(Objects.toString(row.get("month"), ""));
+            item.setMonthLabel(monthLabel(item.getMonth()));
+            item.setCapacity(number(row, "capacity"));
+            item.setQoq(number(row, "qoq"));
+            return item;
+        }).collect(Collectors.toList());
+    }
+
     public List<KpiCardVO> kpis(OverviewQueryReq req) {
         Map<String, Object> total = total(scope(req));
         if (total == null) return Collections.emptyList();
@@ -204,6 +696,18 @@ public class StrategyScopeAggregationService {
         for (String[] metric : metrics(req.getTabType())) {
             KpiCardVO card = new KpiCardVO();
             card.setMetricCode(metric[1]); card.setLabel(metric[2]); card.setUnit(metric[3]);
+            if ("active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())) {
+                switch (metric[1]) {
+                    case "push_count":
+                        card.setLabel("市级-营服".equals(req.getChannel()) || "网格-面客".equals(req.getChannel()) ? "接单量" : "咨询量");
+                        break;
+                    case "reach_count": card.setLabel("成功量"); break;
+                    case "reach_rate": card.setLabel("成功率"); break;
+                    case "target_conv_num": case "product_conv_num": card.setLabel("派单量"); break;
+                    case "target_conv_rate": case "product_conv_rate": card.setLabel("派单率"); break;
+                    default: break;
+                }
+            }
             card.setValue(number(total, metric[0])); card.setTrendQoQ(number(total, metric[0] + "QoQ"));
             cards.add(card);
         }
@@ -248,8 +752,11 @@ public class StrategyScopeAggregationService {
 
     public CategoryRespVO categories(TouchpointQueryReq request) {
         TouchpointQueryReq req = normalize(request);
-        // 客群/产品范围下的策略分类汇总也忽略页面渠道筛选，按全部渠道合计。
-        req.setChannel(null);
+        // 页面传空、"全部"或"全部渠道"时汇总所有触点；选中具体触点时保留渠道条件。
+        if (req.getChannel() == null || req.getChannel().trim().isEmpty()
+                || "全部".equals(req.getChannel()) || "全部渠道".equals(req.getChannel())) {
+            req.setChannel(null);
+        }
         List<Map<String, Object>> current = current(rows(req, "category"), req);
         sort(current, req, "strategyCount");
         CategoryRespVO result = new CategoryRespVO();
@@ -263,7 +770,8 @@ public class StrategyScopeAggregationService {
     }
 
     public List<ChannelTrendVO> capacityTrend(TouchpointQueryReq request) {
-        String metric = "control".equals(request.getTabType()) ? "successCount" : "productConvNum";
+        // Match the successful quantity shown in the page's strategy tables.
+        String metric = businessTargetMetric(request);
         List<Map<String, Object>> all = rows(normalize(request), "total");
         List<ChannelTrendVO> result = new ArrayList<>();
         for (Map<String, Object> row : all.subList(Math.max(0, all.size() - 6), all.size())) {
@@ -278,8 +786,30 @@ public class StrategyScopeAggregationService {
     public List<ChannelBizVO> business(TouchpointQueryReq request) {
         TouchpointQueryReq req = normalize(request);
         List<Map<String, Object>> current = current(rows(req, "business"), req);
+        if (usesManualBusinessQoq(req)) {
+            Map<String, BigDecimal> manualQoqByBiz = new LinkedHashMap<>();
+            List<Map<String, Object>> manualRows = mapper.selectManualBusinessQoq(req);
+            if (manualRows != null) {
+                for (Map<String, Object> manualRow : manualRows) {
+                    String bizName = Objects.toString(manualRow.get("bizName"), null);
+                    if (bizName != null && !manualQoqByBiz.containsKey(bizName)) {
+                        manualQoqByBiz.put(bizName, number(manualRow, "qoq"));
+                    }
+                }
+            }
+            for (Map<String, Object> row : current) {
+                // Missing manual values deliberately stay null; never fall back to a calculated qoq.
+                row.put("qoq", manualQoqByBiz.get(Objects.toString(row.get("bizName"), "")));
+            }
+        }
         sort(current, req, "capacity");
         return current.stream().map(row -> bean(row, new ChannelBizVO())).collect(Collectors.toList());
+    }
+
+    private static boolean usesManualBusinessQoq(TouchpointQueryReq req) {
+        return "passive".equals(req.getTabType())
+            || ("active".equals(req.getTabType())
+                && Arrays.asList("升接", "稳", "重点客群").contains(req.getStrategyClass()));
     }
 
     private static String monthLabel(String month) { return YearMonth.parse(month).getMonthValue() + "月"; }

@@ -13,6 +13,13 @@ export function percentText(value) {
   return value === null || value === undefined || value === '' ? '—' : `${numberText(value)}%`
 }
 
+function ratioText(numerator, denominator) {
+  if (numerator === null || numerator === undefined || denominator === null || denominator === undefined || denominator === '') return '—'
+  const top = Number(numerator)
+  const bottom = Number(denominator)
+  return Number.isFinite(top) && Number.isFinite(bottom) && bottom !== 0 ? percentText((top / bottom) * 100) : '—'
+}
+
 // 柱状图只保留有月份且实际有数值的记录；数值 0 是有效数据，空值不占月份位置。
 export function chartRows(months = [], values = [], comparison = []) {
   const monthList = Array.isArray(months) ? months : []
@@ -35,6 +42,48 @@ export function chartRows(months = [], values = [], comparison = []) {
     },
     { months: [], values: [], comparison: [] },
   )
+}
+
+function parseYearMonth(value) {
+  const raw = String(value == null ? '' : value).trim()
+  const fullDate = raw.match(/^(\d{4})[-/.年]?(\d{1,2})(?:月)?/)
+  if (fullDate) {
+    const month = Number(fullDate[2])
+    return month >= 1 && month <= 12 ? { year: Number(fullDate[1]), month } : null
+  }
+  const monthOnly = raw.match(/^(\d{1,2})月?$/)
+  if (monthOnly) {
+    const month = Number(monthOnly[1])
+    return month >= 1 && month <= 12 ? { month } : null
+  }
+  return null
+}
+
+// Strategy overview charts show the current calendar year's months only.
+// Month-only labels (for example, "1月") are anchored to the query month so
+// a rolling 12-month series crossing January can be assigned to the right year.
+export function currentYearChartRows(months = [], values = [], comparison = [], statMonth = '') {
+  const points = chartRows(months, values, comparison)
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  const reference = parseYearMonth(statMonth) || { year: currentYear, month: currentMonth }
+  const startKey = currentYear * 100 + 1
+  const endKey = currentYear * 100 + currentMonth
+
+  return points.months.reduce((result, label, index) => {
+    const parsed = parseYearMonth(label)
+    if (!parsed) return result
+    const year = parsed.year == null
+      ? reference.year - (parsed.month > reference.month ? 1 : 0)
+      : parsed.year
+    const key = year * 100 + parsed.month
+    if (key < startKey || key > endKey) return result
+    result.months.push(label)
+    result.values.push(points.values[index])
+    result.comparison.push(points.comparison[index])
+    return result
+  }, { months: [], values: [], comparison: [] })
 }
 
 export function monthRange(month) {
@@ -98,36 +147,133 @@ export const strategyColumns = [
   ...metrics,
 ]
 
-// 存量“降拆”页统一场景与咨询/挽留/派单/成功文案，字段、排序和导出取值保持原样。
+const downgradeMetricSets = {
+  overall: {
+    funnel: [
+      { key: 'push_count', label: '咨询量' },
+      { key: 'reach_count', label: '成功量' },
+    ],
+    rates: [{ key: 'reach_rate', label: '成功率' }],
+    capacity: 'reach_count',
+    tableProps: ['pushCount', 'reachCount', 'reachRate'],
+  },
+  provinceOnline: {
+    funnel: [
+      { key: 'push_count', label: '咨询量' },
+      { key: 'reach_count', label: '成功量' },
+      { key: 'target_conv_num', label: '派单量' },
+    ],
+    rates: [
+      { key: 'reach_rate', label: '成功率' },
+      { key: 'target_conv_rate', label: '派单率' },
+    ],
+    capacity: 'reach_count',
+    tableProps: ['pushCount', 'reachCount', 'reachRate', 'targetConvNum', 'dispatchRate'],
+  },
+  cityService: {
+    funnel: [
+      { key: 'push_count', label: '接单量' },
+      { key: 'reach_count', label: '成功量' },
+      { key: 'target_conv_num', label: '派单量' },
+    ],
+    rates: [
+      { key: 'reach_rate', label: '成功率' },
+      { key: 'target_conv_rate', label: '派单率' },
+    ],
+    capacity: 'reach_count',
+    tableProps: ['pushCount', 'reachCount', 'reachRate', 'targetConvNum', 'dispatchRate'],
+  },
+  gridFace: {
+    funnel: [
+      { key: 'push_count', label: '接单量' },
+      { key: 'reach_count', label: '成功量' },
+    ],
+    rates: [{ key: 'reach_rate', label: '成功率' }],
+    capacity: 'reach_count',
+    tableProps: ['pushCount', 'reachCount', 'reachRate'],
+  },
+  gridHall: {
+    funnel: [
+      { key: 'push_count', label: '咨询量' },
+      { key: 'reach_count', label: '成功量' },
+    ],
+    rates: [{ key: 'reach_rate', label: '成功率' }],
+    capacity: 'reach_count',
+    tableProps: ['pushCount', 'reachCount', 'reachRate'],
+  },
+}
+
+export function downgradeChannelMetrics(channel) {
+  const normalized = String(channel || '整体').replace(/[-\s]/g, '')
+  if (normalized === '省级在线') return downgradeMetricSets.provinceOnline
+  if (normalized === '市级营服') return downgradeMetricSets.cityService
+  if (normalized === '网格面客') return downgradeMetricSets.gridFace
+  if (normalized === '网格到厅') return downgradeMetricSets.gridHall
+  return downgradeMetricSets.overall
+}
+
+// 存量“降拆”页按渠道显示咨询/接单/派单/成功指标，并使用统一比率口径。
 export function categoryLabelColumns(columns, query) {
-  if (!query || query.tabType !== 'active' || query.strategyClass !== '降拆') return columns
+  if (!query || query.tabType !== 'active') return columns
+  // All stock views display product conversions as successful quantity/rate.
+  if (query.strategyClass !== '降拆') {
+    return columns.map((column) => {
+      if (column.prop === 'targetConvNum') return { ...column, prop: 'productConvNum' }
+      if (column.prop === 'targetConvRate') return { ...column, prop: 'productConvRate' }
+      return column
+    })
+  }
+  const metricSet = downgradeChannelMetrics(query.channel)
   const labels = {
     bigCategory: '场景大类', smallCategory: '场景小类',
-    pushCount: '咨询量', usageCount: '挽留量', usageRate: '挽留率',
-    reachCount: '派单量', reachRate: '派单率',
-    targetConvNum: '成功量', targetConvRate: '成功率',
+    pushCount: metricSet.funnel.find((metric) => metric.key === 'push_count')?.label || '咨询量',
+    usageCount: metricSet.funnel.find((metric) => metric.key === 'usage_count')?.label || '接单量',
+    reachCount: '成功量', reachRate: '成功率',
+    targetConvNum: '派单量', targetConvRate: '派单率', dispatchRate: '派单率',
     capacity: '成功量', count: '成功量',
   }
-  return columns.map((column) => labels[column.prop] ? { ...column, label: labels[column.prop] } : column)
+  const metricProps = new Set(['pushCount', 'usageCount', 'usageRate', 'reachCount', 'reachRate', 'targetConvNum', 'targetConvRate', 'productConvNum', 'productConvRate', 'dispatchRate'])
+  const result = []
+  let metricsAdded = false
+  columns.forEach((column) => {
+    if (metricProps.has(column.prop)) {
+      if (!metricsAdded) {
+        metricSet.tableProps.forEach((prop) => {
+          const spec = { prop, label: labels[prop] || prop }
+          if (prop === 'reachRate') spec.format = (_, row) => ratioText(row.reachCount, row.pushCount)
+          if (prop === 'dispatchRate') spec.format = (_, row) => ratioText(row.targetConvNum, row.pushCount)
+          result.push(spec)
+        })
+        metricsAdded = true
+      }
+      return
+    }
+    if (labels[column.prop]) result.push({ ...column, label: labels[column.prop] })
+    else result.push(column)
+  })
+  return result
 }
 
 export const channelBizColumns = [
   { prop: 'bizName', label: '业务名称', text: true },
   { prop: 'capacity', label: '产能' },
-  { prop: 'qoq', label: '环比', format: percentText },
 ]
 
 export const strategyBizColumns = [
   { prop: 'bizName', label: '业务名称', text: true },
   { prop: 'count', label: '产能' },
-  { prop: 'momRatio', label: '环比', format: percentText },
 ]
 
-export function barLineOption(months = [], values = [], qoq = [], label = '产能', unit = '') {
+export function barLineOption(months = [], values = [], qoq = [], label = '产能', unit = '', options = {}) {
   const points = chartRows(months, values, qoq)
   months = points.months
   values = points.values
   qoq = points.comparison
+  const scaleByTenThousand = options.scaleByTenThousand && unit !== '%' && !String(unit).startsWith('万')
+  if (scaleByTenThousand) {
+    values = values.map((value) => Number(value) / 10000)
+    unit = unit === '元' ? '万元' : `万${unit}`
+  }
   if (!months.length) {
     return {
       title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#86909c', fontSize: 12, fontWeight: 400 } },
@@ -191,6 +337,9 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
         symbolSize: 5,
         smooth: false,
         connectNulls: false,
+        label: {
+          formatter: (p) => p.value == null ? '' : numberText(p.value) + (unit === '%' ? 'pp' : '%'),
+        },
       },
     ],
   }

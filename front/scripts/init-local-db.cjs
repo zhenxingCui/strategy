@@ -8,6 +8,17 @@ const keyAudienceNames = [
 ]
 const activeClasses = ['升接', '稳', '降拆', '离', '重点客群']
 const customerGroups = ['高价值客群', '校园客群', '家庭客群', '银龄客群', '高价值客群', '校园客群', '高价值客群', '家庭客群']
+const keyAudienceTableByBase = {
+  t_sr_strategy: 't_sr_strategy_key_audience',
+  t_sr_strategy_period_summary_ap: 't_sr_strategy_period_summary_ap_key_audience',
+  t_sr_strategy_daily_ap: 't_sr_strategy_daily_ap_key_audience',
+  t_sr_channel_summary_ap: 't_sr_channel_summary_ap_key_audience',
+  t_sr_channel_monthly_capacity_ap: 't_sr_channel_monthly_capacity_ap_key_audience',
+  t_sr_channel_biz_capacity_ap: 't_sr_channel_biz_capacity_ap_key_audience',
+  t_sr_strategy_biz_capacity: 't_sr_strategy_biz_capacity_key_audience',
+  t_sr_kpi_summary: 't_sr_kpi_summary_key_audience',
+  t_sr_strategy_reject_reason: 't_sr_strategy_reject_reason_key_audience',
+}
 
 const database = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
 if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(database)) throw new Error('数据库名仅支持字母、数字和下划线')
@@ -147,6 +158,14 @@ async function main() {
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_strategy_biz_tab_type.sql'), 'utf8'))
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_strategy_class_chinese.sql'), 'utf8'))
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_split_nonstandard_classes.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_biz_capacity_qoq_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_strategy_detail_biz_capacity_qoq_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_key_audience_monthly_trend_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_key_audience_strategy_monthly_trend_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_control_monthly_trend_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_control_strategy_monthly_trend_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_upgrade_stable_monthly_trend_manual.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_add_upgrade_stable_strategy_monthly_trend_manual.sql'), 'utf8'))
     if (refreshExisting) {
       const [seeded] = await connection.query(
         "SELECT COUNT(*) AS seeded_count FROM v_sr_strategy_read WHERE tab_type = 'active' AND owner = '本地联调' AND strategy_code LIKE 'STR%' AND is_deleted = 0",
@@ -159,7 +178,8 @@ async function main() {
       }
     }
     const columnCache = {}
-    async function insert(table, rows) {
+    const keyAudienceStrategyIds = new Set()
+    async function insertRows(table, rows) {
       if (!rows.length) return
       if (!columnCache[table]) {
         const [cols] = await connection.query('SHOW COLUMNS FROM ??', [table])
@@ -174,26 +194,48 @@ async function main() {
         ])
       }
     }
+    async function insert(table, rows) {
+      if (!rows.length) return
+      const keyTable = keyAudienceTableByBase[table]
+      if (!keyTable) return insertRows(table, rows)
+      if (table === 't_sr_strategy') {
+        rows.filter((row) => row.strategy_class === '重点客群').forEach((row) => keyAudienceStrategyIds.add(row.strategy_code))
+      }
+      const keyRows = rows.filter((row) => row.strategy_class === '重点客群'
+        || keyAudienceStrategyIds.has(row.strategy_id)
+        || keyAudienceStrategyIds.has(row.strategy_code))
+      const sharedRows = rows.filter((row) => !keyRows.includes(row))
+      await insertRows(table, sharedRows)
+      await insertRows(keyTable, keyRows)
+    }
     await connection.beginTransaction()
     if (refreshExisting) {
       const generatedStrategyIds = Array.from({ length: 12 + keyAudienceNames.length }, (_, index) => `STR${String(index + 1).padStart(3, '0')}`)
       const deletes = [
         ['t_sr_strategy_reject_reason', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_strategy_reject_reason_special', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_strategy_reject_reason_key_audience', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_strategy_biz_capacity', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_strategy_biz_capacity_special', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
+        ['t_sr_strategy_biz_capacity_key_audience', 'strategy_id IN (?) AND city_id = ?', [generatedStrategyIds, '999']],
         ['t_sr_channel_biz_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_biz_capacity_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_biz_capacity_ap_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_daily_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_daily_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_daily_ap_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_monthly_capacity_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_monthly_capacity_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_monthly_capacity_ap_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_channel_summary_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_channel_summary_ap_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_period_summary_ap', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_strategy_period_summary_ap_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_strategy_period_summary_ap_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_kpi_summary', 'tab_type = ? AND city_id = ?', ['active', '999']],
         ['t_sr_kpi_summary_special', 'tab_type = ? AND city_id = ?', ['active', '999']],
+        ['t_sr_kpi_summary_key_audience', 'tab_type = ? AND city_id = ?', ['active', '999']],
       ]
       for (const [table, where, params] of deletes) {
         await connection.query(`DELETE FROM ?? WHERE ${where}`, [table, ...params])
@@ -204,6 +246,10 @@ async function main() {
       )
       await connection.query(
         'DELETE FROM t_sr_strategy_special WHERE strategy_code IN (?) AND owner = ?',
+        [generatedStrategyIds, '本地联调'],
+      )
+      await connection.query(
+        'DELETE FROM t_sr_strategy_key_audience WHERE strategy_code IN (?) AND owner = ?',
         [generatedStrategyIds, '本地联调'],
       )
     }
@@ -570,6 +616,12 @@ async function main() {
     await insert('t_sr_channel_biz_capacity_ap', channelBiz.concat(channelBiz.map(row => ({ ...row, strategy_class: '全部' }))))
     await insert('t_sr_strategy_reject_reason', reasons)
     await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_move_nonstandard_class_data.sql'), 'utf8'))
+    await connection.query(fs.readFileSync(path.resolve(__dirname, '../../back/src/main/resources/sql/strategy_review_seed_biz_capacity_qoq_manual.sql'), 'utf8'))
+    const audienceTrendSummary = await require('./seed-key-audience-monthly-trend-manual-local.cjs').seed(connection)
+    const controlTrendSummary = await require('./seed-control-monthly-trend-manual-local.cjs').seed(connection)
+    const controlStrategyTrendSummary = await require('./seed-control-strategy-monthly-trend-manual-local.cjs').seed(connection)
+    const upgradeStableTrendSummary = await require('./seed-upgrade-stable-monthly-trend-manual-local.cjs').seed(connection)
+    const upgradeStableStrategyTrendSummary = await require('./seed-upgrade-stable-strategy-monthly-trend-manual-local.cjs').seed(connection)
     let ruleCount = null
     if (!refreshExisting) {
       const rules = Array.from({ length: 7 }, (_, i) => ({
@@ -634,6 +686,11 @@ async function main() {
           strategies: strategies.length,
           monthlyDetails: periods.length,
           dailyDetails: daily.length,
+          audienceTrend: audienceTrendSummary,
+          controlTrend: controlTrendSummary,
+          controlStrategyTrend: controlStrategyTrendSummary,
+          upgradeStableTrend: upgradeStableTrendSummary,
+          upgradeStableStrategyTrend: upgradeStableStrategyTrendSummary,
           rules: ruleCount,
         },
         null,

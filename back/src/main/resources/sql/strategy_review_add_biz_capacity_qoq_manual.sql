@@ -1,0 +1,25 @@
+-- Add the manual QoQ table for existing environments. Safe to run repeatedly.
+CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity_qoq_manual (
+    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    tab_type        VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT '策略类型',
+    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：存量升接/稳/重点客群；增量填全部',
+    customer_group  VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '重点客群名称；全部客群或非重点客群填全部',
+    stat_month      DATE          NOT NULL COMMENT '账期月份，统一存每月1日',
+    channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点渠道编码；全部表示通用值',
+    big_category    VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略大类；全部表示该维度汇总值',
+    small_category  VARCHAR(128) NOT NULL DEFAULT '全部' COMMENT '策略小类；全部表示该维度汇总值',
+    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市编码；全部表示通用值',
+    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县编码；全部表示通用值',
+    biz_name        VARCHAR(128)  NOT NULL COMMENT '业务名称，与页面业务名称一致',
+    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '人工环比百分数，例如1表示1%',
+    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待填写/停用，1已发布',
+    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
+    created_by      VARCHAR(64)   DEFAULT NULL COMMENT '创建人',
+    updated_by      VARCHAR(64)   DEFAULT NULL COMMENT '最后修改人',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_biz_qoq_scope (tab_type, strategy_class, customer_group, stat_month, channel,
+        big_category, small_category, city_id, county_id, biz_name),
+    KEY idx_biz_qoq_lookup (stat_month, tab_type, strategy_class, customer_group, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略业务产能人工环比维护';

@@ -146,14 +146,9 @@
     h1 {
       font-size: 20px;
     }
-    label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .data-month {
       color: var(--text-2);
-    }
-    .el-date-editor {
-      width: 135px;
+      white-space: nowrap;
     }
   }
   .section {
@@ -575,6 +570,10 @@
     &:disabled {
       opacity: 0.6;
     }
+    &.metric-block--static:disabled {
+      opacity: 1;
+      cursor: default;
+    }
     &.active {
       border-color: #78b4ff;
       background: var(--brand-weak);
@@ -621,6 +620,9 @@
       font-size: 13px;
     }
   }
+  .metric-mid-body--audience-count {
+    grid-template-columns: minmax(0, 22fr) minmax(0, 78fr);
+  }
   .metric-orb {
     width: 28px;
     height: 28px;
@@ -653,11 +655,6 @@
       font-size: 13px;
       font-weight: 500;
     }
-  }
-  .metric-footnote {
-    margin-top: 8px;
-    font-size: 10px;
-    color: var(--muted);
   }
   /* 模块一指标区与“策略复盘与预警”原型的 mt1 布局对齐。 */
   .metric-snapshot {
@@ -758,6 +755,14 @@
   // 四条指标时让整组与左侧指标卡片共享垂直中心。
   .metric-col-mid--four {
     grid-template-rows: repeat(4, 52px);
+    align-content: center;
+  }
+  .metric-col-mid--three {
+    grid-template-rows: repeat(3, 52px);
+    align-content: center;
+  }
+  .metric-col-mid--two {
+    grid-template-rows: repeat(2, 52px);
     align-content: center;
   }
   .metric-mid {
@@ -915,14 +920,6 @@
     border: 1px solid var(--border-2);
     border-radius: 4px;
     margin-bottom: 8px;
-    cursor: pointer;
-    &:hover {
-      border-color: var(--brand);
-    }
-    &.selected {
-      border-color: var(--brand);
-      background: var(--brand-weak);
-    }
   }
   .rule-pick {
     display: flex;
@@ -971,6 +968,44 @@
   }
   .warning-table-card .table-wrap {
     max-height: 420px;
+  }
+  .warning-rule-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 4px 0 10px;
+    padding: 2px 0 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-2);
+  }
+  .warning-rule-tab {
+    flex: 0 0 auto;
+    max-width: 220px;
+    overflow: hidden;
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    color: var(--text-2);
+    background: transparent;
+    font: inherit;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    &:hover {
+      color: var(--brand);
+      background: var(--brand-weak);
+    }
+    &.active {
+      color: #fff;
+      border-color: var(--brand);
+      background: var(--brand);
+      font-weight: 600;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
   }
   .detail-grid {
     display: grid;

@@ -1,0 +1,65 @@
+{
+  "tabType": "active",
+  "strategyClass": "重点客群",
+  "cityId": "999",
+  "countyId": null,
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-21",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyDays": 21,
+  "dailyRowCount": 231,
+  "dailyIsSimulated": true,
+  "dailyMethod": "客群及触点汇总转化率围绕来源月波动 ±2 个百分点；每条策略的每日推送量围绕自身日均波动 ±10%；逐日整数分配后保留来源月合计；模拟分摊，不代表实际逐日业绩。",
+  "dailyRuleSource": "用户指定：客群及触点汇总日转化率 ±2pp、逐策略日推送量 ±10%；精确保持来源月合计",
+  "dailyConversionRateVariancePp": 2,
+  "dailyPushRelativeVariance": 0.1,
+  "dailyVariationScope": "客群及触点汇总转化率；逐策略推送量",
+  "dailySimulationMonths": [
+    "2026-10"
+  ],
+  "dailyRuleSourceSha256": "6568e8a8c2f75bdba62ee3fa72e37f56b0d0afd6d2fda6cc4defb6055a3aa92c",
+  "dailyStrategyIds": [
+    "ct_1001",
+    "ct_1002",
+    "ct_1003",
+    "ct_1004",
+    "ct_1005",
+    "ct_1006",
+    "ct_1007",
+    "ct_1008",
+    "ct_1009",
+    "ct_1010",
+    "ct_1011"
+  ],
+  "sourceFile": "超套客户-策略模版.xlsx",
+  "sourceSha256": "6568e8a8c2f75bdba62ee3fa72e37f56b0d0afd6d2fda6cc4defb6055a3aa92c",
+  "sourceRows": {
+    "strategies": 11,
+    "strategyArchive": 11,
+    "monthly": 11,
+    "businesses": 66,
+    "rejectReasons": 55,
+    "mappedRejectReasons": 55
+  },
+  "customerGroups": [
+    "超套客户"
+  ],
+  "customerGroup": "超套客户",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "monthlySimulationMonths": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ]
+}

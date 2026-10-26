@@ -1,9 +1,8 @@
 <template>
   <section class="section overview-section">
       <h2 class="section-title">
-      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '全部客群' }}</template><template v-if="query.tabType === 'control'"> · 产品：{{ query.productName || '全部产品' }}</template> · 触点：{{ channelName }}</span>
+      策略整体情况<span class="spacer" /><span class="muted filter-note">分类：{{ categoryName }}<template v-if="isKeyAudience"> · 客群：{{ query.customerGroup || '零低流量客户' }}</template><template v-if="query.tabType === 'control'"> · 产品：{{ query.productName || '全部产品' }}</template> · 触点：{{ channelName }}</span>
     </h2>
-    <p v-if="simulationNote" class="metric-footnote" role="note">{{ simulationNote }}</p>
     <div class="overview-body split split--m1">
       <div class="card snapshot-card">
         <div class="overview-panel-head category-seg" role="group" aria-label="策略分类">
@@ -11,7 +10,7 @@
             v-for="category in categories"
             :key="category.label"
             class="seg-btn"
-            :aria-pressed="(query.strategyClass || '全部') === category.value ? 'true' : 'false'"
+            :aria-pressed="(query.strategyClass || (query.tabType === 'active' ? '升接' : '全部')) === category.value ? 'true' : 'false'"
             @click="$emit('strategy-class', category.value)"
           >
             {{ category.label }}
@@ -30,31 +29,39 @@
                 :key="metric.key"
                 class="metric-block metric-left"
                 :class="{ active: activeMetric === code(metric) }"
-                :disabled="!card(metric)"
+                :disabled="metric.key === 'strategy_count' || !card(metric)"
                 :title="metric.title || metric.label"
                 @click="selectMetric(metric)"
               >
                 <span class="metric-label">{{ metric.label }}</span>
                 <span class="metric-left-bottom">
                   <strong>{{ value(metric) }}<small>{{ unit(metric) }}</small></strong>
-                  <span class="metric-qoq">环比 <em :class="direction(metric)">{{ qoq(metric) }}</em></span>
+                  <span v-if="metric.key !== 'strategy_count'" class="metric-qoq">环比 <em :class="direction(metric)">{{ qoq(metric) }}</em></span>
                 </span>
               </button>
             </div>
-            <div class="metric-col metric-col-mid" :class="{ 'metric-col-mid--four': groups.mid.length === 4 }">
+            <div
+              class="metric-col metric-col-mid"
+              :class="{
+                'metric-col-mid--four': groups.mid.length === 4,
+                'metric-col-mid--three': groups.mid.length === 3,
+                'metric-col-mid--two': groups.mid.length === 2,
+              }"
+            >
               <button
                 v-for="metric in groups.mid"
                 :key="metric.key"
                 class="metric-block metric-mid"
-                :class="{ active: activeMetric === code(metric) }"
-                :disabled="!card(metric)"
+                :class="{ active: activeMetric === code(metric), 'metric-block--static': isKeyAudience && metric.key === 'original_cust' }"
+                :disabled="metric.key === 'strategy_count' || (isKeyAudience && metric.key === 'original_cust') || !card(metric)"
                 @click="selectMetric(metric)"
               >
                 <span class="metric-orb" aria-hidden="true" /><span class="metric-mid-body"
+                  :class="{ 'metric-mid-body--audience-count': isKeyAudience && metric.key === 'original_cust' }"
                   ><span class="metric-label">{{ metric.label }}</span
                   ><strong
                     >{{ value(metric) }}<small>{{ unit(metric) }}</small></strong
-                  ><span class="metric-qoq"
+                  ><span v-if="metric.key !== 'strategy_count' && metric.key !== 'original_cust'" class="metric-qoq"
                     >环比 <em :class="direction(metric)">{{ qoq(metric) }}</em></span
                   ></span
                 >
@@ -64,7 +71,7 @@
               class="metric-funnel"
               viewBox="0 0 450 470"
               role="img"
-              :aria-label="isDowngrade ? '咨询量、挽留量、派单量、成功量四级漏斗' : '推送量、使用量、触达量、转化量四级漏斗'"
+              :aria-label="funnel.map((metric) => metric.label).join('、') + '漏斗'"
             >
               <defs>
                 <linearGradient id="active-funnel-cyan" x1="0" y1="0" x2="0" y2="1">
@@ -86,7 +93,7 @@
               <ellipse cx="225" cy="430" rx="133" ry="19" fill="#73d5ed" opacity=".18" filter="url(#active-funnel-shadow)" />
               <ellipse cx="225" cy="432" rx="145" ry="22" fill="#e8f7fc" opacity=".88" />
               <ellipse cx="225" cy="432" rx="176" ry="34" fill="none" stroke="#d9efff" stroke-width="2" />
-              <g v-for="(shape, index) in funnelShapes" :key="shape.label">
+              <g v-for="(shape, index) in visibleFunnelShapes" :key="index">
                 <path :d="funnelPath(shape)" :fill="`url(#active-funnel-${shape.color})`" />
                 <ellipse :cx="225" :cy="shape.top" :rx="shape.topWidth / 2" :ry="shape.topRy"
                   :fill="shape.cap" :stroke="shape.rim" stroke-opacity=".72" stroke-width="1.5" />
@@ -96,14 +103,11 @@
                 stroke="#c6eaff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".72" />
             </svg>
             <div class="metric-col metric-col-rate">
-              <button
+              <div
                 v-for="metric in groups.rate"
                 :key="metric.key"
                 class="metric-block metric-rate"
-                :class="{ active: activeMetric === code(metric) }"
-                :disabled="!card(metric)"
                 :title="card(metric) ? metric.label : '接口尚未提供该指标'"
-                @click="selectMetric(metric)"
               >
                 <span class="metric-rate-content">
                   <span class="metric-rate-head">
@@ -112,10 +116,9 @@
                   </span>
                   <span class="metric-qoq">环比 <em :class="direction(metric)">{{ qoq(metric) }}</em></span>
                 </span>
-              </button>
+              </div>
             </div>
           </div>
-          <p class="metric-footnote">点击指标查看趋势；“—”表示接口未提供该指标。{{ query.tabType === 'active' ? '存量策略分类按数据源提供的归属展示。' : '当前视角仅支持全部分类。' }}</p>
         </review-state>
       </div>
       <div class="card overview-trend-card">
@@ -130,9 +133,8 @@
           </label>
           <label v-if="isKeyAudience">
             客群切换
-            <select class="select" aria-label="客群切换" :value="query.customerGroup || ''"
+            <select class="select" aria-label="客群切换" :value="query.customerGroup || '零低流量客户'"
               :disabled="customerGroupsLoading" @change="$emit('customer-group', $event.target.value)">
-              <option value="">全部客群</option>
               <option v-for="group in customerGroups" :key="group.keyCode" :value="group.keyCode">{{ group.keyName }}</option>
             </select>
           </label>
@@ -145,7 +147,7 @@
               :disabled="channelsLoading"
               @change="$emit('channel', $event.target.value)"
             >
-              <option value="">全部渠道</option>
+              <option v-if="!isDowngrade" value="">全部渠道</option>
               <option v-for="channel in channels" :key="channel.keyName" :value="channel.keyName">
                 {{ channel.keyName }}
               </option>
@@ -154,12 +156,11 @@
         </div>
         <review-state
           :state="panels.trend || panels.kpi"
-          :empty="!trend.months || !trend.months.length"
+          :empty="!currentYearTrend.months.length"
           empty-text="该指标暂无历史趋势"
           @retry="loadTrend"
         >
           <e-chart :option="trendOption" height="310px" />
-          <p class="metric-footnote">截至 {{ query.statMonth }}，最近 12 个有数据的月份。</p>
         </review-state>
       </div>
     </div>
@@ -169,14 +170,19 @@
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
-import { listOf, numberText, percentText, barLineOption, panelRequests } from './reviewData'
-import leaveSimulation from './leaveSimulation.json'
-import customerGroupSimulation from './customerGroupSimulation.json'
-import incrementalSimulation from './incrementalSimulation.json'
-import declineSimulation from './declineSimulation.json'
+import { listOf, numberText, percentText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows } from './reviewData'
 import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
+const KEY_AUDIENCE_COUNTS = Object.freeze({
+  拆弹客户: 1049338,
+  超套客户: 4920897,
+  老旧资费客户: 1795272,
+  零低流量客户: 30390413,
+  异网分流客户: 25070711,
+  低价套餐客户: 28685025,
+})
+
 export default {
   name: 'StockOverview',
   components: { EChart, ReviewState },
@@ -194,6 +200,7 @@ export default {
     return {
       kpis: [],
       activeMetric: '',
+      activeMetricTabType: '',
       trend: {},
       funnelShapes: [
         { top: 74, bottom: 178, topWidth: 400, bottomWidth: 306, topRy: 30, bottomRy: 22, color: 'cyan', cap: '#b5eef4', rim: '#78d2de', labelY: 143 },
@@ -204,34 +211,18 @@ export default {
     }
   },
   computed: {
-    simulationNote() {
-      if (this.query.tabType === incrementalSimulation.tabType && this.query.cityId === incrementalSimulation.cityId &&
-          this.query.statMonth >= incrementalSimulation.startMonth && this.query.statMonth <= incrementalSimulation.sourceMonth) {
-        return `增量策略：${incrementalSimulation.startMonth.slice(5)}—${incrementalSimulation.endMonth.slice(5)}月为固定${incrementalSimulation.strategiesPerMonth}条策略的模拟月度历史；${incrementalSimulation.sourceMonth.slice(5)}月为业务部门Excel数据（截至${incrementalSimulation.sourceCutoff.slice(5)}）。${incrementalSimulation.baselineMonth.slice(5)}月为模拟环比基期。来源月环比按截至日与上月日均比较，柱形仍展示月累计量；${incrementalSimulation.dailyStartDate.slice(5)}—${incrementalSimulation.dailyEndDate.slice(5)}日数据为按权重拆分的模拟日数据。模拟结果仅供演示。`
-      }
-      if (this.query.tabType === customerGroupSimulation.tabType && this.query.cityId === customerGroupSimulation.cityId &&
-          this.query.strategyClass === customerGroupSimulation.strategyClass &&
-          (!this.query.customerGroup || this.query.customerGroup === customerGroupSimulation.customerGroup) &&
-          this.query.statMonth >= customerGroupSimulation.startMonth && this.query.statMonth <= customerGroupSimulation.sourceMonth) {
-        return `重点客群“拆弹客户”：2026年1—9月为模拟月度历史，10月为业务部门Excel数据（截至10月23日）。柱形展示9月全月与10月1—23日累计值；10月环比按10月1—23日与9月1—23日同期累计值计算。9月同期及10月日明细为按月度总量模拟的逐日分布，环比仅供演示。`
-      }
-      if (this.query.tabType === declineSimulation.tabType && this.query.cityId === declineSimulation.cityId &&
-          this.query.strategyClass === declineSimulation.strategyClass &&
-          this.query.statMonth >= declineSimulation.startMonth && this.query.statMonth <= declineSimulation.sourceMonth) {
-        return `“降拆”策略：${declineSimulation.startMonth.slice(5)}—${declineSimulation.endMonth.slice(5)}月为固定${declineSimulation.strategiesPerMonth}条策略的模拟月度历史；${declineSimulation.sourceMonth.slice(5)}月保留Excel月度原值，按${declineSimulation.sourceCutoff.slice(5)}展示。${declineSimulation.baselineMonth ? `${declineSimulation.baselineMonth.slice(5)}月为模拟环比基期。` : ''}${declineSimulation.dailyStartDate.slice(5)}—${declineSimulation.dailyEndDate.slice(5)}为按固定工作日/周末权重拆分的模拟日数据，各策略日合计保持Excel月值。${declineSimulation.missingReachRows}条派单量为空，${declineSimulation.successOverReachRows}条成功量大于派单量，均按来源月原值保留。来源月环比按截至日与上月日均比较，模拟结果仅供演示。`
-      }
-      if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
-          !['离', '全部'].includes(this.query.strategyClass || '全部') ||
-          this.query.statMonth < leaveSimulation.startMonth || this.query.statMonth > leaveSimulation.sourceMonth) return ''
-      return `“离”策略：2026年1—9月为模拟历史，每月固定同一组10条策略；10月为Excel数据（截至10月21日）。${leaveSimulation.baselineMonth ? '1月环比使用2025年12月模拟基期。' : ''}10月环比按截至日的日均与9月全月日均比较，柱形展示各月累计量，因此10月累计量低于9月是正常的。模拟环比仅供演示。`
-    },
     isKeyAudience() {
       return this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
+    },
+    isStable() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '稳'
+    },
+    isUpgrade() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '升接'
     },
     categories() {
       return this.query.tabType === 'active'
         ? [
-            { label: '全部', value: '全部' },
             { label: '升接', value: '升接' },
             { label: '稳', value: '稳' },
             { label: '降拆', value: '降拆' },
@@ -243,6 +234,12 @@ export default {
     isDowngrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
     },
+    isLeave() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '离'
+    },
+    downgradeMetrics() {
+      return downgradeChannelMetrics(this.query.channel)
+    },
     groups() {
       if (this.query.tabType === 'control') {
         return {
@@ -252,42 +249,76 @@ export default {
         }
       }
       return {
-        left: [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
+        left: this.isDowngrade || this.isLeave
+          ? [item('strategy_count', '策略数'), item(this.isDowngrade ? (this.downgradeMetrics.capacity || 'product_conv_num') : 'product_conv_num', '产能', '产能采用成功量')]
+          : [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
         mid: this.isDowngrade
-          ? [item('push_count', '咨询量'), item('usage_count', '挽留量'), item('reach_count', '派单量'), item('product_conv_num', '成功量')]
+          ? this.downgradeMetrics.funnel.map((metric) => item(metric.key, metric.label))
           : this.isKeyAudience
             ? [item('original_cust', '客群'), item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')]
             : [item('push_count', '推送量'), item('usage_count', '使用量'), item('reach_count', '触达量'), item('product_conv_num', '转化量')],
         rate: this.isDowngrade
-          ? [item('usage_rate', '挽留率'), item('reach_rate', '派单率'), item('product_conv_rate', '成功率')]
+          ? this.downgradeMetrics.rates.map((metric) => item(metric.key, metric.label))
           : [item('usage_rate', '使用率'), item('reach_rate', '触达率'), item('product_conv_rate', '转化率')],
       }
     },
     categoryName() {
-      const item = this.categories.find((category) => category.value === (this.query.strategyClass || '全部'))
-      return item ? item.label : '全部'
+      const defaultCategory = this.query.tabType === 'active' ? '升接' : '全部'
+      const item = this.categories.find((category) => category.value === (this.query.strategyClass || defaultCategory))
+      return item ? item.label : defaultCategory
     },
     channelName() {
       const c = this.channels.find((c) => c.keyName === this.query.channel)
-      return c ? c.keyName : '全部渠道'
+      return c ? c.keyName : (this.query.channel || (this.isDowngrade ? '整体' : '全部渠道'))
     },
     funnel() {
       return this.groups.mid.filter((metric) => metric.key !== 'original_cust')
     },
+    visibleFunnelShapes() {
+      const count = this.funnel.length
+      if (count >= 4) return this.funnelShapes
+      if (!count) return []
+
+      const widthStops = count === 3 ? [400, 320, 230, 146] : [400, 270, 146]
+      const top = 74
+      const bottom = 418
+      const segmentHeight = (bottom - top) / count
+      return Array.from({ length: count }, (_, index) => {
+        const shape = this.funnelShapes[Math.round(index * (this.funnelShapes.length - 1) / (count - 1))]
+        const segmentTop = top + segmentHeight * index
+        const segmentBottom = top + segmentHeight * (index + 1)
+        return {
+          ...shape,
+          top: segmentTop,
+          bottom: segmentBottom,
+          topWidth: widthStops[index],
+          bottomWidth: widthStops[index + 1],
+          topRy: index === 0 ? 30 : 20,
+          bottomRy: index === count - 1 ? 18 : 20,
+          labelY: (segmentTop + segmentBottom) / 2 + 10,
+        }
+      })
+    },
     activeCard() {
       return this.kpis.find((k) => k.metricCode === this.activeMetric) || {}
+    },
+    currentYearTrend() {
+      const trend = this.isKeyAudience ? this.trend : visibleSimulationTrend(this.query, this.trend)
+      const points = currentYearChartRows(trend.months, trend.values, trend.qoq, this.query.statMonth)
+      return { ...trend, months: points.months, values: points.values, qoq: points.comparison }
     },
     trendOption() {
       const metric = this.isDowngrade
         ? this.groups.mid.concat(this.groups.rate, this.groups.left).find((item) => item.key === this.activeMetric)
         : null
-      const trend = visibleSimulationTrend(this.query, this.trend)
+      const trend = this.currentYearTrend
       return barLineOption(
         trend.months,
         trend.values,
         trend.qoq,
         (metric && metric.label) || this.activeCard.label || '指标',
         this.trend.unit || this.activeCard.unit || '',
+        { scaleByTenThousand: true },
       )
     },
   },
@@ -310,10 +341,26 @@ export default {
       return this.kpis.find((k) => k.metricCode === this.code(metric))
     },
     value(metric) {
-      return numberText((this.card(metric) || {}).value)
+      const rawValue = this.isKeyAudience && metric.key === 'original_cust'
+        ? this.keyAudienceCount()
+        : (this.card(metric) || {}).value
+      return this.usesMyriadUnit(metric) && rawValue !== null && rawValue !== undefined && rawValue !== ''
+        ? numberText(Number(rawValue) / 10000)
+        : numberText(rawValue)
+    },
+    keyAudienceCount() {
+      return KEY_AUDIENCE_COUNTS[this.query.customerGroup || '零低流量客户'] || KEY_AUDIENCE_COUNTS['零低流量客户']
     },
     unit(metric) {
-      return (this.card(metric) || {}).unit || ''
+      const rawUnit = this.isKeyAudience && metric.key === 'original_cust'
+        ? ((this.card(metric) || {}).unit || '人')
+        : ((this.card(metric) || {}).unit || '')
+      if (!rawUnit || !this.usesMyriadUnit(metric)) return rawUnit
+      return rawUnit === '元' ? '万元' : `万${rawUnit}`
+    },
+    usesMyriadUnit(metric) {
+      const rawUnit = (this.card(metric) || {}).unit || (metric.key === 'original_cust' ? '人' : '')
+      return metric.key !== 'strategy_count' && rawUnit !== '%' && !rawUnit.startsWith('万')
     },
     qoq(metric) {
       const card = this.card(metric) || {}
@@ -321,7 +368,9 @@ export default {
     },
     direction(metric) {
       const n = (this.card(metric) || {}).trendQoQ
-      return n == null ? '' : Number(n) < 0 ? 'down' : 'up'
+      if (n == null) return ''
+      const value = Number(n)
+      return value < 0 ? 'up' : value > 0 ? 'down' : ''
     },
     funnelPath(shape) {
       const leftTop = 225 - shape.topWidth / 2
@@ -339,10 +388,16 @@ export default {
         () => getOverviewKpi(this.query),
         (result) => {
           this.kpis = listOf(result)
-          const visibleCodes = this.groups.left.concat(this.groups.mid, this.groups.rate).map((metric) => metric.key)
-          if (!visibleCodes.includes(this.activeMetric) || !this.kpis.some((k) => k.metricCode === this.activeMetric)) {
-            this.activeMetric = visibleCodes.find((code) => this.kpis.some((k) => k.metricCode === code)) || ''
+          const visibleCodes = this.groups.left.concat(this.groups.mid, this.groups.rate)
+            .filter((metric) => !(this.isKeyAudience && metric.key === 'original_cust'))
+            .map((metric) => metric.key)
+          const selectedMetricExists = visibleCodes.includes(this.activeMetric) && this.kpis.some((k) => k.metricCode === this.activeMetric)
+          if (this.activeMetricTabType !== this.query.tabType || !selectedMetricExists) {
+            const capacityCode = this.groups.left.find((metric) => metric.label === '产能')?.key
+            this.activeMetric = (capacityCode && this.kpis.some((k) => k.metricCode === capacityCode) ? capacityCode : '') ||
+              visibleCodes.find((code) => code !== 'strategy_count' && this.kpis.some((k) => k.metricCode === code)) || ''
           }
+          this.activeMetricTabType = this.query.tabType
           this.loadTrend()
         },
       ).then(() => {
@@ -350,7 +405,7 @@ export default {
       })
     },
     selectMetric(metric) {
-      if (!this.card(metric)) return
+      if (!this.card(metric) || (this.isKeyAudience && metric.key === 'original_cust')) return
       this.activeMetric = this.code(metric)
       this.loadTrend()
     },

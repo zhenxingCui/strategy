@@ -5,6 +5,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 /**
@@ -21,4 +22,8 @@ public class WarningRuleOpReq extends BaseRegionReq {
 
     @ApiModelProperty(value = "目标状态：生效中/已停用（仅状态变更接口使用）")
     private String status;
+
+    @ApiModelProperty(value = "页面范围，例如 active:重点客群", required = true)
+    @NotBlank(message = "页面范围pageScope不能为空")
+    private String pageScope;
 }

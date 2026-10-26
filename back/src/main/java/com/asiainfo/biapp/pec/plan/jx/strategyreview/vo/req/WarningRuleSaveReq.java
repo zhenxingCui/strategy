@@ -25,6 +25,10 @@ public class WarningRuleSaveReq extends BaseRegionReq {
     @NotBlank(message = "策略类型tabType不能为空")
     private String tabType;
 
+    @ApiModelProperty(value = "页面范围，例如 active:重点客群", required = true)
+    @NotBlank(message = "页面范围pageScope不能为空")
+    private String pageScope;
+
     @ApiModelProperty(value = "规则名称", required = true)
     @NotBlank(message = "规则名称ruleName不能为空")
     private String ruleName;

@@ -1,0 +1,66 @@
+{
+  "tabType": "active",
+  "strategyClass": "重点客群",
+  "cityId": "999",
+  "countyId": null,
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-21",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyDays": 21,
+  "dailyRowCount": 252,
+  "dailyIsSimulated": true,
+  "dailyMethod": "客群及触点汇总转化率围绕来源月波动 ±2 个百分点；每条策略的每日推送量围绕自身日均波动 ±10%；逐日整数分配后保留来源月合计；模拟分摊，不代表实际逐日业绩。",
+  "dailyRuleSource": "用户指定：客群及触点汇总日转化率 ±2pp、逐策略日推送量 ±10%；精确保持来源月合计",
+  "dailyConversionRateVariancePp": 2,
+  "dailyPushRelativeVariance": 0.1,
+  "dailyVariationScope": "客群及触点汇总转化率；逐策略推送量",
+  "dailySimulationMonths": [
+    "2026-10"
+  ],
+  "dailyRuleSourceSha256": "4a1cc98063fbd817725dc83dc4d6e5b920319d9109db8e0eb75f94480f64b6b0",
+  "dailyStrategyIds": [
+    "lj_1001",
+    "lj_1002",
+    "lj_1003",
+    "lj_1004",
+    "lj_1005",
+    "lj_1006",
+    "lj_1007",
+    "lj_1008",
+    "lj_1009",
+    "lj_1010",
+    "lj_1011",
+    "lj_1012"
+  ],
+  "sourceFile": "老旧资费客户-策略模版.xlsx",
+  "sourceSha256": "4a1cc98063fbd817725dc83dc4d6e5b920319d9109db8e0eb75f94480f64b6b0",
+  "sourceRows": {
+    "strategies": 12,
+    "strategyArchive": 12,
+    "monthly": 12,
+    "businesses": 96,
+    "rejectReasons": 60,
+    "mappedRejectReasons": 60
+  },
+  "customerGroups": [
+    "老旧资费客户"
+  ],
+  "customerGroup": "老旧资费客户",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "monthlySimulationMonths": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ]
+}

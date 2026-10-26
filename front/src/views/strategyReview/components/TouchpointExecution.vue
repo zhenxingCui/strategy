@@ -107,13 +107,6 @@
                 >
                 <el-table-column prop="bizName" label="业务" align="left" />
                 <el-table-column prop="capacity" label="产能" align="right" width="80" />
-                <el-table-column label="环比" align="right" width="70">
-                  <template slot-scope="{ row }">
-                    <span class="qoq-badge" :class="(row.qoq || 0) >= 0 ? 'up' : 'down'">
-                      {{ (row.qoq || 0) >= 0 ? '+' : '' }}{{ row.qoq != null ? row.qoq.toFixed(1) + '%' : '--' }}
-                    </span>
-                  </template>
-                </el-table-column>
               </el-table>
               </div>
             </div>
@@ -645,7 +638,6 @@ const LEFT_COLUMNS = {
     { key: 'targetConvRate', label: '目标转化率', sortable: true, qoqField: 'targetConvRateQoQ' },
     { key: 'productConvNum', label: '全产品转化量', sortable: true, qoqField: 'productConvNumQoQ' },
     { key: 'productConvRate', label: '全产品转化率', sortable: true, qoqField: 'productConvRateQoQ' },
-    { key: 'expectedIncome', label: '预期收入(元)', sortable: true, qoqField: 'expectedIncomeQoQ' },
     { key: 'actualIncome', label: '实际收入(元)', sortable: true, qoqField: 'actualIncomeQoQ' }
   ],
   passive: [
@@ -659,7 +651,6 @@ const LEFT_COLUMNS = {
     { key: 'targetConvRate', label: '目标转化率', sortable: true, qoqField: 'targetConvRateQoQ' },
     { key: 'productConvNum', label: '全产品转化量', sortable: true, qoqField: 'productConvNumQoQ' },
     { key: 'productConvRate', label: '全产品转化率', sortable: true, qoqField: 'productConvRateQoQ' },
-    { key: 'expectedIncome', label: '预期收入(元)', sortable: true, qoqField: 'expectedIncomeQoQ' },
     { key: 'actualIncome', label: '实际收入(元)', sortable: true, qoqField: 'actualIncomeQoQ' }
   ],
   control: [
@@ -689,7 +680,6 @@ const RIGHT_COLUMNS_ACTIVE_PASSIVE = [
   { key: 'targetConvRate', label: '目标转化率', sortable: true, qoqField: 'targetConvRateQoQ' },
   { key: 'productConvNum', label: '全产品转化量', sortable: true, qoqField: 'productConvNumQoQ' },
   { key: 'productConvRate', label: '全产品转化率', sortable: true, qoqField: 'productConvRateQoQ' },
-  { key: 'expectedIncome', label: '预期收入(元)', sortable: true, qoqField: 'expectedIncomeQoQ' },
   { key: 'actualIncome', label: '实际收入(元)', sortable: true, qoqField: 'actualIncomeQoQ' }
 ]
 
@@ -721,7 +711,6 @@ const CATEGORY_COLUMNS_ACTIVE_PASSIVE = [
   { key: 'targetConvRate', label: '目标转化率', sortable: true, qoqField: 'targetConvRateQoQ' },
   { key: 'productConvNum', label: '全产品转化量', sortable: true, qoqField: 'productConvNumQoQ' },
   { key: 'productConvRate', label: '全产品转化率', sortable: true, qoqField: 'productConvRateQoQ' },
-  { key: 'expectedIncome', label: '预期收入(元)', sortable: true, qoqField: 'expectedIncomeQoQ' },
   { key: 'actualIncome', label: '实际收入(元)', sortable: true, qoqField: 'actualIncomeQoQ' }
 ]
 
@@ -943,7 +932,10 @@ export default {
             symbol: 'circle',
             symbolSize: 5,
             lineStyle: { color: '#f59e0b', width: 2 },
-            itemStyle: { color: '#f59e0b', borderWidth: 2, borderColor: '#fff' }
+            itemStyle: { color: '#f59e0b', borderWidth: 2, borderColor: '#fff' },
+            label: {
+              formatter: (p) => p.value == null ? '' : (p.value >= 0 ? '+' : '') + p.value + '%'
+            }
           }
         ]
       }

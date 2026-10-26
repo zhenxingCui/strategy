@@ -16,6 +16,9 @@
         <if test="userCode != null and userCode != ''">
             AND r.create_by = #{userCode}
         </if>
+        <if test="pageScopeMarker != null and pageScopeMarker != ''">
+            AND LOCATE(#{pageScopeMarker}, COALESCE(r.rule_desc, '')) &gt; 0
+        </if>
         <if test="status != null and status != ''">
             <choose>
                 <when test="status == '已过期'">
@@ -84,6 +87,9 @@
                     </if>
                 </otherwise>
             </choose>
+        </if>
+        <if test="pageScopeMarker != null and pageScopeMarker != ''">
+            AND LOCATE(#{pageScopeMarker}, COALESCE(r.rule_desc, '')) &gt; 0
         </if>
         ORDER BY r.create_time DESC
 
@@ -211,6 +217,7 @@
     <sql id="apPeriodTable">
         <choose>
             <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_period_summary_ap_key_audience</when>
             <when test="tabType == 'active' and (strategyClass == &quot;&#38477;&#25286;&quot; or strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
             <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
         </choose>
@@ -246,16 +253,14 @@
         </if>
 
         <if test="customerGroup != null and customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
                 WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{customerGroup})
         </if>
 
         <if test="productName != null and productName != ''">
-            AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
-                WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
-                  AND product.is_deleted = 0 AND product.product_name = #{productName})
+            AND s.small_category = #{productName}
         </if>
 </sql>
 
@@ -264,31 +269,32 @@
                 <when test="tabType == 'control'">
                     SELECT s.strategy_id        AS strategyId,
                     s.strategy_code      AS strategyCode,
+                    s.strategy_name      AS strategyName,
                     s.channel            AS channel,
                     COALESCE(d.key_name, s.channel) AS channelName,
                     s.big_category       AS bigCategory,
                     s.small_category     AS smallCategory,
-                    s.consult_count      AS consultCount,
-                    s.consult_count_qoq  AS consultCountQoQ,
-                    s.retain_count       AS retainCount,
-                    s.retain_count_qoq   AS retainCountQoQ,
-                    s.retain_rate        AS retainRate,
-                    s.retain_rate_qoq    AS retainRateQoQ,
-                    s.dispatch_count     AS dispatchCount,
-                    s.dispatch_count_qoq AS dispatchCountQoQ,
-                    s.success_count      AS successCount,
-                    s.success_count_qoq  AS successCountQoQ,
-                    s.success_rate       AS successRate,
-                    s.success_rate_qoq   AS successRateQoQ,
-                    s.income             AS income,
-                    s.income_qoq         AS incomeQoQ,
+                    s.push_count             AS consultCount,
+                    s.push_count_qoq         AS consultCountQoQ,
+                    s.usage_count            AS retainCount,
+                    s.usage_count_qoq        AS retainCountQoQ,
+                    s.usage_rate             AS retainRate,
+                    s.usage_rate_qoq         AS retainRateQoQ,
+                    s.reach_count            AS dispatchCount,
+                    s.reach_count_qoq        AS dispatchCountQoQ,
+                    s.product_conv_num       AS successCount,
+                    s.product_conv_num_qoq   AS successCountQoQ,
+                    s.product_conv_rate      AS successRate,
+                    s.product_conv_rate_qoq  AS successRateQoQ,
+                    s.actual_income          AS income,
+                    s.actual_income_qoq      AS incomeQoQ,
                     DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
                     FROM t_sr_strategy_period_summary_ctrl s
                     LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
                     <include refid="hitStrategyWhereCtrl"/>
                         and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
                     <![CDATA[${conditionSQL}]]>
-                    ORDER BY s.success_count DESC
+                    ORDER BY s.product_conv_num DESC
                     LIMIT #{limit} OFFSET #{offset}
                 </when>
                 <otherwise>

@@ -982,10 +982,6 @@ body {
   width: 80px;
 }
 
-#sec-touchpoint .biz-table .col-qoq {
-  width: 88px;
-}
-
 /* ===== 分页器（背景型 small） ===== */
 #sec-touchpoint .pg {
   display: flex;
@@ -2393,6 +2389,14 @@ body {
                   <circle cx="396" cy="38.4" r="5"/>
                   <circle cx="476" cy="86.4" r="5"/>
                 </g>
+                <g fill="#475569" font-size="10" text-anchor="middle" font-weight="600">
+                  <text x="76" y="82.5">1,850</text>
+                  <text x="156" y="65">2,100</text>
+                  <text x="236" y="47.5">2,350</text>
+                  <text x="316" y="77.6">1,920</text>
+                  <text x="396" y="30.4">2,480</text>
+                  <text x="476" y="19.5">2,750</text>
+                </g>
                 <g fill="#9ca3af" font-size="11" text-anchor="middle">
                   <text x="76" y="235">2026-04</text>
                   <text x="156" y="235">2026-05</text>
@@ -2419,15 +2423,14 @@ body {
                   <tr>
                     <th class="ta-l">业务</th>
                     <th class="ta-r col-cap">产能</th>
-                    <th class="ta-r col-qoq">环比</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td class="ta-l">5G套餐升档</td><td class="ta-r">862</td><td class="ta-r"><span class="qoq-badge up">+15.2%</span></td></tr>
-                  <tr><td class="ta-l">流量包叠加</td><td class="ta-r">720</td><td class="ta-r"><span class="qoq-badge up">+8.5%</span></td></tr>
-                  <tr><td class="ta-l">视频会员</td><td class="ta-r">613</td><td class="ta-r"><span class="qoq-badge down">-3.1%</span></td></tr>
-                  <tr><td class="ta-l">权益包兑换</td><td class="ta-r">452</td><td class="ta-r"><span class="qoq-badge up">+22.7%</span></td></tr>
-                  <tr><td class="ta-l">宽带续约</td><td class="ta-r">368</td><td class="ta-r"><span class="qoq-badge down">-5.4%</span></td></tr>
+                  <tr><td class="ta-l">5G套餐升档</td><td class="ta-r">862</td></tr>
+                  <tr><td class="ta-l">流量包叠加</td><td class="ta-r">720</td></tr>
+                  <tr><td class="ta-l">视频会员</td><td class="ta-r">613</td></tr>
+                  <tr><td class="ta-l">权益包兑换</td><td class="ta-r">452</td></tr>
+                  <tr><td class="ta-l">宽带续约</td><td class="ta-r">368</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2746,14 +2749,14 @@ body {
           <div class="biz-table-wrap">
             <table class="biz-table">
               <thead>
-                <tr><th class="ta-l">业务</th><th class="ta-r">产能</th><th class="ta-r">环比</th></tr>
+                <tr><th class="ta-l">业务</th><th class="ta-r">产能</th></tr>
               </thead>
               <tbody>
-                <tr><td class="ta-l biz-name">套餐焕新</td><td class="ta-r num">1,256</td><td class="ta-r"><span class="qoq-badge up">+5.2%</span></td></tr>
-                <tr><td class="ta-l biz-name">流量包</td><td class="ta-r num">986</td><td class="ta-r"><span class="qoq-badge up">+3.8%</span></td></tr>
-                <tr><td class="ta-l biz-name">宽带新装</td><td class="ta-r num">865</td><td class="ta-r"><span class="qoq-badge up">+8.9%</span></td></tr>
-                <tr><td class="ta-l biz-name">修复</td><td class="ta-r num">756</td><td class="ta-r"><span class="qoq-badge down">-1.2%</span></td></tr>
-                <tr><td class="ta-l biz-name">百G包</td><td class="ta-r num">623</td><td class="ta-r"><span class="qoq-badge up">+2.4%</span></td></tr>
+                <tr><td class="ta-l biz-name">套餐焕新</td><td class="ta-r num">1,256</td></tr>
+                <tr><td class="ta-l biz-name">流量包</td><td class="ta-r num">986</td></tr>
+                <tr><td class="ta-l biz-name">宽带新装</td><td class="ta-r num">865</td></tr>
+                <tr><td class="ta-l biz-name">修复</td><td class="ta-r num">756</td></tr>
+                <tr><td class="ta-l biz-name">百G包</td><td class="ta-r num">623</td></tr>
               </tbody>
             </table>
           </div>
@@ -3091,7 +3094,7 @@ body {
     }
 
     // 柱状图Y轴自然范围
-    var barMax = Math.max.apply(null, values) * 1.05
+    var barMax = Math.max.apply(null, values) * 1.12
 
     // 环比Y轴：按数据实际范围自适应，上下各留25%标签余量，0必须在区间内
     var qoqMax = Math.max.apply(null, [0].concat(qoq))
@@ -3166,9 +3169,9 @@ body {
           label: {
             show: true,
             // 数值放柱内顶部（白字），柱外空间留给环比标签，避免两者重叠
-            position: 'insideTop',
-            distance: 4,
-            color: '#fff',
+            position: 'top',
+            distance: 6,
+            color: '#475569',
             fontSize: 10,
             formatter: function (p) {
               return fmtWan(p.value)
@@ -3199,8 +3202,8 @@ body {
               return (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + '%'
             }
           },
-          // 环比标签与柱内数值标签重叠时自动隐藏（tooltip 仍可查看），兜底保护
-          labelLayout: { hideOverlap: true }
+          // 所有环比点都显示具体数值，不因标签接近而自动隐藏。
+          labelLayout: { hideOverlap: false }
         }
       ]
     }

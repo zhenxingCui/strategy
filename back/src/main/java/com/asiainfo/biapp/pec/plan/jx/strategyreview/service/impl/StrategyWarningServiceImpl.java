@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 策略复盘-历史预警规则服务实现
@@ -39,6 +41,8 @@ import java.util.Map;
 public class StrategyWarningServiceImpl implements IStrategyWarningService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String PAGE_SCOPE_MARKER_PREFIX = "[[sr-page-scope:";
+    private static final Pattern PAGE_SCOPE_MARKER_PATTERN = Pattern.compile("\\s*\\[\\[sr-page-scope:([^\\]]+)\\]\\]\\s*$");
 
     private static final Map<String, String> OPERATOR_SYMBOL = new HashMap<>();
 
@@ -60,13 +64,14 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
     public PageResultVO<WarningRuleVO> queryRuleList(WarningRuleQueryReq req) {
         int pageNum = req.getPageNum() == null || req.getPageNum() < 1 ? 1 : req.getPageNum();
         int pageSize = normalizePageSize(req.getPageSize());
-        long total = warningMapper.countRuleList(req.getTabType(), req.getRuleName(), req.getStatus(), null, req.getUserCode());
+        String pageScopeMarker = pageScopeMarker(req.getPageScope(), req.getTabType());
+        long total = warningMapper.countRuleList(req.getTabType(), req.getRuleName(), req.getStatus(), null, req.getUserCode(), pageScopeMarker);
         List<WarningRuleVO> list;
         if (total == 0) {
             list = new ArrayList<>();
         } else {
             list = warningMapper.selectRuleList(req.getTabType(), req.getRuleName(), req.getStatus(), null, req.getUserCode(),
-                    (pageNum - 1) * pageSize, pageSize);
+                    pageScopeMarker, (pageNum - 1) * pageSize, pageSize);
         }
         for (WarningRuleVO vo : list) {
             vo.setConditions(warningMapper.selectRuleConditions(vo.getId()));
@@ -96,6 +101,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         if (exist == null) {
             throw new BaseException("规则不存在或已删除");
         }
+        ensurePageScope(exist, req.getPageScope());
         SrWarningRule rule = buildRule(req, userId);
         rule.setId(req.getId());
         // 状态沿用库里原值，避免编辑时误改状态
@@ -113,6 +119,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         if (exist == null) {
             throw new BaseException("规则不存在或已删除");
         }
+        ensurePageScope(exist, req.getPageScope());
         warningMapper.deleteRuleById(req.getId(), userId);
         warningMapper.deleteRuleConditions(req.getId(), userId);
     }
@@ -123,6 +130,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         if (vo == null) {
             throw new BaseException("规则不存在或已删除");
         }
+        ensurePageScope(vo, req.getPageScope());
         vo.setConditions(warningMapper.selectRuleConditions(req.getId()));
         decorateRule(vo);
         return vo;
@@ -139,6 +147,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         if (exist == null) {
             throw new BaseException("规则不存在或已删除");
         }
+        ensurePageScope(exist, req.getPageScope());
         warningMapper.updateRuleStatus(req.getId(), target, userId);
     }
 
@@ -148,7 +157,8 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         int pageNum = req.getPageNum() == null || req.getPageNum() < 1 ? 1 : req.getPageNum();
         int pageSize = normalizePageSize(req.getPageSize());
         String statMonth = StringUtils.defaultIfBlank(req.getStatMonth(), java.time.YearMonth.now().toString());
-        WarningRuleVO warningRuleVO=warningMapper.queryRuleById(req.getTabType(), req.getRuleId().toString(),"生效中");
+        String pageScopeMarker = pageScopeMarker(req.getPageScope(), req.getTabType());
+        WarningRuleVO warningRuleVO=warningMapper.queryRuleById(req.getTabType(), req.getRuleId().toString(),"生效中", pageScopeMarker);
         // 规则不存在或已过期，返回空结果
         if (warningRuleVO == null) {
             log.warn("规则不存在或已过期: ruleId={}", req.getRuleId());
@@ -167,7 +177,9 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
             if (!allowedMetrics.contains(vo.getMetricCode()) || StringUtils.isBlank(getOption(vo.getOperator())) || vo.getThreshold() == null) {
                 throw new BaseException("预警规则指标或操作符无效");
             }
-            metricConditions.add("s." + vo.getMetricCode() + getOption(vo.getOperator()) + vo.getThreshold().toPlainString());
+            String metricColumn = "control".equals(req.getTabType())
+                    ? ControlMetricNames.summaryCode(vo.getMetricCode()) : vo.getMetricCode();
+            metricConditions.add("s." + metricColumn + getOption(vo.getOperator()) + vo.getThreshold().toPlainString());
         }
         if (metricConditions.isEmpty()) throw new BaseException("预警规则未配置指标条件");
         conditionSQL += " AND (" + StringUtils.join(metricConditions, "or".equalsIgnoreCase(warningRuleVO.getLogic()) ? " OR " : " AND ") + ")";
@@ -189,8 +201,9 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void toggleFollow(FavoriteOpReq req, String userId) {
+        String pageScopeMarker = pageScopeMarker(req.getPageScope(), req.getTabType());
         if (StringUtils.isBlank(req.getRuleId()) || !req.getRuleId().matches("[0-9]+")
-                || warningMapper.queryRuleById(req.getTabType(), req.getRuleId(), null) == null) {
+                || warningMapper.queryRuleById(req.getTabType(), req.getRuleId(), null, pageScopeMarker) == null) {
             throw new BaseException("请选择有效的预警规则");
         }
         boolean followed = !Boolean.FALSE.equals(req.getFollowed());
@@ -304,7 +317,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         }
         SrWarningRule rule = new SrWarningRule();
         rule.setRuleName(req.getRuleName());
-        rule.setRuleDesc(StringUtils.defaultIfBlank(req.getDesc(), buildAutoDesc(req)));
+        rule.setRuleDesc(withPageScope(StringUtils.defaultIfBlank(req.getDesc(), buildAutoDesc(req)), req.getPageScope(), req.getTabType()));
         rule.setTabType(req.getTabType());
         rule.setStatus(StringUtils.defaultIfBlank(req.getStatus(), "生效中"));
         rule.setStartDate(java.sql.Date.valueOf(start));
@@ -333,6 +346,7 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
 
     /** 列表行装饰：动态过期、状态徽标、日期区间、创建人展示、渠道/策略串拆分 */
     private void decorateRule(WarningRuleVO vo) {
+        vo.setDesc(stripPageScope(vo.getDesc()));
         if ("control".equals(vo.getTabType()) && vo.getConditions() != null) {
             for (WarningRuleVO.WarningRuleConditionVO condition : vo.getConditions()) {
                 condition.setMetricName(ControlMetricNames.label(condition.getMetricCode(), condition.getMetricName()));
@@ -365,6 +379,56 @@ public class StrategyWarningServiceImpl implements IStrategyWarningService {
         vo.setChannels(splitToList(vo.getChannelsStr()));
         vo.setChannelNames(queryChannelNames(vo.getChannels()));
         vo.setStrategies(splitToList(vo.getStrategiesStr()));
+    }
+
+    private String withPageScope(String desc, String pageScope, String tabType) {
+        String marker = pageScopeMarker(pageScope, tabType);
+        if (marker == null) {
+            throw new BaseException("页面范围不能为空");
+        }
+        String visibleDesc = stripPageScope(desc);
+        String storedDesc = StringUtils.isBlank(visibleDesc) ? marker : visibleDesc.trim() + "\n" + marker;
+        if (storedDesc.length() > 512) {
+            throw new BaseException("规则描述过长，无法保存页面范围");
+        }
+        return storedDesc;
+    }
+
+    private String stripPageScope(String desc) {
+        if (desc == null) return null;
+        Matcher matcher = PAGE_SCOPE_MARKER_PATTERN.matcher(desc);
+        return matcher.replaceFirst("").trim();
+    }
+
+    private String extractPageScope(String desc) {
+        if (desc == null) return null;
+        Matcher matcher = PAGE_SCOPE_MARKER_PATTERN.matcher(desc);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private String pageScopeMarker(String pageScope, String tabType) {
+        if (StringUtils.isBlank(pageScope)) return null;
+        String normalized = pageScope.trim();
+        String prefix = StringUtils.defaultString(tabType) + ":";
+        if (StringUtils.isBlank(tabType) || !normalized.startsWith(prefix) || normalized.length() > 128 ||
+                normalized.contains("[[") || normalized.contains("]]") || normalized.contains("\n") || normalized.contains("\r")) {
+            throw new BaseException("页面范围格式不正确");
+        }
+        String pageKey = normalized.substring(prefix.length()).trim();
+        if (StringUtils.isBlank(pageKey)) {
+            throw new BaseException("页面范围不能为空");
+        }
+        return PAGE_SCOPE_MARKER_PREFIX + normalized + "]]";
+    }
+
+    private void ensurePageScope(WarningRuleVO rule, String pageScope) {
+        if (StringUtils.isBlank(pageScope)) return;
+        String expectedMarker = pageScopeMarker(pageScope, rule.getTabType());
+        String actualScope = extractPageScope(rule.getDesc());
+        String actualMarker = actualScope == null ? null : PAGE_SCOPE_MARKER_PREFIX + actualScope + "]]";
+        if (!expectedMarker.equals(actualMarker)) {
+            throw new BaseException("规则不属于当前页面范围");
+        }
     }
 
     private List<String> queryChannelNames(List<String> channels) {

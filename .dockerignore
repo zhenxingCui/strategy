@@ -1,0 +1,15 @@
+.git
+.trae
+outputs
+openspec
+html
+front/node_modules
+front/dist
+front/.env*
+front/scripts/__pycache__
+back/target
+back/deploy
+*.log
+*.tar
+*.tar.gz
+.strategy-review-package-stage

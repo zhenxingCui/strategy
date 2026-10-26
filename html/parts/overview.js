@@ -27,7 +27,7 @@
     }
 
     // 柱状图Y轴自然范围
-    var barMax = Math.max.apply(null, values) * 1.05
+    var barMax = Math.max.apply(null, values) * 1.12
 
     // 环比Y轴：按数据实际范围自适应，上下各留25%标签余量，0必须在区间内
     var qoqMax = Math.max.apply(null, [0].concat(qoq))
@@ -101,10 +101,9 @@
           barWidth: '40%',
           label: {
             show: true,
-            // 数值放柱内顶部（白字），柱外空间留给环比标签，避免两者重叠
-            position: 'insideTop',
-            distance: 4,
-            color: '#fff',
+            position: 'top',
+            distance: 6,
+            color: '#475569',
             fontSize: 10,
             formatter: function (p) {
               return fmtWan(p.value)
@@ -135,8 +134,8 @@
               return (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + '%'
             }
           },
-          // 环比标签与柱内数值标签重叠时自动隐藏（tooltip 仍可查看），兜底保护
-          labelLayout: { hideOverlap: true }
+          // 所有环比点都显示具体数值，不因标签接近而自动隐藏。
+          labelLayout: { hideOverlap: false }
         }
       ]
     }

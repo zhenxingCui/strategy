@@ -43,6 +43,10 @@ export function getChannelSummary (params) {
 export function getStrategyList (params) {
   return postAction(api.touchpointStrategyList, formatParams(params))
 }
+// 使用与逐策略列表一致的过滤条件，返回所有匹配明细的分类，不受分页限制。
+export function getStrategyCategoryOptions (params) {
+  return postAction(api.strategyCategoryOptions, formatParams(params))
+}
 // 触点产能趋势（按渠道联动，近6月柱+线）
 export function getChannelCapacityTrend (params) {
   return postAction(api.touchpointChannelCapacityTrend, formatParams(params))

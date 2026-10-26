@@ -19,7 +19,7 @@ public class ChannelTrendVO {
     @ApiModelProperty("月度标签，如 8月")
     private String monthLabel;
 
-    @ApiModelProperty("月产能（active/passive=全产品转化量，control=成功量）")
+    @ApiModelProperty("月成功量")
     private BigDecimal capacity;
 
     @ApiModelProperty("环比 %")

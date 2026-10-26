@@ -41,19 +41,6 @@
           </el-select>
         </div>
         <div class="form-group">
-          <label class="form-label"><span class="required">*</span>数据日期</label>
-          <el-date-picker
-            v-model="form.dataDate"
-            type="monthrange"
-            range-separator="至"
-            start-placeholder="开始月份"
-            end-placeholder="结束月份"
-            value-format="yyyy-MM"
-            size="small"
-            style="width: 100%;"
-          />
-        </div>
-        <div class="form-group">
           <label class="form-label">触点</label>
           <el-select
             v-model="form.channels"
@@ -180,6 +167,7 @@ import { monthRange } from '../active/reviewData'
 
 // 百分比类指标（单位为 %）
 const RATE_METRICS = ['挽留率', '成功率', '使用率', '目标转化率', '全产品转化率']
+const DEFAULT_DATA_MONTH = '2026-10'
 
 export default {
   name: 'RuleCreateDialog',
@@ -191,6 +179,8 @@ export default {
     rule: { type: Object, default: null },
     // tab 类型：active / passive / control
     tabType: { type: String, default: 'active' },
+    // 页面范围：例如 active:重点客群
+    pageScope: { type: String, default: 'active:升接' },
     channelOptions: { type: Array, default: () => [] },
     strategyOptions: { type: Array, default: () => [] },
     metricOptions: { type: Array, default: () => [] }
@@ -205,7 +195,6 @@ export default {
         ruleName: '',
         sceneDesc: '',
         dateRange: [],
-        dataDate: [],
         channels: [],
         strategies: [],
         logic: 'and',
@@ -230,7 +219,6 @@ export default {
         this.form = {
           ruleName: this.rule.ruleName || '', sceneDesc: this.rule.desc || '',
           dateRange: [this.rule.startDate, this.rule.endDate],
-          dataDate: [String(this.rule.dataStartDate || '').slice(0, 7), String(this.rule.dataEndDate || '').slice(0, 7)],
           channels: [...(this.rule.channels || [])], strategies: [...(this.rule.strategies || [])],
           logic: this.rule.logic || 'and',
           metrics: (this.rule.conditions || []).map((condition, index) => ({ ...condition, id: index + 1, value: condition.threshold }))
@@ -265,7 +253,6 @@ export default {
         ruleName: '',
         sceneDesc: '',
         dateRange: [],
-        dataDate: [],
         channels: [],
         strategies: [],
         logic: 'and',
@@ -317,10 +304,6 @@ export default {
         this.$message.warning('请选择指标生效周期')
         return
       }
-      if (!this.form.dataDate || this.form.dataDate.length < 2) {
-        this.$message.warning('请选择数据日期范围')
-        return
-      }
       const conditions = this.form.metrics.map(m => ({
         metricCode: m.metricCode,
         metricName: m.metricName,
@@ -332,17 +315,19 @@ export default {
         this.$message.warning('请为每条规则选择指标并填写有效阈值')
         return
       }
+      const [dataStartDate, dataEndDate] = monthRange(DEFAULT_DATA_MONTH)
       this.submitting = true
       try {
         const payload = {
           ...(this.isCreate ? {} : { id: this.rule.id }),
           tabType: this.tabType,
+          pageScope: this.pageScope,
           ruleName: this.form.ruleName.trim(),
           desc: this.form.sceneDesc || undefined,
           startDate: this.form.dateRange[0],
           endDate: this.form.dateRange[1],
-          dataStartDate: monthRange(this.form.dataDate[0])[0],
-          dataEndDate: monthRange(this.form.dataDate[1])[1],
+          dataStartDate,
+          dataEndDate,
           channels: this.form.channels,
           strategies: this.form.strategies,
           logic: this.form.logic,
@@ -350,7 +335,7 @@ export default {
         }
         const res = this.isCreate ? await createWarningRule(payload) : await updateWarningRule(payload)
         if (!this.isCreate && this.editStatus !== this.rule.status) {
-          await toggleWarningRuleStatus({ id: this.rule.id, status: this.editStatus })
+          await toggleWarningRuleStatus({ id: this.rule.id, status: this.editStatus, pageScope: this.pageScope })
         }
         this.dialogVisible = false
         this.$message.success(this.isCreate ? '新增预警规则成功' : '保存成功')
@@ -365,13 +350,14 @@ export default {
         await updateWarningRule({
           id: this.rule.id,
           tabType: this.tabType,
+          pageScope: this.pageScope,
           ruleName: this.rule.ruleName,
           desc: this.editDesc,
           startDate: (this.editDateRange && this.editDateRange[0]) || '',
           endDate: (this.editDateRange && this.editDateRange[1]) || ''
         })
         if (this.editStatus !== this.rule.status) {
-          await toggleWarningRuleStatus({ id: this.rule.id, status: this.editStatus })
+          await toggleWarningRuleStatus({ id: this.rule.id, status: this.editStatus, pageScope: this.pageScope })
         }
         this.dialogVisible = false
         this.$message.success('保存成功')

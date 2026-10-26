@@ -268,7 +268,7 @@ INSERT INTO t_sr_strategy_period_summary_ap
 ('passive','STR006','资费答疑引导','02','存量经营','资费答疑','2026-09-01',1,50000,5.6,36000,9.0,34000,8.6,94.4,0.9,11000,4.0,3700,10.3,5.9,0.3,3260,11.8,3.3,0.3,153000,13.6,101000,15.3,3.7,0.3,121,NULL,NULL,0);
 
 INSERT INTO t_sr_strategy_period_summary_ctrl
-(strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month, strategy_count, consult_count, consult_count_qoq, retain_count, retain_count_qoq, retain_rate, retain_rate_qoq, dispatch_count, dispatch_count_qoq, success_count, success_count_qoq, success_rate, success_rate_qoq, income, income_qoq, city_id, county_id, is_deleted) VALUES
+(strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month, strategy_count, push_count, push_count_qoq, usage_count, usage_count_qoq, usage_rate, usage_rate_qoq, reach_count, reach_count_qoq, product_conv_num, product_conv_num_qoq, product_conv_rate, product_conv_rate_qoq, actual_income, actual_income_qoq, city_id, county_id, is_deleted) VALUES
 (STR007,'STR007','高价值用户挽留','06','存量经营','高价值挽留','2026-07-01',1,9800,10.0,6100,8.5,62.2,2.1,2650,15.1,1850,18.4,69.8,3.0,92000,21.9,NULL,NULL,0),
 (STR007,'STR007','高价值用户挽留','06','存量经营','高价值挽留','2026-08-01',1,9950,10.2,6200,8.7,62.3,2.2,2700,15.3,1890,18.6,70.0,3.1,94000,22.1,NULL,NULL,0),
 (STR007,'STR007','高价值用户挽留','06','存量经营','高价值挽留','2026-09-01',1,10100,10.4,6300,8.9,62.4,2.3,2750,15.5,1930,18.8,70.2,3.2,96000,22.3,NULL,NULL,0),
@@ -296,7 +296,7 @@ INSERT INTO t_sr_strategy_period_summary_ap
 ('passive','999','分类汇总','全部','全部','全部','2026-09-01',3,174400,6.1,125000,9.3,119000,8.9,95.2,1.0,37200,4.3,12520,10.8,6.1,0.3,11170,12.4,3.4,0.3,520000,14.1,347000,15.8,4.5,0.3,506,NULL,NULL,0);
 
 INSERT INTO t_sr_strategy_period_summary_ctrl
-(strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month, strategy_count, consult_count, consult_count_qoq, retain_count, retain_count_qoq, retain_rate, retain_rate_qoq, dispatch_count, dispatch_count_qoq, success_count, success_count_qoq, success_rate, success_rate_qoq, income, income_qoq, city_id, county_id, is_deleted) VALUES
+(strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month, strategy_count, push_count, push_count_qoq, usage_count, usage_count_qoq, usage_rate, usage_rate_qoq, reach_count, reach_count_qoq, product_conv_num, product_conv_num_qoq, product_conv_rate, product_conv_rate_qoq, actual_income, actual_income_qoq, city_id, county_id, is_deleted) VALUES
 ('999','999','分类汇总','06','存量经营','高价值挽留','2026-09-01',1,10100,10.4,6300,8.9,62.4,2.3,2750,15.5,1930,18.8,70.2,3.2,96000,22.3,NULL,NULL,0),
 ('999','999','分类汇总','01','存量经营','欠费挽留','2026-09-01',1,15100,10.5,9700,9.0,64.3,2.5,4200,15.6,2980,18.7,71.0,3.4,150000,22.3,NULL,NULL,0),
 ('999','999','分类汇总','05','家庭业务','拆机挽留','2026-09-01',1,9600,11.1,6100,9.3,63.5,2.2,2650,15.5,1850,19.0,69.8,3.3,94000,22.6,NULL,NULL,0),
@@ -473,7 +473,7 @@ CROSS JOIN (SELECT 2 AS n UNION SELECT 3 UNION SELECT 4) nums
 WHERE stat_date = '2026-09-01' AND tab_type = 'passive';
 
 INSERT INTO t_sr_strategy_daily_ctrl
-(strategy_id, stat_date, channel, big_category, small_category, strategy_name, consult_count, retain_count, retain_rate, dispatch_count, success_count, success_rate, city_id, county_id, is_deleted) VALUES
+(strategy_id, stat_month, channel, big_category, small_category, strategy_name, push_count, usage_count, usage_rate, reach_count, product_conv_num, product_conv_rate, city_id, county_id, is_deleted) VALUES
 (STR007,'2026-09-01','06','存量经营','高价值挽留','高价值用户挽留',410,255,62.2,115,79,70.2,NULL,NULL,0),
 (STR007,'2026-09-02','06','存量经营','高价值挽留','高价值用户挽留',425,262,61.6,118,81,70.3,NULL,NULL,0),
 (STR008,'2026-09-01','01','存量经营','欠费挽留','欠费停机挽留',610,395,64.7,168,120,71.4,NULL,NULL,0),
@@ -564,6 +564,7 @@ WHERE strategy_id = 'STR003'
 UPDATE t_sr_kpi_summary                    SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_channel_summary_ctrl           SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_channel_summary_ap             SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_period_summary_ctrl   SET tab_type = 'control', strategy_class = '全部' WHERE tab_type IS NULL OR tab_type = '';
 UPDATE t_sr_strategy_period_summary_ctrl   SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_strategy_period_summary_ap     SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_channel_monthly_capacity_ctrl  SET city_id = '999' WHERE city_id IS NULL;
@@ -572,6 +573,7 @@ UPDATE t_sr_channel_biz_capacity_ctrl      SET city_id = '999' WHERE city_id IS 
 UPDATE t_sr_channel_biz_capacity_ap        SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_strategy_biz_capacity          SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_strategy_daily_ctrl            SET city_id = '999' WHERE city_id IS NULL;
+UPDATE t_sr_strategy_daily_ctrl            SET tab_type = 'control', strategy_class = '全部' WHERE tab_type IS NULL OR tab_type = '';
 UPDATE t_sr_strategy_daily_ap              SET city_id = '999' WHERE city_id IS NULL;
 UPDATE t_sr_strategy_reject_reason         SET city_id = '999' WHERE city_id IS NULL;
 
@@ -662,30 +664,30 @@ WHERE strategy_id = '999' AND (channel = '全部' OR big_category = '全部' OR 
 
 INSERT INTO t_sr_strategy_period_summary_ctrl
 (strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month,
- strategy_count, consult_count, consult_count_qoq, retain_count, retain_count_qoq,
- retain_rate, retain_rate_qoq, dispatch_count, dispatch_count_qoq,
- success_count, success_count_qoq, success_rate, success_rate_qoq,
- income, income_qoq, city_id, is_deleted)
+ strategy_count, push_count, push_count_qoq, usage_count, usage_count_qoq,
+ usage_rate, usage_rate_qoq, reach_count, reach_count_qoq,
+ product_conv_num, product_conv_num_qoq, product_conv_rate, product_conv_rate_qoq,
+ actual_income, actual_income_qoq, city_id, is_deleted)
 SELECT '999', '999', '分类汇总', '全部', big_category, small_category, MAX(stat_month),
-       SUM(strategy_count), SUM(consult_count), MAX(consult_count_qoq),
-       SUM(retain_count), MAX(retain_count_qoq), MAX(retain_rate), MAX(retain_rate_qoq),
-       SUM(dispatch_count), MAX(dispatch_count_qoq), SUM(success_count), MAX(success_count_qoq),
-       MAX(success_rate), MAX(success_rate_qoq), SUM(income), MAX(income_qoq), MAX(city_id), 0
+       SUM(strategy_count), SUM(push_count), MAX(push_count_qoq),
+       SUM(usage_count), MAX(usage_count_qoq), MAX(usage_rate), MAX(usage_rate_qoq),
+       SUM(reach_count), MAX(reach_count_qoq), SUM(product_conv_num), MAX(product_conv_num_qoq),
+       MAX(product_conv_rate), MAX(product_conv_rate_qoq), SUM(actual_income), MAX(actual_income_qoq), MAX(city_id), 0
 FROM t_sr_strategy_period_summary_ctrl
 WHERE strategy_id LIKE 'STR%' AND is_deleted = 0
 GROUP BY big_category, small_category, DATE_FORMAT(stat_month, '%Y-%m');
 
 INSERT INTO t_sr_strategy_period_summary_ctrl
 (strategy_id, strategy_code, strategy_name, channel, big_category, small_category, stat_month,
- strategy_count, consult_count, consult_count_qoq, retain_count, retain_count_qoq,
- retain_rate, retain_rate_qoq, dispatch_count, dispatch_count_qoq,
- success_count, success_count_qoq, success_rate, success_rate_qoq,
- income, income_qoq, city_id, is_deleted)
+ strategy_count, push_count, push_count_qoq, usage_count, usage_count_qoq,
+ usage_rate, usage_rate_qoq, reach_count, reach_count_qoq,
+ product_conv_num, product_conv_num_qoq, product_conv_rate, product_conv_rate_qoq,
+ actual_income, actual_income_qoq, city_id, is_deleted)
 SELECT '999', '999', '分类汇总', '全部', '全部', '全部', MAX(stat_month),
-       SUM(strategy_count), SUM(consult_count), MAX(consult_count_qoq),
-       SUM(retain_count), MAX(retain_count_qoq), MAX(retain_rate), MAX(retain_rate_qoq),
-       SUM(dispatch_count), MAX(dispatch_count_qoq), SUM(success_count), MAX(success_count_qoq),
-       MAX(success_rate), MAX(success_rate_qoq), SUM(income), MAX(income_qoq), MAX(city_id), 0
+       SUM(strategy_count), SUM(push_count), MAX(push_count_qoq),
+       SUM(usage_count), MAX(usage_count_qoq), MAX(usage_rate), MAX(usage_rate_qoq),
+       SUM(reach_count), MAX(reach_count_qoq), SUM(product_conv_num), MAX(product_conv_num_qoq),
+       MAX(product_conv_rate), MAX(product_conv_rate_qoq), SUM(actual_income), MAX(actual_income_qoq), MAX(city_id), 0
 FROM t_sr_strategy_period_summary_ctrl
 WHERE strategy_id LIKE 'STR%' AND is_deleted = 0
 GROUP BY DATE_FORMAT(stat_month, '%Y-%m');
@@ -813,6 +815,64 @@ WHERE EXISTS (
         AND s.strategy_class IN ('降拆', '离')
         AND s.strategy_code = r.strategy_id
   );
+
+-- Keep key-audience strategy data separate from the four standard stock classes.
+-- The cross-class “全部” summary remains in the shared tables.
+INSERT IGNORE INTO t_sr_strategy_key_audience
+SELECT * FROM t_sr_strategy
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_strategy
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_strategy_period_summary_ap_key_audience
+SELECT * FROM t_sr_strategy_period_summary_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_strategy_period_summary_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_strategy_daily_ap_key_audience
+SELECT * FROM t_sr_strategy_daily_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_strategy_daily_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_kpi_summary_key_audience
+SELECT * FROM t_sr_kpi_summary
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_kpi_summary
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_channel_summary_ap_key_audience
+SELECT * FROM t_sr_channel_summary_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_channel_summary_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_channel_monthly_capacity_ap_key_audience
+SELECT * FROM t_sr_channel_monthly_capacity_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_channel_monthly_capacity_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_channel_biz_capacity_ap_key_audience
+SELECT * FROM t_sr_channel_biz_capacity_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+DELETE FROM t_sr_channel_biz_capacity_ap
+WHERE tab_type = 'active' AND strategy_class = '重点客群';
+
+INSERT IGNORE INTO t_sr_strategy_biz_capacity_key_audience
+SELECT b.* FROM t_sr_strategy_biz_capacity b
+WHERE b.tab_type = 'active'
+  AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience s WHERE s.strategy_code = b.strategy_id AND s.tab_type = 'active');
+DELETE b FROM t_sr_strategy_biz_capacity b
+WHERE b.tab_type = 'active'
+  AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience s WHERE s.strategy_code = b.strategy_id AND s.tab_type = 'active');
+
+INSERT IGNORE INTO t_sr_strategy_reject_reason_key_audience
+SELECT r.* FROM t_sr_strategy_reject_reason r
+WHERE EXISTS (SELECT 1 FROM t_sr_strategy_key_audience s WHERE s.strategy_code = r.strategy_id AND s.tab_type = 'active');
+DELETE r FROM t_sr_strategy_reject_reason r
+WHERE EXISTS (SELECT 1 FROM t_sr_strategy_key_audience s WHERE s.strategy_code = r.strategy_id AND s.tab_type = 'active');
 
 -- Incremental strategies belong to a separate physical table family.
 INSERT IGNORE INTO t_sr_strategy_passive

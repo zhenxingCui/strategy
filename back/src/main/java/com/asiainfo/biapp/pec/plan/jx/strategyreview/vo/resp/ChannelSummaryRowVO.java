@@ -57,6 +57,12 @@ public class ChannelSummaryRowVO {
     @ApiModelProperty("触达量环比 %")
     private BigDecimal reachCountQoQ;
 
+    @ApiModelProperty("成功率 %（降拆成功量/推送量）")
+    private BigDecimal reachRate;
+
+    @ApiModelProperty("成功率环比 pp")
+    private BigDecimal reachRateQoQ;
+
     @ApiModelProperty("目标转化量")
     private Long targetConvNum;
 

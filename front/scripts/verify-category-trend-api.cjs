@@ -49,13 +49,15 @@ async function main() {
         for (const [field, column] of [['bigCategory', 'big_category'], ['smallCategory', 'small_category'], ['channel', 'channel'], ['strategyClass', 'strategy_class']]) {
           if (scope[field] && scope[field] !== '全部') { where.push(`${column}=?`); params.push(scope[field]) }
         }
-        if (scope.customerGroup || scope.productName) {
-          const field = scope.customerGroup ? 'customer_group' : 'product_name'
-          where.push(`strategy_id IN (SELECT strategy_code FROM v_sr_strategy_read WHERE tab_type=? AND is_deleted=0 AND ${field}=?)`)
-          params.push(tabType, scope.customerGroup || scope.productName)
+        if (scope.customerGroup) {
+          where.push('strategy_id IN (SELECT strategy_code FROM v_sr_strategy_read WHERE tab_type=? AND is_deleted=0 AND customer_group=?)')
+          params.push(tabType, scope.customerGroup)
+        } else if (scope.productName) {
+          where.push('small_category=?')
+          params.push(scope.productName)
         }
         const table = tabType === 'control' ? 't_sr_strategy_period_summary_ctrl' : 'v_sr_strategy_period_summary_ap_read'
-        const metric = tabType === 'control' ? 'success_count' : 'product_conv_num'
+        const metric = 'product_conv_num'
         const [facts] = await conn.execute(`SELECT DATE_FORMAT(stat_month,'%Y-%m') month,SUM(${metric}) capacity FROM ${table} WHERE ${where.join(' AND ')} GROUP BY stat_month ORDER BY stat_month`, params)
         const expected = facts.slice(-6)
         const actual = await api('touchpoint/channelCapacityTrend', scope)

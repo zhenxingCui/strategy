@@ -4,10 +4,11 @@
     <div class="split split--m4">
       <div class="card">
         <review-table
-          :title="favoritesOnly ? '我的收藏策略' : '策略执行情况（逐策略）'"
+          ref="strategyTable"
+          title="策略执行情况（逐策略）"
           tools
-          selectable
-          :sortable="!favoritesOnly"
+          :exporting="exportingStrategies"
+          sortable
           :columns="columns"
           :rows="strategies"
           :state="panels.list"
@@ -17,15 +18,18 @@
           @retry="loadList"
           @page="changePage"
           @sort="changeSort"
-          @selection="selection = $event"
+          @export-all="exportAllStrategies"
           @strategy="selectStrategy"
         >
-          <button slot="actions" class="btn" :disabled="!selection.length || saving || !!(panels.list && panels.list.loading)" @click="favorite">
-            <i class="el-icon-star-off" />{{ favoritesOnly ? '取消收藏选中' : '收藏选中' }}
-          </button>
           <div slot="filters" class="toolbar">
-            <button class="seg-btn" :aria-pressed="!favoritesOnly ? 'true' : 'false'" :disabled="saving" @click="setFavoritesOnly(false)">全部策略</button>
-            <button class="seg-btn" :aria-pressed="favoritesOnly ? 'true' : 'false'" :disabled="saving" @click="setFavoritesOnly(true)">我的收藏</button>
+            <select v-model="draftBigCategory" class="select" aria-label="策略大类" :disabled="panels.categoryOptions && panels.categoryOptions.loading" @change="draftSmallCategory = ''">
+              <option value="">全部策略大类</option>
+              <option v-for="name in bigCategories" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <select v-model="draftSmallCategory" class="select" aria-label="策略小类" :disabled="panels.categoryOptions && panels.categoryOptions.loading">
+              <option value="">全部策略小类</option>
+              <option v-for="name in smallCategories" :key="name" :value="name">{{ name }}</option>
+            </select>
             <input
               v-model="draftName"
               class="input"
@@ -36,6 +40,9 @@
             />
             <button class="btn btn-primary" @click="search">搜索</button
             ><button class="btn" @click="resetSearch">重置</button>
+            <span v-if="panels.categoryOptions && panels.categoryOptions.error" role="alert">
+              分类选项加载失败，<button class="btn-link" @click="loadCategoryOptions">重试</button>
+            </span>
           </div>
         </review-table>
       </div>
@@ -64,6 +71,7 @@
         </div>
         <div class="card chart-card">
           <div class="sub-title">策略产能</div>
+          <p v-if="query.tabType === 'passive'" class="muted simulation-note">{{ passiveNote }}</p>
           <review-state
             :state="panels.trend"
             :empty="!trend.months || !trend.months.length"
@@ -99,10 +107,11 @@
       </div>
     </div>
     <div class="card daily-card">
-      <p v-if="dailySimulationNote" class="metric-footnote" role="note">{{ dailySimulationNote }}</p>
       <review-table
+        ref="dailyTable"
         title="执行明细（分日）"
         tools
+        :exporting="exportingDaily"
         :columns="dailyColumns"
         :rows="daily"
         :state="panels.daily"
@@ -111,6 +120,7 @@
         :total="dailyTotal"
         :empty-text="selected.strategyId ? '当前月份暂无执行明细' : '请选择上方策略'"
         @page="changeDailyPage"
+        @export-all="exportAllDaily"
         @retry="loadDaily"
       >
         <div slot="filters" class="toolbar daily-toolbar">
@@ -126,26 +136,22 @@
   </section>
 </template>
 <script>
+import { Message } from 'element-ui'
 import {
+  getStrategyCategoryOptions,
   getStrategyList,
   getStrategyInfo,
   getStrategyCapacityTrend,
   getStrategyBizCapacity,
   getStrategyDailyDetail,
   getStrategyRejectReason,
-  addFavorite,
-  getFavoriteList,
-  removeFavorite,
 } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
 import ReviewTable from './ReviewTable.vue'
 import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyBizColumns, categoryLabelColumns, barLineOption, monthRange, panelRequests } from './reviewData'
-import leaveSimulation from './leaveSimulation.json'
-import customerGroupSimulation from './customerGroupSimulation.json'
-import incrementalSimulation from './incrementalSimulation.json'
-import declineSimulation from './declineSimulation.json'
-import { visibleSimulationTrend } from './simulationTrend'
+import { visibleSimulationTrend, passiveDataNote } from './simulationTrend'
+import { fetchAllPagedRows } from './fetchAllPagedRows'
 
 export default {
   name: 'StockDetail',
@@ -157,8 +163,9 @@ export default {
       strategies: [],
       total: 0,
       page: 1,
+      exportingStrategies: false,
+      exportingDaily: false,
       selected: {},
-      selection: [],
       info: {},
       trend: {},
       reasons: [],
@@ -171,37 +178,15 @@ export default {
       dailyRange: monthRange(this.query.statMonth),
       draftName: '',
       strategyName: '',
+      categoryRows: [],
+      draftBigCategory: '',
+      draftSmallCategory: '',
+      bigCategory: '',
+      smallCategory: '',
       sort: {},
-      saving: false,
-      favoritesOnly: false,
     }
   },
   computed: {
-    dailySimulationNote() {
-      if (this.query.tabType === incrementalSimulation.tabType && this.query.cityId === incrementalSimulation.cityId &&
-          incrementalSimulation.dailyStrategyIds.includes(this.selected.strategyId) && this.dailyRange &&
-          this.dailyRange[0] <= incrementalSimulation.dailyEndDate && this.dailyRange[1] >= incrementalSimulation.dailyStartDate) {
-        return `${incrementalSimulation.dailyStartDate}至${incrementalSimulation.dailyEndDate}为依据月度总量、固定种子星期权重及逐日漏斗上限拆分的模拟日数据；各策略日合计与10月Excel月度数据一致。`
-      }
-      if (this.query.tabType === customerGroupSimulation.tabType && this.query.cityId === customerGroupSimulation.cityId &&
-          this.query.strategyClass === customerGroupSimulation.strategyClass &&
-          (!this.query.customerGroup || this.query.customerGroup === customerGroupSimulation.customerGroup) &&
-          customerGroupSimulation.dailyStrategyIds.includes(this.selected.strategyId) && this.dailyRange &&
-          this.dailyRange[0] <= customerGroupSimulation.dailyEndDate && this.dailyRange[1] >= customerGroupSimulation.dailyStartDate) {
-        return `9月及10月1—23日为按月度数据、星期权重和转化漏斗关系模拟的日明细；9月日合计与9月全月一致，10月日合计与Excel截至10月23日数据一致。10月环比比较9月与10月各自1—23日同期累计值。`
-      }
-      if (this.query.tabType === declineSimulation.tabType && this.query.cityId === declineSimulation.cityId &&
-          this.query.strategyClass === declineSimulation.strategyClass && declineSimulation.dailyAvailable === true &&
-          this.selected.strategyId && this.dailyRange &&
-          this.dailyRange[0] <= declineSimulation.dailyEndDate &&
-          this.dailyRange[1] >= declineSimulation.dailyStartDate) {
-        return `${declineSimulation.dailyStartDate}至${declineSimulation.dailyEndDate}为按固定种子的工作日/周末权重和最大余数法拆分的模拟日数据；各策略日合计与Excel月度原值一致。派单量为空及成功量大于派单量的来源情况按原值保留，此处为模拟分摊，不代表实际逐日业绩。`
-      }
-      if (this.query.tabType !== leaveSimulation.tabType || this.query.cityId !== leaveSimulation.cityId ||
-          !leaveSimulation.dailyStrategyIds || !leaveSimulation.dailyStrategyIds.includes(this.selected.strategyId) ||
-          !this.dailyRange || this.dailyRange[0] > leaveSimulation.dailyEndDate || this.dailyRange[1] < leaveSimulation.dailyStartDate) return ''
-      return `${leaveSimulation.dailyStartDate}至${leaveSimulation.dailyEndDate}为依据Excel“分日展示”比例并按漏斗关系校准的模拟日明细；各项日合计与10月月度数据一致，逐日数量满足使用≤推送、触达≤使用、转化≤触达。`
-    },
     hideBusinessCapacity() {
       return this.query.tabType === 'active' && ['降拆', '离'].includes(this.query.strategyClass)
     },
@@ -209,12 +194,29 @@ export default {
       const columns = this.query.tabType === 'control'
         ? controlStrategyColumns
         : strategyColumns.filter((column) => column.prop !== 'strategyClass')
-      return categoryLabelColumns(columns, this.query)
+      const labeledColumns = categoryLabelColumns(columns, this.query)
+      if (this.query.tabType === 'active' && ['升接', '稳', '重点客群'].includes(this.query.strategyClass)) {
+        return [...labeledColumns, { prop: 'actualIncome', label: '收入(元)' }]
+      }
+      return labeledColumns
     },
     bizColumns() {
       return this.query.tabType === 'control'
         ? strategyBizColumns.map(c => c.prop === 'count' ? { ...c, label: '转化量' } : c)
         : categoryLabelColumns(strategyBizColumns, this.query)
+    },
+    bigCategories() {
+      return [...new Set(this.categoryRows.map((row) => row.bigCategory).filter(Boolean))]
+    },
+    smallCategories() {
+      return [
+        ...new Set(
+          this.categoryRows
+            .filter((row) => !this.draftBigCategory || row.bigCategory === this.draftBigCategory)
+            .map((row) => row.smallCategory)
+            .filter(Boolean),
+        ),
+      ]
     },
     dailyColumns() {
       const columns = this.columns
@@ -224,7 +226,13 @@ export default {
     },
     trendOption() {
       const trend = visibleSimulationTrend(this.query, this.trend, 'capacity', this.selected.strategyId)
-      return barLineOption(trend.months, trend.capacity, trend.qoq, '产能', trend.unit || '')
+      const metricName = this.query.tabType === 'active' && ['升接', '稳', '降拆'].includes(this.query.strategyClass)
+        ? '成功量'
+        : '产能'
+      return barLineOption(trend.months, trend.capacity, trend.qoq, metricName, trend.unit || '')
+    },
+    passiveNote() {
+      return passiveDataNote(this.query)
     },
     rejectOption() {
       return {
@@ -266,10 +274,11 @@ export default {
       deep: true,
       handler() {
         this.page = 1
-        this.selection = []
         this.dailyRange = monthRange(this.query.statMonth)
+        this.resetCategoryFilters()
         this.clearDetails()
         this.loadList()
+        this.loadCategoryOptions()
       },
     },
     externalStrategy(row) {
@@ -278,6 +287,7 @@ export default {
   },
   created() {
     this.loadList()
+    this.loadCategoryOptions()
   },
   methods: {
     params(extra = {}) {
@@ -297,19 +307,26 @@ export default {
       this.daily = []
       this.dailyTotal = 0
     },
+    resetCategoryFilters() {
+      this.draftBigCategory = ''
+      this.draftSmallCategory = ''
+      this.bigCategory = ''
+      this.smallCategory = ''
+    },
+    loadCategoryOptions() {
+      this.categoryRows = []
+      return this.request(
+        'categoryOptions',
+        () => getStrategyCategoryOptions({ ...this.query, bigCategory: '', smallCategory: '' }),
+        (result) => {
+          this.categoryRows = listOf(result)
+        },
+      )
+    },
     loadList() {
-      this.selection = []
       return this.request(
         'list',
-        () =>
-          (this.favoritesOnly ? getFavoriteList : getStrategyList)({
-            ...this.query,
-            manualOnly: this.favoritesOnly,
-            strategyName: this.strategyName,
-            pageNum: this.page,
-            pageSize: 10,
-            ...this.sort,
-          }),
+        () => getStrategyList(this.strategyListParams(this.page, 10)),
         (result) => {
           this.strategies = listOf(result)
           this.total = Number(result && result.total) || 0
@@ -322,6 +339,57 @@ export default {
           if (!this.selected.strategyId && this.strategies.length) this.selectStrategy(this.strategies[0])
         },
       )
+    },
+    strategyListParams(pageNum, pageSize) {
+      return {
+        ...this.query,
+        strategyName: this.strategyName,
+        bigCategory: this.bigCategory || null,
+        smallCategory: this.smallCategory || null,
+        pageNum,
+        pageSize,
+        ...this.sort,
+      }
+    },
+    async exportAllStrategies() {
+      if (this.exportingStrategies || !this.total) return
+      this.exportingStrategies = true
+      const pageSize = 500
+      const params = this.strategyListParams(1, pageSize)
+      try {
+        const rows = await fetchAllPagedRows(
+          (pageNum, requestedPageSize) => getStrategyList({ ...params, pageNum, pageSize: requestedPageSize }),
+          this.total,
+          pageSize,
+        )
+        if (this.$refs.strategyTable) this.$refs.strategyTable.exportRows(rows)
+      } catch (error) {
+        if (error && error.message === '导出数据未完整加载，请重试') {
+          Message.error(error.message)
+        }
+      } finally {
+        this.exportingStrategies = false
+      }
+    },
+    async exportAllDaily() {
+      if (this.exportingDaily || !this.selected.strategyId || !this.dailyTotal) return
+      this.exportingDaily = true
+      const pageSize = 500
+      const params = this.params({ startDate: this.dailyRange[0], endDate: this.dailyRange[1] })
+      try {
+        const rows = await fetchAllPagedRows(
+          (pageNum, requestedPageSize) => getStrategyDailyDetail({ ...params, pageNum, pageSize: requestedPageSize }),
+          this.dailyTotal,
+          pageSize,
+        )
+        if (this.$refs.dailyTable) this.$refs.dailyTable.exportRows(rows)
+      } catch (error) {
+        if (error && error.message === '导出数据未完整加载，请重试') {
+          Message.error(error.message)
+        }
+      } finally {
+        this.exportingDaily = false
+      }
     },
     selectStrategy(row) {
       if (!row.strategyId) return
@@ -337,19 +405,15 @@ export default {
     },
     search() {
       this.strategyName = this.draftName.trim()
-      this.page = 1
-      this.clearDetails()
-      this.loadList()
-    },
-    setFavoritesOnly(value) {
-      if (this.favoritesOnly === value) return
-      this.favoritesOnly = value
+      this.bigCategory = this.draftBigCategory
+      this.smallCategory = this.draftSmallCategory
       this.page = 1
       this.clearDetails()
       this.loadList()
     },
     resetSearch() {
       this.draftName = ''
+      this.resetCategoryFilters()
       this.search()
     },
     changePage(page) {
@@ -375,7 +439,16 @@ export default {
       if (this.selected.strategyId)
         return this.request(
           'trend',
-          () => getStrategyCapacityTrend(this.params()),
+          () => getStrategyCapacityTrend(this.params(
+            {
+              ...(this.query.tabType === 'active' && ['升接', '稳'].includes(this.query.strategyClass)
+                ? { bigCategory: this.selected.bigCategory, smallCategory: this.selected.smallCategory }
+                : {}),
+              ...(this.query.tabType === 'active' && this.query.strategyClass === '降拆'
+                ? { metricCode: 'reachCount' }
+                : {}),
+            },
+          )),
           (result) => {
             this.trend = result || {}
           },
@@ -429,23 +502,6 @@ export default {
     changeDailyPage(page) {
       this.dailyPage = page
       this.loadDaily()
-    },
-    async favorite() {
-      if (!this.selection.length || this.saving) return
-      const removing = this.favoritesOnly
-      this.saving = true
-      try {
-        await (removing ? removeFavorite : addFavorite)({ ...this.query, strategyIds: this.selection.map((row) => String(row.strategyId)) })
-        this.$message.success(removing ? '已取消收藏' : '收藏成功')
-        if (removing) {
-          this.clearDetails()
-          await this.loadList()
-        }
-      } catch (e) {
-        /* 请求拦截器展示错误 */
-      } finally {
-        this.saving = false
-      }
     },
   },
 }

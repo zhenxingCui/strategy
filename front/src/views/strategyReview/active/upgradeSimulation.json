@@ -1,0 +1,317 @@
+{
+  "tabType": "active",
+  "strategyClass": "升接",
+  "cityId": "999",
+  "countyId": null,
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-21",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyIsSimulated": true,
+  "dailyMethod": "按固定种子生成有波动的每日权重，使用最大余数法；适用时按逐日上限分配；为模拟分摊，不代表实际逐日业绩。",
+  "dailyRuleSource": "固定种子生成有波动的日权重",
+  "dailyRuleSourceSha256": "3bf6cadd9c416850efad18f041ab0768008574b30fb7122ddb14abecb24515d3",
+  "dailyStrategyIds": [
+    "sdyy_1001",
+    "sdyy_1002",
+    "sdyy_1003",
+    "sdyy_1004",
+    "sdyy_1005",
+    "sdyy_1006",
+    "sdyy_1007"
+  ],
+  "sourceFile": "升接-补充到厅策略(1).xlsx",
+  "sourceSha256": "3bf6cadd9c416850efad18f041ab0768008574b30fb7122ddb14abecb24515d3",
+  "sourceRows": {
+    "strategies": 7,
+    "monthly": 7,
+    "businesses": 42,
+    "rejectReasons": 35
+  },
+  "startMonth": "2025-12",
+  "endMonth": "2026-09",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "monthlySimulationMonths": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "customerGroups": [],
+  "customerGroup": null,
+  "supplementalSources": [
+    {
+      "sourceFile": "升接-升接稳补充到厅策略-汇总.xlsx",
+      "sourceSha256": "e07a71848c3f363a029ba1a0c0fe8747458c8b35e1b56f3f646fc523f48dff53",
+      "sourceMonth": "2026-10",
+      "sourceCutoff": "2026-10-24",
+      "sourceStart": "2026-10-01",
+      "dailyIsSimulated": false,
+      "counts": {
+        "strategies": 57,
+        "monthlyFacts": 55,
+        "dailyRows": 1271,
+        "dailyStrategies": 55,
+        "businessRows": 57,
+        "rejectReasonRows": 285,
+        "archiveOnlyStrategies": 2
+      },
+      "sourceMonthlyDailyComparison": {
+        "compared": 221,
+        "mismatchCount": 179,
+        "examples": [
+          {
+            "strategyId": "zxhr_1001",
+            "metric": "push_count",
+            "monthValue": 66798,
+            "dailySum": 82968
+          },
+          {
+            "strategyId": "zxhr_1001",
+            "metric": "usage_count",
+            "monthValue": 38528,
+            "dailySum": 43038
+          },
+          {
+            "strategyId": "zxhr_1001",
+            "metric": "reach_count",
+            "monthValue": 11718,
+            "dailySum": 12380
+          },
+          {
+            "strategyId": "zxhr_1001",
+            "metric": "target_conv_num",
+            "monthValue": 860,
+            "dailySum": 1076
+          },
+          {
+            "strategyId": "zxhr_1001",
+            "metric": "actual_income",
+            "monthValue": 4300,
+            "dailySum": 10760
+          },
+          {
+            "strategyId": "zxhr_1008",
+            "metric": "push_count",
+            "monthValue": 706692,
+            "dailySum": 1630880
+          },
+          {
+            "strategyId": "zxhr_1008",
+            "metric": "usage_count",
+            "monthValue": 436000,
+            "dailySum": 948536
+          },
+          {
+            "strategyId": "zxhr_1008",
+            "metric": "reach_count",
+            "monthValue": 31544,
+            "dailySum": 64520
+          },
+          {
+            "strategyId": "zxhr_1008",
+            "metric": "target_conv_num",
+            "monthValue": 5578,
+            "dailySum": 6968
+          },
+          {
+            "strategyId": "zxhr_1008",
+            "metric": "actual_income",
+            "monthValue": 13945,
+            "dailySum": 34840
+          },
+          {
+            "strategyId": "zxhr_1009",
+            "metric": "push_count",
+            "monthValue": 90544,
+            "dailySum": 145480
+          },
+          {
+            "strategyId": "zxhr_1009",
+            "metric": "usage_count",
+            "monthValue": 56114,
+            "dailySum": 85716
+          },
+          {
+            "strategyId": "zxhr_1009",
+            "metric": "reach_count",
+            "monthValue": 4334,
+            "dailySum": 6352
+          },
+          {
+            "strategyId": "zxhr_1009",
+            "metric": "target_conv_num",
+            "monthValue": 598,
+            "dailySum": 740
+          },
+          {
+            "strategyId": "zxhr_1009",
+            "metric": "actual_income",
+            "monthValue": 2990,
+            "dailySum": 7400
+          },
+          {
+            "strategyId": "zxhr_1013",
+            "metric": "push_count",
+            "monthValue": 27904,
+            "dailySum": 105520
+          },
+          {
+            "strategyId": "zxhr_1013",
+            "metric": "usage_count",
+            "monthValue": 17632,
+            "dailySum": 62484
+          },
+          {
+            "strategyId": "zxhr_1013",
+            "metric": "reach_count",
+            "monthValue": 9100,
+            "dailySum": 34912
+          },
+          {
+            "strategyId": "zxhr_1013",
+            "metric": "target_conv_num",
+            "monthValue": 1028,
+            "dailySum": 1284
+          },
+          {
+            "strategyId": "zxhr_1013",
+            "metric": "actual_income",
+            "monthValue": 10280,
+            "dailySum": 25680
+          }
+        ]
+      },
+      "productConvNumInterpretation": "Excel product_conv_num数值等于target_conv_num/reach_count，是比率；事实表该字段为数量，按项目已确认规则缺失时取target_conv_num。",
+      "dailyStrategyIds": [
+        "xx_1001",
+        "xx_1002",
+        "xx_1003",
+        "xx_1004",
+        "xx_1005",
+        "xx_1006",
+        "xx_1007",
+        "xx_1008",
+        "xx_1009",
+        "xx_1010",
+        "xx_1011",
+        "xx_1012",
+        "xx_1013",
+        "xx_1014",
+        "xx_1015",
+        "xx_1016",
+        "xx_1017",
+        "xx_1018",
+        "xx_1024",
+        "xx_1025",
+        "xx_1045",
+        "xx_1050",
+        "xx_1051",
+        "xx_1053",
+        "zxhr_1001",
+        "zxhr_1008",
+        "zxhr_1009",
+        "zxhr_1013",
+        "zxhr_1014",
+        "zxhr_1015",
+        "zxhr_1016",
+        "zxhr_1017",
+        "zxhr_1018",
+        "zxhr_1019",
+        "zxhr_1021",
+        "zxhr_1022",
+        "zxhr_1023",
+        "zxhr_1024",
+        "zxhr_1025",
+        "zxhr_1026",
+        "zxhr_1027",
+        "zxhr_1028",
+        "zxhr_1029",
+        "zxhr_1030",
+        "zxhr_1031",
+        "zxhr_1032",
+        "zxhr_1033",
+        "zxhr_1034",
+        "zxhr_1035",
+        "zxhr_1036",
+        "zxhr_1037",
+        "zxhr_1038",
+        "zxhr_1039",
+        "zxhr_1040",
+        "zxhr_1041"
+      ],
+      "archiveOnlyIds": [
+        "xx_1052",
+        "zxhr_1020"
+      ],
+      "dailyOnlyIds": [
+        "xx_1005",
+        "xx_1053"
+      ]
+    }
+  ],
+  "actualDailyStrategyIds": [
+    "xx_1001",
+    "xx_1002",
+    "xx_1003",
+    "xx_1004",
+    "xx_1005",
+    "xx_1006",
+    "xx_1007",
+    "xx_1008",
+    "xx_1009",
+    "xx_1010",
+    "xx_1011",
+    "xx_1012",
+    "xx_1013",
+    "xx_1014",
+    "xx_1015",
+    "xx_1016",
+    "xx_1017",
+    "xx_1018",
+    "xx_1024",
+    "xx_1025",
+    "xx_1045",
+    "xx_1050",
+    "xx_1051",
+    "xx_1053",
+    "zxhr_1001",
+    "zxhr_1008",
+    "zxhr_1009",
+    "zxhr_1013",
+    "zxhr_1014",
+    "zxhr_1015",
+    "zxhr_1016",
+    "zxhr_1017",
+    "zxhr_1018",
+    "zxhr_1019",
+    "zxhr_1021",
+    "zxhr_1022",
+    "zxhr_1023",
+    "zxhr_1024",
+    "zxhr_1025",
+    "zxhr_1026",
+    "zxhr_1027",
+    "zxhr_1028",
+    "zxhr_1029",
+    "zxhr_1030",
+    "zxhr_1031",
+    "zxhr_1032",
+    "zxhr_1033",
+    "zxhr_1034",
+    "zxhr_1035",
+    "zxhr_1036",
+    "zxhr_1037",
+    "zxhr_1038",
+    "zxhr_1039",
+    "zxhr_1040",
+    "zxhr_1041"
+  ]
+}

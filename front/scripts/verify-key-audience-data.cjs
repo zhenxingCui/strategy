@@ -9,13 +9,13 @@ async function main() {
     database: process.env.SR_DB_NAME || 'strategy_review_active_class_local', dateStrings: true,
   })
   try {
-    const [strategies] = await connection.query("SELECT * FROM t_sr_strategy WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0")
+    const [strategies] = await connection.query("SELECT * FROM t_sr_strategy_key_audience WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0")
     assert.equal(strategies.length, 8)
     assert.equal(new Set(strategies.map(row => row.channel)).size, 4)
     const fields = ['original_cust', 'push_count', 'usage_count', 'reach_count', 'target_conv_num', 'product_conv_num', 'expected_income', 'actual_income', 'reject_count']
-    const [periods] = await connection.query("SELECT * FROM t_sr_strategy_period_summary_ap WHERE tab_type='active' AND strategy_class='重点客群' AND strategy_id!='999' AND is_deleted=0")
-    const [daily] = await connection.query("SELECT * FROM t_sr_strategy_daily_ap WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0")
-    const [kpis] = await connection.query("SELECT * FROM t_sr_kpi_summary WHERE tab_type='active' AND city_id='999' AND is_deleted=0")
+    const [periods] = await connection.query("SELECT * FROM t_sr_strategy_period_summary_ap_key_audience WHERE tab_type='active' AND strategy_class='重点客群' AND strategy_id!='999' AND is_deleted=0")
+    const [daily] = await connection.query("SELECT * FROM t_sr_strategy_daily_ap_key_audience WHERE tab_type='active' AND strategy_class='重点客群' AND is_deleted=0")
+    const [kpis] = await connection.query("SELECT * FROM v_sr_kpi_summary_read WHERE tab_type='active' AND city_id='999' AND is_deleted=0")
     assert.equal(new Set(periods.map(row => row.stat_month.slice(0, 7))).size, 12)
     assert.ok(periods.every(row => strategies.some(strategy => strategy.strategy_code === row.strategy_id)))
     for (const row of periods) {

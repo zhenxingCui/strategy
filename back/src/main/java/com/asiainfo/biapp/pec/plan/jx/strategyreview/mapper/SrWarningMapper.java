@@ -23,19 +23,22 @@ public interface SrWarningMapper {
                                        @Param("status") String status,
                                        @Param("ruleId") String ruleId,
                                        @Param("userCode") String userCode,
+                                       @Param("pageScopeMarker") String pageScopeMarker,
                                        @Param("offset") int offset,
                                        @Param("limit") int limit);
 
     WarningRuleVO queryRuleById(@Param("tabType") String tabType,
                                        @Param("ruleId") String ruleId,
-                                       @Param("status") String status);
+                                       @Param("status") String status,
+                                       @Param("pageScopeMarker") String pageScopeMarker);
 
     /** 规则列表-总数 */
     long countRuleList(@Param("tabType") String tabType,
                        @Param("ruleName") String ruleName,
                        @Param("status") String status,
                        @Param("ruleId") String ruleId,
-                       @Param("userCode") String userCode
+                       @Param("userCode") String userCode,
+                       @Param("pageScopeMarker") String pageScopeMarker
     );
 
     /** 规则详情（含条件） */

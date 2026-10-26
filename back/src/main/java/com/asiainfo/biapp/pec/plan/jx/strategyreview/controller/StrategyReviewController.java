@@ -62,6 +62,12 @@ public class StrategyReviewController {
         return ActionResponse.getSuccessResp(reviewService.queryStrategyList(req));
     }
 
+    @ApiOperation("逐策略明细分类选项（与策略列表同口径，不分页）")
+    @PostMapping("/touchpoint/strategyCategoryOptions")
+    public ActionResponse<List<StrategyCategoryOptionVO>> strategyCategoryOptions(@Validated @RequestBody TouchpointQueryReq req) {
+        return ActionResponse.getSuccessResp(reviewService.queryStrategyCategoryOptions(req));
+    }
+
     @ApiOperation("策略触点执行-渠道产能趋势（近6个月）")
     @PostMapping("/touchpoint/channelCapacityTrend")
     public ActionResponse<List<ChannelTrendVO>> channelCapacityTrend(@Validated @RequestBody TouchpointQueryReq req) {
@@ -74,7 +80,7 @@ public class StrategyReviewController {
         return ActionResponse.getSuccessResp(reviewService.queryChannelBizCapacity(req));
     }
 
-    @ApiOperation("策略触点执行-策略分类汇总（按业务大类+小类汇总全部渠道）")
+    @ApiOperation("策略触点执行-策略分类汇总（按业务大类+小类汇总，支持触点筛选）")
     @PostMapping("/touchpoint/categorySummary")
     public ActionResponse<CategoryRespVO> categorySummary(@Validated @RequestBody TouchpointQueryReq req) {
         return ActionResponse.getSuccessResp(reviewService.queryCategorySummary(req));
@@ -104,7 +110,7 @@ public class StrategyReviewController {
         return ActionResponse.getSuccessResp(reviewService.queryStrategyDailyDetail(req));
     }
 
-    @ApiOperation("策略执行明细 - 拒绝原因（active）")
+    @ApiOperation("策略执行明细 - 拒绝原因")
     @PostMapping("/execution/rejectReason")
     public ActionResponse<RejectReasonRespVO> rejectReason(@Validated @RequestBody ExecutionQueryReq req) {
         return ActionResponse.getSuccessResp(reviewService.queryRejectReason(req));

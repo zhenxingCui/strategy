@@ -65,13 +65,6 @@
               >
                 <el-table-column prop="bizName" label="业务" align="left" min-width="90" class-name="biz-name-col" header-align="left" />
                 <el-table-column prop="count" label="产能" align="right" width="80" class-name="num-col" header-align="right" />
-                <el-table-column label="环比" align="right" width="88" class-name="num-col" header-align="right" show-overflow-tooltip>
-                  <template slot-scope="{ row }">
-                    <span class="qoq-badge" :class="(row.momRatio || 0) >= 0 ? 'up' : 'down'">
-                      {{ (row.momRatio || 0) >= 0 ? '+' : '' }}{{ row.momRatio != null ? row.momRatio.toFixed(1) + '%' : '--' }}
-                    </span>
-                  </template>
-                </el-table-column>
               </el-table>
             </div>
             <div class="biz-footer">
@@ -140,7 +133,6 @@
                     <el-table-column label="目标转化率" prop="targetConvRate" width="90" align="right" header-align="right" />
                     <el-table-column label="全产品转化量" prop="productConvNum" width="100" align="right" header-align="right" :formatter="formatNum" />
                     <el-table-column label="全产品转化率" prop="productConvRate" width="100" align="right" header-align="right" />
-                    <el-table-column label="预期收入(元)" prop="expectedIncome" width="100" align="right" header-align="right" :formatter="formatNum" />
                     <el-table-column label="实际收入(元)" prop="actualIncome" width="100" align="right" header-align="right" :formatter="formatNum" />
                   </template>
                   <template v-else>
@@ -237,7 +229,6 @@
             <el-table-column label="目标转化率" prop="targetConvRate" width="80" align="right" header-align="right" />
             <el-table-column label="全产品转化量" prop="productConvNum" width="90" align="right" header-align="right" :formatter="formatNum" />
             <el-table-column label="全产品转化率" prop="productConvRate" width="90" align="right" header-align="right" />
-            <el-table-column label="预期收入" prop="expectedIncome" width="80" align="right" header-align="right" :formatter="formatNum" />
             <el-table-column label="实际收入" prop="actualIncome" width="80" align="right" header-align="right" :formatter="formatNum" />
           </template>
           <template v-else>
@@ -526,7 +517,10 @@ export default {
             symbol: 'circle',
             symbolSize: 4,
             lineStyle: { width: 2, color: '#F59E0B' },
-            itemStyle: { color: '#F59E0B' }
+            itemStyle: { color: '#F59E0B' },
+            label: {
+              formatter: (p) => p.value == null ? '' : (p.value >= 0 ? '+' : '') + p.value + '%'
+            }
           }
         ]
       }
@@ -694,6 +688,7 @@ export default {
       return {
         tabType: this.tabType,
         strategyId: sid,
+        strategyClass: this.activeStrategy.strategyClass || null,
         channel: this.activeStrategy.channel || null,
         // 登录身份透传：后端按 city_id/user_id 过滤
         cityId: getCityId(),
@@ -896,7 +891,6 @@ export default {
           { label: '目标转化率', prop: 'targetConvRate' },
           { label: '全产品转化量', prop: 'productConvNum' },
           { label: '全产品转化率', prop: 'productConvRate' },
-          { label: '预期收入(元)', prop: 'expectedIncome' },
           { label: '实际收入(元)', prop: 'actualIncome' }
         ]
         filename = `策略执行情况(分日)_${this.strategyInfo.name || this.tabType}`

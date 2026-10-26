@@ -17,7 +17,7 @@ public class StrategyTrendVO {
     @ApiModelProperty("月份标签，如 [\"2月\",\"3月\",...\"7月\"]")
     private List<String> months;
 
-    @ApiModelProperty("月度产能值（active/passive=全产品转化量，control=成功量）")
+    @ApiModelProperty("月度产能值（active 升接/稳及 control=成功量，其余 active/passive=全产品转化量）")
     private List<BigDecimal> capacity;
 
     @ApiModelProperty("月度环比 % 序列（与 months 一一对应）")

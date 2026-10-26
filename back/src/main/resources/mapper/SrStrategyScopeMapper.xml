@@ -3,17 +3,19 @@
 <mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyScopeMapper">
     <select id="selectCustomerDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         SELECT DISTINCT TRIM(customer_group) AS keyCode, TRIM(customer_group) AS keyName
-        FROM v_sr_strategy_read
+        FROM t_sr_strategy_key_audience
         WHERE tab_type = 'active' AND strategy_class = '重点客群' AND is_deleted = 0
           AND customer_group IS NOT NULL AND TRIM(customer_group) != ''
         ORDER BY keyName
     </select>
 
     <select id="selectProductDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
-        SELECT DISTINCT TRIM(product_name) AS keyCode, TRIM(product_name) AS keyName
-        FROM v_sr_strategy_read
-        WHERE tab_type = 'control' AND is_deleted = 0
-          AND product_name IS NOT NULL AND TRIM(product_name) != ''
+        SELECT DISTINCT TRIM(s.small_category) AS keyCode, TRIM(s.small_category) AS keyName
+        FROM t_sr_strategy_period_summary_ctrl s
+        WHERE s.is_deleted = 0 AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
+          AND s.small_category IS NOT NULL AND TRIM(s.small_category) != '' AND s.small_category != '全部'
+          AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
+              WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control' AND product.is_deleted = 0)
         ORDER BY keyName
     </select>
 
@@ -21,6 +23,7 @@
         <choose>
             <when test="query.tabType == 'control'">t_sr_strategy_period_summary_ctrl</when>
             <when test="query.tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_period_summary_ap_key_audience</when>
             <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
             <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
         </choose>
@@ -29,6 +32,7 @@
     <sql id="dailyTable">
         <choose>
             <when test="query.tabType == 'passive'">t_sr_strategy_daily_ap_passive</when>
+            <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_daily_ap_key_audience</when>
             <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_daily_ap_special</when>
             <otherwise>v_sr_strategy_daily_ap_read</otherwise>
         </choose>
@@ -36,7 +40,9 @@
 
     <sql id="strategyBizCapacityTable">
         <choose>
+            <when test="query.tabType == 'control'">t_sr_strategy_biz_capacity</when>
             <when test="query.tabType == 'passive'">t_sr_strategy_biz_capacity_passive</when>
+            <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_biz_capacity_key_audience</when>
             <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_biz_capacity_special</when>
             <otherwise>v_sr_strategy_biz_capacity_read</otherwise>
         </choose>
@@ -46,13 +52,14 @@
     <sql id="scope">
         s.is_deleted = 0
         AND s.strategy_id != '999' AND s.channel != '全部'
-        AND s.big_category != '全部' AND s.small_category != '全部'
+        AND s.big_category != '全部' AND COALESCE(s.small_category, '') != '全部'
         <choose>
             <when test="query.tabType == 'control'">
-                <if test="query.productName != null and query.productName != ''">
                 AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
                     WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
-                      AND product.is_deleted = 0 AND product.product_name = #{query.productName})
+                      AND product.is_deleted = 0)
+                <if test="query.productName != null and query.productName != ''">
+                    AND s.small_category = #{query.productName}
                 </if>
             </when>
             <otherwise>
@@ -62,48 +69,11 @@
                         AND s.strategy_class = #{query.strategyClass}
                     </when>
                     <when test="query.tabType == 'active'">
-                        <!-- The '全部' rows are authoritative rollups. Fall back to class facts only for channels/months without that rollup. -->
-                        <choose>
-                            <when test="query.channel != null and query.channel != ''">
-                                AND (s.strategy_class = '全部' OR (
-                                    s.strategy_class != '全部'
-                                    AND NOT EXISTS (
-                                        SELECT 1 FROM v_sr_strategy_period_summary_ap_read all_scope
-                                        WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
-                                          AND all_scope.strategy_class = '全部'
-                                          AND all_scope.stat_month = s.stat_month
-                                          AND all_scope.channel = s.channel
-                                          AND all_scope.city_id &lt;=&gt; s.city_id
-                                          AND all_scope.county_id &lt;=&gt; s.county_id
-                                          AND all_scope.strategy_id != '999'
-                                          AND all_scope.channel != '全部'
-                                          AND all_scope.big_category != '全部'
-                                          AND all_scope.small_category != '全部'
-                                    )
-                                ))
-                            </when>
-                            <otherwise>
-                                AND (s.strategy_class = '全部' OR (
-                                    s.strategy_class != '全部'
-                                    AND NOT EXISTS (
-                                        SELECT 1 FROM v_sr_strategy_period_summary_ap_read all_scope
-                                        WHERE all_scope.tab_type = 'active' AND all_scope.is_deleted = 0
-                                          AND all_scope.strategy_class = '全部'
-                                          AND all_scope.stat_month = s.stat_month
-                                          AND all_scope.city_id &lt;=&gt; s.city_id
-                                          AND all_scope.county_id &lt;=&gt; s.county_id
-                                          AND all_scope.strategy_id != '999'
-                                          AND all_scope.channel != '全部'
-                                          AND all_scope.big_category != '全部'
-                                          AND all_scope.small_category != '全部'
-                                    )
-                                ))
-                            </otherwise>
-                        </choose>
+                        AND s.strategy_class IN ('升接', '稳', '重点客群')
                     </when>
                 </choose>
                 <if test="query.customerGroup != null and query.customerGroup != ''">
-                AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
+                AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
                     WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
                       AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                       AND cg.customer_group = #{query.customerGroup})
@@ -123,12 +93,17 @@
     <sql id="dailyScope">
         d.is_deleted = 0 AND d.tab_type = #{query.tabType}
         AND d.strategy_id != '999' AND d.channel != '全部'
-        AND d.big_category != '全部' AND d.small_category != '全部'
-        <if test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
-            AND d.strategy_class = #{query.strategyClass}
-        </if>
+        AND d.big_category != '全部' AND COALESCE(d.small_category, '') != '全部'
+        <choose>
+            <when test="query.tabType == 'active' and (query.strategyClass == null or query.strategyClass == '' or query.strategyClass == '全部')">
+                AND d.strategy_class IN ('升接', '稳', '重点客群')
+            </when>
+            <when test="query.strategyClass != null and query.strategyClass != '' and query.strategyClass != '全部'">
+                AND d.strategy_class = #{query.strategyClass}
+            </when>
+        </choose>
         <if test="query.customerGroup != null and query.customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
                 WHERE cg.strategy_code = d.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
@@ -152,14 +127,17 @@
             <when test="dimension == 'channel'">s.channel AS channel,</when>
             <when test="dimension == 'category'">s.big_category AS bigCategory, s.small_category AS smallCategory,</when>
         </choose>
-        COUNT(DISTINCT s.strategy_id) AS strategyCount,
         <choose>
         <when test="query.tabType == 'control'">
-        SUM(s.consult_count) AS consultCount, SUM(s.retain_count) AS retainCount,
-        SUM(s.dispatch_count) AS dispatchCount, SUM(s.success_count) AS successCount,
-        SUM(s.income) AS income
+        COUNT(DISTINCT s.strategy_id) AS strategyCount, COUNT(1) AS metricRowCount,
+        SUM(s.push_count) AS consultCount, SUM(s.usage_count) AS retainCount,
+        SUM(s.reach_count) AS dispatchCount, SUM(s.product_conv_num) AS successCount,
+        COUNT(s.push_count) AS consultKnownRows, COUNT(s.usage_count) AS retainKnownRows,
+        COUNT(s.reach_count) AS dispatchKnownRows, COUNT(s.product_conv_num) AS successKnownRows,
+        SUM(s.actual_income) AS income
         </when>
         <otherwise>
+        COUNT(1) AS strategyCount,
         SUM(s.original_cust) AS originalCust, SUM(s.push_count) AS pushCount,
         SUM(s.usage_count) AS usageCount, SUM(s.reach_count) AS reachCount,
         SUM(s.target_conv_num) AS targetConvNum, SUM(s.product_conv_num) AS productConvNum,
@@ -191,7 +169,7 @@
             <when test="dimension == 'channel'">d.channel AS channel,</when>
             <when test="dimension == 'category'">d.big_category AS bigCategory, d.small_category AS smallCategory,</when>
         </choose>
-        COUNT(DISTINCT d.strategy_id) AS strategyCount,
+        COUNT(1) AS strategyCount,
         COUNT(DISTINCT d.stat_date) AS dayCount,
         MIN(DAY(d.stat_date)) AS minDay,
         MAX(DAY(d.stat_date)) AS maxDay,
@@ -214,15 +192,452 @@
 
     <select id="selectBusiness" resultType="java.util.HashMap">
         SELECT DATE_FORMAT(s.stat_month, '%Y-%m') AS statMonth,
-               s.big_category AS bigCategory, s.small_category AS smallCategory,
                b.biz_name AS bizName, SUM(b.count) AS capacity
         FROM <include refid="strategyBizCapacityTable"/> b
-        JOIN <include refid="periodTable"/> s ON s.strategy_id = b.strategy_id
+        JOIN (
+            SELECT DISTINCT s.strategy_id, s.stat_month, s.city_id, s.county_id
+            FROM <include refid="periodTable"/> s
+            WHERE <include refid="scope"/>
+        ) s ON s.strategy_id = b.strategy_id
           AND b.tab_type = #{query.tabType} AND s.city_id &lt;=&gt; b.city_id AND s.county_id &lt;=&gt; b.county_id
           AND DATE_FORMAT(s.stat_month, '%Y-%m') = DATE_FORMAT(b.stat_date, '%Y-%m')
         WHERE b.is_deleted = 0 AND b.biz_name != '全部'
-          AND <include refid="scope"/>
-        GROUP BY DATE_FORMAT(s.stat_month, '%Y-%m'), s.big_category, s.small_category, b.biz_name
+        GROUP BY DATE_FORMAT(s.stat_month, '%Y-%m'), b.biz_name
         ORDER BY statMonth, capacity DESC
+    </select>
+
+    <!-- Manual qoq is matched to the same category/business scope shown by StockExecution. -->
+    <select id="selectManualBusinessQoq" resultType="java.util.HashMap">
+        SELECT q.biz_name AS bizName, q.manual_qoq AS qoq
+        FROM t_sr_strategy_biz_capacity_qoq_manual q
+        WHERE q.status = 1
+          AND q.manual_qoq IS NOT NULL
+          AND q.tab_type = #{query.tabType}
+          AND q.strategy_class = <choose>
+              <when test="query.tabType == 'passive'">'全部'</when>
+              <otherwise>#{query.strategyClass}</otherwise>
+          </choose>
+          AND q.stat_month &gt;= STR_TO_DATE(CONCAT(#{query.statMonth}, '-01'), '%Y-%m-%d')
+          AND q.stat_month &lt; DATE_ADD(STR_TO_DATE(CONCAT(#{query.statMonth}, '-01'), '%Y-%m-%d'), INTERVAL 1 MONTH)
+          AND q.customer_group = <choose>
+              <when test="query.customerGroup != null and query.customerGroup != ''">#{query.customerGroup}</when>
+              <otherwise>'全部'</otherwise>
+          </choose>
+          AND q.big_category = <choose>
+              <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
+              <otherwise>'全部'</otherwise>
+          </choose>
+          AND q.small_category = <choose>
+              <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
+              <otherwise>'全部'</otherwise>
+          </choose>
+          AND (
+              <choose>
+                  <when test="query.channel != null and query.channel != '' and query.channel != '全部' and query.channel != '全部渠道'">
+                      q.channel = '全部' OR q.channel = #{query.channel}
+                      OR q.channel IN (SELECT d.key_code FROM t_sr_dim_channel d
+                          WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                            AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0))
+                  </when>
+                  <otherwise>q.channel = '全部'</otherwise>
+              </choose>
+          )
+          AND (
+              <choose>
+                  <when test="query.cityId != null and query.cityId != ''">q.city_id = '全部' OR q.city_id = #{query.cityId}</when>
+                  <otherwise>q.city_id = '全部'</otherwise>
+              </choose>
+          )
+          AND (
+              <choose>
+                  <when test="query.countyId != null and query.countyId != ''">q.county_id = '全部' OR q.county_id = #{query.countyId}</when>
+                  <otherwise>q.county_id = '全部'</otherwise>
+              </choose>
+          )
+        ORDER BY
+          CASE WHEN q.channel = '全部' THEN 0 ELSE 1 END DESC,
+          CASE WHEN q.city_id = '全部' THEN 0 ELSE 1 END DESC,
+          CASE WHEN q.county_id = '全部' THEN 0 ELSE 1 END DESC,
+          q.update_time DESC
+    </select>
+
+    <sql id="audienceManualOverviewScope">
+        m.status = 1
+        AND m.customer_group = <choose>
+            <when test="query.customerGroup != null and query.customerGroup != ''">#{query.customerGroup}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        AND m.big_category = '全部' AND m.small_category = '全部'
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestAudienceTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_key_audience_monthly_trend_manual m
+        WHERE <include refid="audienceManualOverviewScope"/>
+    </select>
+
+    <select id="selectAudienceManualKpis" resultType="java.util.HashMap">
+        SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
+               m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_key_audience_monthly_trend_manual m
+        WHERE <include refid="audienceManualOverviewScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
+        ORDER BY m.metric_code
+    </select>
+
+    <select id="selectAudienceManualTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_key_audience_monthly_trend_manual m
+        WHERE <include refid="audienceManualOverviewScope"/>
+          AND m.metric_code = #{metricCode}
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 12
+    </select>
+
+    <sql id="audienceManualCapacityScope">
+        m.status = 1 AND m.metric_code = 'product_conv_num'
+        AND m.customer_group = <choose>
+            <when test="query.customerGroup != null and query.customerGroup != ''">#{query.customerGroup}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        AND m.big_category = <choose>
+            <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        AND m.small_category = <choose>
+            <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestAudienceCapacityTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_key_audience_monthly_trend_manual m
+        WHERE <include refid="audienceManualCapacityScope"/>
+    </select>
+
+    <select id="selectAudienceManualCapacityTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS capacity, m.manual_qoq AS qoq
+        FROM t_sr_key_audience_monthly_trend_manual m
+        WHERE <include refid="audienceManualCapacityScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 6
+    </select>
+
+    <sql id="passiveManualOverviewScope">
+        m.status = 1
+        AND m.big_category = '全部' AND m.small_category = '全部'
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'passive' OR FIND_IN_SET('passive', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestPassiveTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_passive_monthly_trend_manual m
+        WHERE <include refid="passiveManualOverviewScope"/>
+    </select>
+
+    <select id="selectPassiveManualKpis" resultType="java.util.HashMap">
+        SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
+               m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_passive_monthly_trend_manual m
+        WHERE <include refid="passiveManualOverviewScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
+        ORDER BY m.metric_code
+    </select>
+
+    <select id="selectPassiveManualTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_passive_monthly_trend_manual m
+        WHERE <include refid="passiveManualOverviewScope"/>
+          AND m.metric_code = #{metricCode}
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 12
+    </select>
+
+    <sql id="passiveManualCapacityScope">
+        m.status = 1 AND m.metric_code = 'product_conv_num'
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'passive' OR FIND_IN_SET('passive', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        AND m.big_category = <choose>
+            <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        AND m.small_category = <choose>
+            <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestPassiveCapacityTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_passive_monthly_trend_manual m
+        WHERE <include refid="passiveManualCapacityScope"/>
+    </select>
+
+    <select id="selectPassiveManualCapacityTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS capacity, m.manual_qoq AS qoq
+        FROM t_sr_passive_monthly_trend_manual m
+        WHERE <include refid="passiveManualCapacityScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 6
+    </select>
+
+    <sql id="upgradeStableManualOverviewScope">
+        m.status = 1
+        AND m.strategy_class = #{query.strategyClass}
+        AND m.big_category = '全部' AND m.small_category = '全部'
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestUpgradeStableTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        WHERE <include refid="upgradeStableManualOverviewScope"/>
+    </select>
+
+    <select id="selectUpgradeStableManualKpis" resultType="java.util.HashMap">
+        SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
+               m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        WHERE <include refid="upgradeStableManualOverviewScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
+        ORDER BY m.metric_code
+    </select>
+
+    <select id="selectUpgradeStableManualTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        WHERE <include refid="upgradeStableManualOverviewScope"/>
+          AND m.metric_code = #{metricCode}
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 12
+    </select>
+
+    <sql id="upgradeStableManualCapacityScope">
+        m.status = 1 AND m.metric_code = 'product_conv_num'
+        AND m.strategy_class = #{query.strategyClass}
+        AND m.big_category = <choose>
+            <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        AND m.small_category = <choose>
+            <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestUpgradeStableCapacityTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        WHERE <include refid="upgradeStableManualCapacityScope"/>
+    </select>
+
+    <select id="selectUpgradeStableManualCapacityTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS capacity, m.manual_qoq AS qoq
+        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        WHERE <include refid="upgradeStableManualCapacityScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 6
+    </select>
+
+    <sql id="controlManualOverviewScope">
+        m.status = 1
+        AND m.product_name = <choose>
+            <when test="query.productName != null and query.productName != '' and query.productName != '全部'">#{query.productName}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        AND m.big_category = '全部'
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'control' OR FIND_IN_SET('control', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestControlTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_control_monthly_trend_manual m
+        WHERE <include refid="controlManualOverviewScope"/>
+    </select>
+
+    <select id="selectControlManualKpis" resultType="java.util.HashMap">
+        SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
+               m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_control_monthly_trend_manual m
+        WHERE <include refid="controlManualOverviewScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
+        ORDER BY m.metric_code
+    </select>
+
+    <select id="selectControlManualTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
+        FROM t_sr_control_monthly_trend_manual m
+        WHERE <include refid="controlManualOverviewScope"/>
+          AND m.metric_code = #{metricCode}
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 12
+    </select>
+
+    <sql id="controlManualCapacityScope">
+        m.status = 1 AND m.metric_code = 'success_count'
+        AND m.product_name = <choose>
+            <when test="query.productName != null and query.productName != '' and query.productName != '全部'">#{query.productName}</when>
+            <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <if test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">AND m.product_name = #{query.smallCategory}</if>
+        AND m.big_category = <choose>
+            <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
+            <otherwise>'全部'</otherwise>
+        </choose>
+        <choose>
+            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
+                AND m.channel = '全部'
+            </when>
+            <otherwise>
+                AND (m.channel = #{query.channel} OR m.channel IN (
+                SELECT d.key_code FROM t_sr_dim_channel d
+                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = 'control' OR FIND_IN_SET('control', d.tab_type) &gt; 0)
+                ))
+            </otherwise>
+        </choose>
+        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
+        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
+        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+    </sql>
+
+    <select id="selectLatestControlCapacityTrendMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
+        FROM t_sr_control_monthly_trend_manual m
+        WHERE <include refid="controlManualCapacityScope"/>
+    </select>
+
+    <select id="selectControlManualCapacityTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
+               m.metric_value AS capacity, m.manual_qoq AS qoq
+        FROM t_sr_control_monthly_trend_manual m
+        WHERE <include refid="controlManualCapacityScope"/>
+          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY m.stat_month DESC
+        LIMIT 6
     </select>
 </mapper>

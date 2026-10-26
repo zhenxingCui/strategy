@@ -12,6 +12,8 @@ import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyBizVO;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyDailyVO;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyInfoVO;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyRowVO;
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyCategoryOptionVO;
+import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.req.TouchpointQueryReq;
 import com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.StrategyTrendItemVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -31,6 +33,7 @@ public interface SrStrategyReviewMapper {
 
     /** 策略名称枚举 */
     List<DimItemVO> selectStrategyNameDims(@Param("tabType") String tabType,
+                                           @Param("strategyClass") String strategyClass,
                                            @Param("channel") String channel,
                                            @Param("keyword") String keyword);
 
@@ -55,12 +58,21 @@ public interface SrStrategyReviewMapper {
     /** 最新有数据的账期（t_sr_kpi_summary.stat_month，格式 yyyyMM） */
     String selectLatestKpiMonth(@Param("tabType") String tabType,
                                 @Param("cityId") String cityId,
-                                @Param("countyId") String countyId);
+                                @Param("countyId") String countyId,
+                                @Param("strategyClass") String strategyClass);
+
+    /** 降拆等指定触点的渠道月汇总最新账期，不依赖 KPI 汇总或策略事实。 */
+    String selectLatestChannelSummaryMonth(@Param("tabType") String tabType,
+                                           @Param("channel") String channel,
+                                           @Param("cityId") String cityId,
+                                           @Param("countyId") String countyId,
+                                           @Param("strategyClass") String strategyClass);
 
     /** 兜底：从策略周期汇总表取最新月份（KPI 汇总表可能未同步） */
     String selectLatestStrategyMonth(@Param("tabType") String tabType,
                                      @Param("cityId") String cityId,
-                                     @Param("countyId") String countyId);
+                                     @Param("countyId") String countyId,
+                                     @Param("strategyClass") String strategyClass);
 
     /** KPI 趋势（某指标近12个月，DESC 取出后由 Service 反转为正序） */
     List<KpiTrendItemVO> selectKpiTrend(@Param("tabType") String tabType,
@@ -114,6 +126,9 @@ public interface SrStrategyReviewMapper {
                                            @Param("queryList") String queryList
     );
 
+    /** 与逐策略列表同口径的分类组合（不分页）。 */
+    List<StrategyCategoryOptionVO> selectStrategyCategoryOptions(TouchpointQueryReq req);
+
     /** 策略列表-总数 */
     long countStrategyList(@Param("tabType") String tabType,
                            @Param("statMonth") String statMonth,
@@ -147,7 +162,7 @@ public interface SrStrategyReviewMapper {
                                                 @Param("smallCategory") String smallCategory,
                                                 @Param("strategyClass") String strategyClass);
 
-    /** 策略分类汇总（按大类+小类聚合；调用方固定传入全部渠道） */
+    /** 策略分类汇总（按大类+小类聚合，可按渠道筛选） */
     List<CategoryRowVO> selectCategorySummary(@Param("tabType") String tabType,
                                               @Param("statMonth") String statMonth,
                                               @Param("cityId") String cityId,
@@ -164,16 +179,20 @@ public interface SrStrategyReviewMapper {
     /** 策略基本信息（tabType 用于选择大类/小类子查询来源表） */
     StrategyInfoVO selectStrategyInfo(@Param("tabType") String tabType,
                                       @Param("strategyId") String strategyId,
-                                      @Param("channel") String channel);
+                                      @Param("channel") String channel,
+                                      @Param("strategyClass") String strategyClass);
 
-    /** 策略产能趋势（近6个月，capacity 取产品转化数/成功办理量；metricColumn 为白名单校验后的列名） */
+    /** 策略产能趋势（近6个月；升接/稳取成功量，其余存量/增量取产品转化量，重点产品取成功量） */
     List<StrategyTrendItemVO> selectStrategyCapacityTrend(@Param("tabType") String tabType,
                                                       @Param("strategyId") String strategyId,
                                                       @Param("metricColumn") String metricColumn,
                                                       @Param("cityId") String cityId,
                                                       @Param("countyId") String countyId,
                                                       @Param("statMonth") String statMonth,
-                                                      @Param("channel") String channel);
+                                                      @Param("channel") String channel,
+                                                      @Param("strategyClass") String strategyClass,
+                                                      @Param("bigCategory") String bigCategory,
+                                                      @Param("smallCategory") String smallCategory);
 
     /** 策略业务产能-当前页 */
     List<StrategyBizVO> selectStrategyBizCapacity(@Param("tabType") String tabType,
@@ -181,6 +200,7 @@ public interface SrStrategyReviewMapper {
                                                   @Param("statMonth") String statMonth,
                                                   @Param("cityId") String cityId,
                                                   @Param("countyId") String countyId,
+                                                  @Param("strategyClass") String strategyClass,
                                                   @Param("offset") int offset,
                                                   @Param("limit") int limit);
 
@@ -189,7 +209,8 @@ public interface SrStrategyReviewMapper {
                                   @Param("strategyId") String strategyId,
                                   @Param("statMonth") String statMonth,
                                   @Param("cityId") String cityId,
-                                  @Param("countyId") String countyId);
+                                  @Param("countyId") String countyId,
+                                  @Param("strategyClass") String strategyClass);
 
     /** 策略日粒度明细-当前页 */
     List<StrategyDailyVO> selectStrategyDailyDetail(@Param("tabType") String tabType,
@@ -197,6 +218,7 @@ public interface SrStrategyReviewMapper {
                                                     @Param("cityId") String cityId,
                                                     @Param("countyId") String countyId,
                                                     @Param("channel") String channel,
+                                                    @Param("strategyClass") String strategyClass,
                                                     @Param("startDate") String startDate,
                                                     @Param("endDate") String endDate,
                                                     @Param("offset") int offset,
@@ -208,6 +230,7 @@ public interface SrStrategyReviewMapper {
                                   @Param("cityId") String cityId,
                                   @Param("countyId") String countyId,
                                   @Param("channel") String channel,
+                                  @Param("strategyClass") String strategyClass,
                                   @Param("startDate") String startDate,
                                   @Param("endDate") String endDate);
 
@@ -217,12 +240,14 @@ public interface SrStrategyReviewMapper {
                                               @Param("statMonth") String statMonth,
                                               @Param("cityId") String cityId,
                                               @Param("countyId") String countyId,
-                                              @Param("channel") String channel);
+                                              @Param("channel") String channel,
+                                              @Param("strategyClass") String strategyClass);
 
-    /** 策略拒绝原因列表（active/passive） */
+    /** 策略拒绝原因列表（active/passive/control） */
     List<RejectReasonItemVO> selectRejectReasons(@Param("tabType") String tabType,
                                                  @Param("strategyId") String strategyId,
                                                  @Param("statMonth") String statMonth,
                                                  @Param("cityId") String cityId,
-                                                 @Param("countyId") String countyId);
+                                                 @Param("countyId") String countyId,
+                                                 @Param("strategyClass") String strategyClass);
 }

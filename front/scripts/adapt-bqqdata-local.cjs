@@ -51,6 +51,18 @@ const PASSIVE_TABLES = {
   t_sr_strategy_reject_reason: 't_sr_strategy_reject_reason_passive',
 }
 
+const KEY_AUDIENCE_TABLES = {
+  t_sr_strategy: 't_sr_strategy_key_audience',
+  t_sr_strategy_period_summary_ap: 't_sr_strategy_period_summary_ap_key_audience',
+  t_sr_strategy_daily_ap: 't_sr_strategy_daily_ap_key_audience',
+  t_sr_channel_summary_ap: 't_sr_channel_summary_ap_key_audience',
+  t_sr_channel_monthly_capacity_ap: 't_sr_channel_monthly_capacity_ap_key_audience',
+  t_sr_channel_biz_capacity_ap: 't_sr_channel_biz_capacity_ap_key_audience',
+  t_sr_strategy_biz_capacity: 't_sr_strategy_biz_capacity_key_audience',
+  t_sr_kpi_summary: 't_sr_kpi_summary_key_audience',
+  t_sr_strategy_reject_reason: 't_sr_strategy_reject_reason_key_audience',
+}
+
 const EXPECTED_COLUMN_COUNTS = {
   t_sr_strategy: 22,
   t_sr_strategy_period_summary_ap: 53,
@@ -260,7 +272,7 @@ function createBackup() {
 
 async function ensureColumns(connection) {
   for (const [table, columns] of Object.entries(EXTRA_COLUMNS)) {
-    for (const target of [table, SPECIAL_TABLES[table], PASSIVE_TABLES[table]]) {
+    for (const target of [table, SPECIAL_TABLES[table], PASSIVE_TABLES[table], KEY_AUDIENCE_TABLES[table]]) {
       if (!target) continue
       const [existing] = await connection.query(
         'SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?',
@@ -319,6 +331,15 @@ async function plannedDeleteCounts(connection, month) {
     ['t_sr_strategy_biz_capacity_special', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
     ['t_sr_kpi_summary_special', 'tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
     ['t_sr_strategy_reject_reason_special', 'stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_key_audience', 'tab_type = \'active\'', []],
+    ['t_sr_strategy_period_summary_ap_key_audience', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_daily_ap_key_audience', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_summary_ap_key_audience', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_monthly_capacity_ap_key_audience', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_channel_biz_capacity_ap_key_audience', 'tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['t_sr_strategy_biz_capacity_key_audience', 'tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['t_sr_kpi_summary_key_audience', 'tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
+    ['t_sr_strategy_reject_reason_key_audience', 'stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
   ]
   const result = {}
   for (const [table, where, params] of checks) {
@@ -357,6 +378,15 @@ async function deleteSnapshot(connection, month) {
     ['DELETE FROM t_sr_strategy_biz_capacity_special WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
     ['DELETE FROM t_sr_kpi_summary_special WHERE tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
     ['DELETE FROM t_sr_strategy_reject_reason_special WHERE stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_key_audience WHERE tab_type = \'active\'', []],
+    ['DELETE FROM t_sr_strategy_period_summary_ap_key_audience WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_daily_ap_key_audience WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_summary_ap_key_audience WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_monthly_capacity_ap_key_audience WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_channel_biz_capacity_ap_key_audience WHERE tab_type = \'active\' AND stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_strategy_biz_capacity_key_audience WHERE tab_type = \'active\' AND stat_date >= ? AND stat_date < ?', [monthStart, nextMonth]],
+    ['DELETE FROM t_sr_kpi_summary_key_audience WHERE tab_type = \'active\' AND REPLACE(stat_month, \'-\', \'\') = ?', [month.replace('-', '')]],
+    ['DELETE FROM t_sr_strategy_reject_reason_key_audience WHERE stat_month >= ? AND stat_month < ?', [monthStart, nextMonth]],
   ]
   for (const [sql, params] of commands) await connection.query(sql, params)
 }
@@ -388,7 +418,7 @@ async function main() {
   const byTable = [...source].map(([table, info]) => `${table}: ${info.rows.length} rows from ${info.file}`).join('\n')
   process.stdout.write(`Source snapshot: ${month}\n${byTable}\n`)
 
-  const connection = await mysql.createConnection({ host: HOST, port: PORT, user: USER, password: PASSWORD, database: DATABASE, dateStrings: true, charset: 'utf8mb4' })
+  const connection = await mysql.createConnection({ host: HOST, port: PORT, user: USER, password: PASSWORD, database: DATABASE, dateStrings: true, charset: 'utf8mb4', multipleStatements: true })
   try {
     const [databaseRows] = await connection.query('SELECT DATABASE() AS database_name, VERSION() AS mysql_version')
     if (databaseRows[0].database_name !== DATABASE) throw new Error(`Connected to unexpected database ${databaseRows[0].database_name}`)
@@ -420,15 +450,22 @@ async function main() {
       const strategyClassById = new Map(source.get('t_sr_strategy').rows.map((row) => [row.strategy_code, row.strategy_class]))
       for (const [table, info] of source) {
         const specialTable = SPECIAL_TABLES[table]
+        const keyAudienceTable = KEY_AUDIENCE_TABLES[table]
         const isSpecial = (row) => {
           const strategyClass = row.strategy_class || strategyClassById.get(row.strategy_id)
           return strategyClass === '降拆' || strategyClass === '离'
         }
+        const isKeyAudience = (row) => {
+          const strategyClass = row.strategy_class || strategyClassById.get(row.strategy_id)
+          return strategyClass === '重点客群'
+        }
         const specialRows = specialTable ? info.rows.filter(isSpecial) : []
-        const regularRows = specialTable ? info.rows.filter((row) => !isSpecial(row)) : info.rows
+        const keyAudienceRows = keyAudienceTable ? info.rows.filter(isKeyAudience) : []
+        const regularRows = info.rows.filter((row) => !isSpecial(row) && !isKeyAudience(row))
         insertedCounts[table] = await insertRows(connection, table, regularRows, info.columns)
         if (specialRows.length) insertedCounts[specialTable] = await insertRows(connection, specialTable, specialRows, info.columns)
-        const totalInserted = insertedCounts[table] + (insertedCounts[specialTable] || 0)
+        if (keyAudienceRows.length) insertedCounts[keyAudienceTable] = await insertRows(connection, keyAudienceTable, keyAudienceRows, info.columns)
+        const totalInserted = insertedCounts[table] + (insertedCounts[specialTable] || 0) + (insertedCounts[keyAudienceTable] || 0)
         if (totalInserted !== info.rows.length) {
           throw new Error(`${table}: inserted ${totalInserted} rows; expected ${info.rows.length}`)
         }

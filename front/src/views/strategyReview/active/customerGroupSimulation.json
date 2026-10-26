@@ -1,18 +1,58 @@
 {
   "tabType": "active",
   "strategyClass": "重点客群",
-  "customerGroup": "拆弹客户",
   "cityId": "999",
-  "startMonth": "2026-01",
+  "countyId": null,
   "sourceMonth": "2026-10",
-  "sourceCutoff": "2026-10-23",
+  "sourceCutoff": "2026-10-21",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-21",
+  "dailyDays": 21,
+  "dailyRowCount": 84,
+  "dailyIsSimulated": true,
+  "dailyMethod": "客群及触点汇总转化率围绕来源月波动 ±2 个百分点；每条策略的每日推送量围绕自身日均波动 ±10%；逐日整数分配后保留来源月合计；模拟分摊，不代表实际逐日业绩。",
+  "dailyRuleSource": "用户指定：客群及触点汇总日转化率 ±2pp、逐策略日推送量 ±10%；精确保持来源月合计",
+  "dailyConversionRateVariancePp": 2,
+  "dailyPushRelativeVariance": 0.1,
+  "dailyVariationScope": "客群及触点汇总转化率；逐策略推送量",
+  "dailySimulationMonths": [
+    "2026-10"
+  ],
+  "dailyRuleSourceSha256": "96a2efeb20fc78d296230eddb015cf1bc2f12be0a79f46daeb4fe68c136b1d34",
+  "dailyStrategyIds": [
+    "cd_1001",
+    "cd_1002",
+    "cd_1003",
+    "cd_1004"
+  ],
+  "sourceFile": "拆弹客户-策略模版.xlsx",
+  "sourceSha256": "96a2efeb20fc78d296230eddb015cf1bc2f12be0a79f46daeb4fe68c136b1d34",
+  "sourceRows": {
+    "strategies": 4,
+    "strategyArchive": 4,
+    "monthly": 4,
+    "businesses": 8,
+    "rejectReasons": 18,
+    "mappedRejectReasons": 18
+  },
+  "customerGroups": [
+    "拆弹客户"
+  ],
+  "customerGroup": "拆弹客户",
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
   "baselineMonth": "2025-12",
-  "dailyStartDate": "2026-09-01",
-  "dailyEndDate": "2026-10-23",
-  "comparisonStartDate": "2026-09-01",
-  "comparisonEndDate": "2026-09-23",
-  "dailyStrategyIds": ["cd_1001", "cd_1002", "cd_1003", "cd_1004"],
-  "monthlySimulationMonths": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"],
-  "dailySimulationMonths": ["2026-09", "2026-10"],
-  "samePeriodComparison": true
+  "baselineSimulated": true,
+  "monthlySimulationMonths": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ]
 }

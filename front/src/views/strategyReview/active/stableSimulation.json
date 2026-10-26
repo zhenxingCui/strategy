@@ -1,0 +1,284 @@
+{
+  "tabType": "active",
+  "strategyClass": "稳",
+  "cityId": "999",
+  "countyId": null,
+  "sourceMonth": "2026-10",
+  "sourceCutoff": "2026-10-24",
+  "dailyStartDate": "2026-10-01",
+  "dailyEndDate": "2026-10-24",
+  "dailyDays": 24,
+  "dailyRowCount": 192,
+  "dailyIsSimulated": false,
+  "dailyMethod": "日明细按 Excel 逐日记录原样导入；月度指标按 Excel 月度行保留，两种来源不相互分摊或调整。",
+  "dailyRuleSource": "Excel“2_执行数据”中 period_type=日 的逐日记录",
+  "dailyConversionRateVariancePp": null,
+  "dailyPushRelativeVariance": null,
+  "dailyVariationScope": null,
+  "dailyRuleSourceSha256": "f2ffa4dd16d25009146bab9f9063ed53780c6e65a7c71f06e078f4364cf48168",
+  "dailyStrategyIds": [
+    "zxhr_1002",
+    "zxhr_1003",
+    "zxhr_1004",
+    "zxhr_1005",
+    "xx_1020",
+    "xx_1021",
+    "xx_1022",
+    "xx_1023"
+  ],
+  "sourceFile": "稳-升接稳补充到厅策略-汇总.xlsx",
+  "sourceSha256": "f2ffa4dd16d25009146bab9f9063ed53780c6e65a7c71f06e078f4364cf48168",
+  "sourceRows": {
+    "strategies": 8,
+    "strategyArchive": 8,
+    "monthly": 8,
+    "daily": 192,
+    "businesses": 8,
+    "rejectReasons": 40,
+    "mappedRejectReasons": 40
+  },
+  "sourceDailyReconciliation": [
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "push_count",
+      "monthlyValue": 517228,
+      "dailyTotal": 598636,
+      "difference": 81408
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "usage_count",
+      "monthlyValue": 327528,
+      "dailyTotal": 354992,
+      "difference": 27464
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "reach_count",
+      "monthlyValue": 292676,
+      "dailyTotal": 310644,
+      "difference": 17968
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "target_conv_num",
+      "monthlyValue": 32232,
+      "dailyTotal": 40303,
+      "difference": 8071
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "product_conv_num",
+      "monthlyValue": 32232,
+      "dailyTotal": 40303,
+      "difference": 8071
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "expected_income",
+      "monthlyValue": 16116,
+      "dailyTotal": 40303,
+      "difference": 24187
+    },
+    {
+      "strategyId": "zxhr_1002",
+      "metric": "actual_income",
+      "monthlyValue": 16116,
+      "dailyTotal": 40303,
+      "difference": 24187
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "push_count",
+      "monthlyValue": 156504,
+      "dailyTotal": 183215,
+      "difference": 26711
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "usage_count",
+      "monthlyValue": 99168,
+      "dailyTotal": 107793,
+      "difference": 8625
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "reach_count",
+      "monthlyValue": 87268,
+      "dailyTotal": 92884,
+      "difference": 5616
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "target_conv_num",
+      "monthlyValue": 9606,
+      "dailyTotal": 12008,
+      "difference": 2402
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "product_conv_num",
+      "monthlyValue": 9606,
+      "dailyTotal": 12008,
+      "difference": 2402
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "expected_income",
+      "monthlyValue": 4803,
+      "dailyTotal": 12008,
+      "difference": 7205
+    },
+    {
+      "strategyId": "zxhr_1003",
+      "metric": "actual_income",
+      "monthlyValue": 4803,
+      "dailyTotal": 12008,
+      "difference": 7205
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "push_count",
+      "monthlyValue": 282917,
+      "dailyTotal": 327826,
+      "difference": 44909
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "usage_count",
+      "monthlyValue": 177195,
+      "dailyTotal": 188633,
+      "difference": 11438
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "reach_count",
+      "monthlyValue": 154932,
+      "dailyTotal": 166016,
+      "difference": 11084
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "target_conv_num",
+      "monthlyValue": 18080,
+      "dailyTotal": 22596,
+      "difference": 4516
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "product_conv_num",
+      "monthlyValue": 18080,
+      "dailyTotal": 22596,
+      "difference": 4516
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "expected_income",
+      "monthlyValue": 9040,
+      "dailyTotal": 22596,
+      "difference": 13556
+    },
+    {
+      "strategyId": "zxhr_1004",
+      "metric": "actual_income",
+      "monthlyValue": 9040,
+      "dailyTotal": 22596,
+      "difference": 13556
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "push_count",
+      "monthlyValue": 20118,
+      "dailyTotal": 31017,
+      "difference": 10899
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "usage_count",
+      "monthlyValue": 11708,
+      "dailyTotal": 16413,
+      "difference": 4705
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "reach_count",
+      "monthlyValue": 9444,
+      "dailyTotal": 13100,
+      "difference": 3656
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "target_conv_num",
+      "monthlyValue": 1516,
+      "dailyTotal": 1891,
+      "difference": 375
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "product_conv_num",
+      "monthlyValue": 1516,
+      "dailyTotal": 1891,
+      "difference": 375
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "expected_income",
+      "monthlyValue": 758,
+      "dailyTotal": 1891,
+      "difference": 1133
+    },
+    {
+      "strategyId": "zxhr_1005",
+      "metric": "actual_income",
+      "monthlyValue": 758,
+      "dailyTotal": 1891,
+      "difference": 1133
+    },
+    {
+      "strategyId": "xx_1020",
+      "metric": "push_count",
+      "monthlyValue": 73431,
+      "dailyTotal": 73662,
+      "difference": 231
+    },
+    {
+      "strategyId": "xx_1021",
+      "metric": "push_count",
+      "monthlyValue": 230910,
+      "dailyTotal": 263406,
+      "difference": 32496
+    },
+    {
+      "strategyId": "xx_1022",
+      "metric": "push_count",
+      "monthlyValue": 257520,
+      "dailyTotal": 174906,
+      "difference": -82614
+    },
+    {
+      "strategyId": "xx_1023",
+      "metric": "push_count",
+      "monthlyValue": 305484,
+      "dailyTotal": 360584,
+      "difference": 55100
+    }
+  ],
+  "customerGroups": [],
+  "customerGroup": null,
+  "startMonth": "2026-01",
+  "endMonth": "2026-09",
+  "baselineMonth": "2025-12",
+  "baselineSimulated": true,
+  "monthlySimulationMonths": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "sourceMonthlyDailyMismatchCount": 32
+}

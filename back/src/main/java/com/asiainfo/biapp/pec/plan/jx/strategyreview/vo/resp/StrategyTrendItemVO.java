@@ -16,7 +16,7 @@ public class StrategyTrendItemVO {
     @ApiModelProperty("账期月份 yyyy-MM")
     private String month;
 
-    @ApiModelProperty("月度产能（active/passive=产品转化数，control=成功办理量）")
+    @ApiModelProperty("月度产能（active 升接/稳及 control=成功量，其余 active/passive=产品转化数）")
     private BigDecimal capacity;
 
     @ApiModelProperty("环比 %")

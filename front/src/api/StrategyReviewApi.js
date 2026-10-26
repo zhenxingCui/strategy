@@ -13,6 +13,7 @@ export default {
   // ===== 2. 触点执行情况 =====
   touchpointChannelSummary: `${baseUrl}/touchpoint/channelSummary`,   // 左侧按渠道汇总
   touchpointStrategyList: `${baseUrl}/touchpoint/strategyList`,       // 右侧策略明细列表（含环比，查 t_sr_strategy_period_summary）
+  strategyCategoryOptions: `${baseUrl}/touchpoint/strategyCategoryOptions`, // 逐策略明细中实际存在的大类、小类
   touchpointChannelCapacityTrend: `${baseUrl}/touchpoint/channelCapacityTrend`, // 触点产能趋势（按渠道联动，近6月柱+线）
   touchpointChannelBizCapacity: `${baseUrl}/touchpoint/channelBizCapacity`,     // 触点业务产能明细（按渠道+周期联动）
   touchpointCategorySummary: `${baseUrl}/touchpoint/categorySummary`,           // 策略分类执行情况（按大类+小类聚合，不展示策略名称）

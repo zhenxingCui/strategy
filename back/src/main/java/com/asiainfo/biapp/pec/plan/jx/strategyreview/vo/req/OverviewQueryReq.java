@@ -37,7 +37,7 @@ public class OverviewQueryReq extends BaseRegionReq {
         return "active".equals(tabType) && "重点客群".equals(strategyClass)
                 && customerGroup != null && !customerGroup.trim().isEmpty() ? customerGroup.trim() : null;
     }
-    @ApiModelProperty("重点产品名称，空=全部产品；仅control生效")
+    @ApiModelProperty("重点产品名称，匹配control事实表small_category；空=全部产品，仅control生效")
     private String productName;
 
     public String getProductName() {

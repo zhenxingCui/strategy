@@ -24,6 +24,9 @@ public class FavoriteOpReq extends BaseRegionReq {
     @ApiModelProperty(value = "规则 id 预警规则收藏使用")
     private String ruleId;
 
+    @ApiModelProperty("页面范围，例如 active:重点客群；关注命中规则时使用")
+    private String pageScope;
+
     @ApiModelProperty(value = "策略ID集合", required = true)
     @NotEmpty(message = "策略ID集合strategyIds不能为空")
     private List<String> strategyIds;

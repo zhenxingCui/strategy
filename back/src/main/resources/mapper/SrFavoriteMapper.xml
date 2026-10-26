@@ -7,12 +7,15 @@
     <sql id="apPeriodTable">
         <choose>
             <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_period_summary_ap_key_audience</when>
+            <when test="tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
             <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
         </choose>
     </sql>
     <sql id="apPeriodTableClass">
         <choose>
             <when test="tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_period_summary_ap_key_audience</when>
             <when test="tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
             <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
         </choose>
@@ -55,16 +58,17 @@
         </if>
 
         <if test="query.customerGroup != null and query.customerGroup != ''">
-            AND EXISTS (SELECT 1 FROM v_sr_strategy_read cg
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
                 WHERE cg.strategy_code = f.strategy_id AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
         </if>
 
         <if test="query.productName != null and query.productName != ''">
-            AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
-                WHERE product.strategy_code = f.strategy_id AND product.tab_type = 'control'
-                  AND product.is_deleted = 0 AND product.product_name = #{query.productName})
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_period_summary_ctrl product
+                WHERE product.strategy_id = f.strategy_id AND product.is_deleted = 0
+                  AND product.small_category = #{query.productName}
+                  AND DATE_FORMAT(product.stat_month, '%Y-%m') = #{query.statMonth})
         </if>
 </sql>
 
@@ -80,20 +84,20 @@
                        COALESCE(d.key_name, f.channel) AS channelName,
                        DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
                        f.source       AS source,
-                       s.consult_count      AS consultCount,
-                       s.consult_count_qoq  AS consultCountQoQ,
-                       s.retain_count       AS retainCount,
-                       s.retain_count_qoq   AS retainCountQoQ,
-                       s.retain_rate        AS retainRate,
-                       s.retain_rate_qoq    AS retainRateQoQ,
-                       s.dispatch_count     AS dispatchCount,
-                       s.dispatch_count_qoq AS dispatchCountQoQ,
-                       s.success_count      AS successCount,
-                       s.success_count_qoq  AS successCountQoQ,
-                       s.success_rate       AS successRate,
-                       s.success_rate_qoq   AS successRateQoQ,
-                       s.income             AS income,
-                       s.income_qoq         AS incomeQoQ,
+                       s.push_count             AS consultCount,
+                       s.push_count_qoq         AS consultCountQoQ,
+                       s.usage_count            AS retainCount,
+                       s.usage_count_qoq        AS retainCountQoQ,
+                       s.usage_rate             AS retainRate,
+                       s.usage_rate_qoq         AS retainRateQoQ,
+                       s.reach_count            AS dispatchCount,
+                       s.reach_count_qoq        AS dispatchCountQoQ,
+                       s.product_conv_num       AS successCount,
+                       s.product_conv_num_qoq   AS successCountQoQ,
+                       s.product_conv_rate      AS successRate,
+                       s.product_conv_rate_qoq  AS successRateQoQ,
+                       s.actual_income          AS income,
+                       s.actual_income_qoq      AS incomeQoQ,
                        DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
                 FROM t_sr_favorite f
                 <include refid="favoriteListJoinCtrl"/>

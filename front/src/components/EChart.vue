@@ -75,10 +75,51 @@ export default {
     },
     render () {
       if (!this.chart || !this.option) return
+      // 所有柱状图和折线图统一显示数据标签；复制 series 和 label，避免改写调用方的响应式配置。
+      const series = Array.isArray(this.option.series)
+        ? this.option.series.map(item => {
+          if (!item) return item
+          if (item.type === 'line') {
+            const label = item.label || {}
+            return Object.assign({}, item, {
+              label: Object.assign({
+                distance: 8,
+                color: '#475569',
+                fontSize: 10,
+                textBorderColor: '#fff',
+                textBorderWidth: 2
+              }, label, {
+                show: true,
+                position: 'top',
+                formatter: label.formatter || (params => {
+                  const value = params.value
+                  if (value == null) return ''
+                  if (Array.isArray(value)) return value[value.length - 1] == null ? '' : value[value.length - 1]
+                  if (typeof value === 'object' && value.value != null) return value.value
+                  return value
+                })
+              }),
+              // Keep a label on every point, including when neighboring values are close.
+              labelLayout: Object.assign({}, item.labelLayout || {}, { hideOverlap: false })
+            })
+          }
+          if (item.type !== 'bar') return item
+          return Object.assign({}, item, {
+            label: Object.assign({}, item.label || {}, {
+              show: true,
+              position: 'top',
+              distance: 6,
+              color: '#475569',
+              fontSize: 10
+            })
+          })
+        })
+        : this.option.series
       // 低配机器优化：关闭动画，减少 canvas 重绘开销；调用方显式开启动画时可覆盖
-      const opt = this.option.animation === undefined
-        ? Object.assign({}, this.option, { animation: false })
-        : this.option
+      const opt = Object.assign({}, this.option, {
+        animation: this.option.animation === undefined ? false : this.option.animation,
+        series
+      })
       this.chart.setOption(opt, true)
       if (this.loading) {
         this.chart.showLoading({ text: '加载中...', color: '#2563eb' })
