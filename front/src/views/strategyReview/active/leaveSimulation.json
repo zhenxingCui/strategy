@@ -13,7 +13,7 @@
   "baselineMonth": "2025-12",
   "baselineSimulated": true,
   "dailyStartDate": "2026-10-01",
-  "dailyEndDate": "2026-10-21",
+  "dailyEndDate": "2026-10-26",
   "dailyStrategyIds": [
     "lw_1001",
     "lw_1002",
@@ -37,7 +37,7 @@
   "partialMonthQoQ": "月累计截至21日；环比将加总指标按30/21折算，比例指标按百分点差比较。",
   "countyId": "999",
   "dailyIsSimulated": true,
-  "dailyMethod": "按 Excel“分日展示”中查码、反向、停机回捞各自的指标权重拆分；逐策略每日严格递减，月度差额不足时仅下调模拟日指标；为模拟分摊，不代表实际逐日业绩。",
+  "dailyMethod": "1–21日按 Excel 分类日权重拆分；22–26日按10/15–21日同星期日均及近七日日漏斗比例外推，逐策略逐日漏斗递减。为模拟分摊，不代表实际逐日业绩。",
   "sourceRows": {
     "strategies": 14,
     "strategyArchive": 14,
@@ -48,8 +48,8 @@
   },
   "customerGroups": [],
   "customerGroup": null,
-  "dailyDays": 21,
-  "dailyRowCount": 294,
+  "dailyDays": 26,
+  "dailyRowCount": 364,
   "monthlySimulationMonths": [
     "2025-12",
     "2026-01",
@@ -64,5 +64,9 @@
   ],
   "sourceStrategies": 14,
   "sourceStrategyArchiveRows": 14,
-  "sourceMonthlyRows": 14
+  "sourceMonthlyRows": 14,
+  "dailyExtensionStartDate": "2026-10-22",
+  "dailyExtensionEndDate": "2026-10-26",
+  "dailyExtensionIsSimulated": true,
+  "dailyExtensionMethod": "leave-same-weekday-average"
 }

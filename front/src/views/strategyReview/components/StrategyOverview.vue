@@ -27,7 +27,7 @@
             </div>
           </div>
           <div class="kpi-value">
-            {{ formatOverviewNumber(item.value) }}
+            {{ formatMetricNumber(item.value, item.metricCode) }}
             <span class="unit">{{ displayOverviewUnit(item.unit) }}</span>
           </div>
           <div class="kpi-trend">
@@ -69,7 +69,7 @@
 import EChart from '@/components/EChart.vue'
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
-import { currentYearChartRows, oneDecimalText } from '../active/reviewData'
+import { currentYearChartRows, integerText, oneDecimalText } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 
 // 默认高亮指标从 KPI 卡片第一条数据获取，不再写死
@@ -182,7 +182,7 @@ export default {
       }
 
       const displayUnit = this.displayOverviewUnit(unit)
-      const formatVal = (val) => `${this.formatOverviewNumber(val)}${unit === '%' ? '%' : displayUnit}`
+      const formatVal = (val) => `${this.formatMetricNumber(val, this.activeMetricCode)}${unit === '%' ? '%' : displayUnit}`
 
       // 柱状图Y轴自然范围
       const maxValue = Math.max(...chartValues.map(Number))
@@ -236,9 +236,7 @@ export default {
             axisLabel: {
               color: '#9ca3af',
               fontSize: 10,
-              formatter: (val) => {
-                return this.formatOverviewNumber(val)
-              }
+              formatter: (val) => this.formatMetricNumber(val, this.activeMetricCode)
             },
             splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
           },
@@ -315,6 +313,9 @@ export default {
     formatOverviewNumber (value) {
       return oneDecimalText(value)
     },
+    formatMetricNumber (value, metricCode) {
+      return metricCode === 'strategy_count' ? integerText(value) : this.formatOverviewNumber(value)
+    },
     displayOverviewUnit (unit) {
       return String(unit || '').replace(/次/g, '')
     },
@@ -325,7 +326,7 @@ export default {
     handleExport () {
       const columns = [
         { label: '指标名称', prop: 'label' },
-        { label: '当期值', prop: 'value' },
+        { label: '当期值', formatter: (row) => row.metricCode === 'strategy_count' ? this.formatMetricNumber(row.value, row.metricCode) : row.value },
         { label: '单位', prop: 'unit' },
         { label: '环比(%)', prop: 'trendQoQ' },
         { label: '同比(%)', prop: 'trendYoY' }

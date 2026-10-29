@@ -401,14 +401,9 @@
 #sec-detail .biz-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 4px;
   flex-shrink: 0;
-}
-
-#sec-detail .biz-total {
-  font-size: 11px;
-  color: #9ca3af;
 }
 
 #sec-detail .exec-footer {

@@ -301,6 +301,10 @@
   color: #6b7280;
 }
 
+#sec-touchpoint .table-footer.pagination-only {
+  justify-content: flex-end;
+}
+
 #sec-touchpoint .data-table {
   width: max-content;
   min-width: 100%;

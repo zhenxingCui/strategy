@@ -15,7 +15,7 @@
   "dailyConversionRateVariancePp": null,
   "dailyPushRelativeVariance": null,
   "dailyVariationScope": null,
-  "dailyRuleSourceSha256": "f2ffa4dd16d25009146bab9f9063ed53780c6e65a7c71f06e078f4364cf48168",
+  "dailyRuleSourceSha256": "bfa4631ee48fca92e98b4fa991bf737ba86ff12830fb1ad16577797bf2f16d83",
   "dailyStrategyIds": [
     "zxhr_1002",
     "zxhr_1003",
@@ -27,7 +27,7 @@
     "xx_1023"
   ],
   "sourceFile": "稳-升接稳补充到厅策略-汇总.xlsx",
-  "sourceSha256": "f2ffa4dd16d25009146bab9f9063ed53780c6e65a7c71f06e078f4364cf48168",
+  "sourceSha256": "bfa4631ee48fca92e98b4fa991bf737ba86ff12830fb1ad16577797bf2f16d83",
   "sourceRows": {
     "strategies": 8,
     "strategyArchive": 8,
@@ -41,16 +41,16 @@
     {
       "strategyId": "zxhr_1002",
       "metric": "push_count",
-      "monthlyValue": 517228,
-      "dailyTotal": 598636,
-      "difference": 81408
+      "monthlyValue": 423018,
+      "dailyTotal": 484545,
+      "difference": 61527
     },
     {
       "strategyId": "zxhr_1002",
       "metric": "usage_count",
-      "monthlyValue": 327528,
-      "dailyTotal": 354992,
-      "difference": 27464
+      "monthlyValue": 310173,
+      "dailyTotal": 335800,
+      "difference": 25627
     },
     {
       "strategyId": "zxhr_1002",
@@ -90,16 +90,16 @@
     {
       "strategyId": "zxhr_1003",
       "metric": "push_count",
-      "monthlyValue": 156504,
-      "dailyTotal": 183215,
-      "difference": 26711
+      "monthlyValue": 127904,
+      "dailyTotal": 147991,
+      "difference": 20087
     },
     {
       "strategyId": "zxhr_1003",
       "metric": "usage_count",
-      "monthlyValue": 99168,
-      "dailyTotal": 107793,
-      "difference": 8625
+      "monthlyValue": 93836,
+      "dailyTotal": 101878,
+      "difference": 8042
     },
     {
       "strategyId": "zxhr_1003",
@@ -139,16 +139,16 @@
     {
       "strategyId": "zxhr_1004",
       "metric": "push_count",
-      "monthlyValue": 282917,
-      "dailyTotal": 327826,
-      "difference": 44909
+      "monthlyValue": 230768,
+      "dailyTotal": 264250,
+      "difference": 33482
     },
     {
       "strategyId": "zxhr_1004",
       "metric": "usage_count",
-      "monthlyValue": 177195,
-      "dailyTotal": 188633,
-      "difference": 11438
+      "monthlyValue": 167610,
+      "dailyTotal": 178487,
+      "difference": 10877
     },
     {
       "strategyId": "zxhr_1004",
@@ -188,16 +188,16 @@
     {
       "strategyId": "zxhr_1005",
       "metric": "push_count",
-      "monthlyValue": 20118,
-      "dailyTotal": 31017,
-      "difference": 10899
+      "monthlyValue": 16166,
+      "dailyTotal": 22539,
+      "difference": 6373
     },
     {
       "strategyId": "zxhr_1005",
       "metric": "usage_count",
-      "monthlyValue": 11708,
-      "dailyTotal": 16413,
-      "difference": 4705
+      "monthlyValue": 11025,
+      "dailyTotal": 14547,
+      "difference": 3522
     },
     {
       "strategyId": "zxhr_1005",
@@ -242,8 +242,36 @@
       "difference": 231
     },
     {
+      "strategyId": "xx_1020",
+      "metric": "usage_count",
+      "monthlyValue": 73431,
+      "dailyTotal": 73662,
+      "difference": 231
+    },
+    {
+      "strategyId": "xx_1020",
+      "metric": "reach_count",
+      "monthlyValue": 73431,
+      "dailyTotal": 73662,
+      "difference": 231
+    },
+    {
       "strategyId": "xx_1021",
       "metric": "push_count",
+      "monthlyValue": 230910,
+      "dailyTotal": 263406,
+      "difference": 32496
+    },
+    {
+      "strategyId": "xx_1021",
+      "metric": "usage_count",
+      "monthlyValue": 230910,
+      "dailyTotal": 263406,
+      "difference": 32496
+    },
+    {
+      "strategyId": "xx_1021",
+      "metric": "reach_count",
       "monthlyValue": 230910,
       "dailyTotal": 263406,
       "difference": 32496
@@ -256,8 +284,36 @@
       "difference": -82614
     },
     {
+      "strategyId": "xx_1022",
+      "metric": "usage_count",
+      "monthlyValue": 257520,
+      "dailyTotal": 174906,
+      "difference": -82614
+    },
+    {
+      "strategyId": "xx_1022",
+      "metric": "reach_count",
+      "monthlyValue": 257520,
+      "dailyTotal": 174906,
+      "difference": -82614
+    },
+    {
       "strategyId": "xx_1023",
       "metric": "push_count",
+      "monthlyValue": 305484,
+      "dailyTotal": 360584,
+      "difference": 55100
+    },
+    {
+      "strategyId": "xx_1023",
+      "metric": "usage_count",
+      "monthlyValue": 305484,
+      "dailyTotal": 360584,
+      "difference": 55100
+    },
+    {
+      "strategyId": "xx_1023",
+      "metric": "reach_count",
       "monthlyValue": 305484,
       "dailyTotal": 360584,
       "difference": 55100
@@ -280,5 +336,5 @@
     "2026-08",
     "2026-09"
   ],
-  "sourceMonthlyDailyMismatchCount": 32
+  "sourceMonthlyDailyMismatchCount": 40
 }

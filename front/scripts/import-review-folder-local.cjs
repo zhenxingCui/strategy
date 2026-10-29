@@ -1,6 +1,6 @@
 // Import the review workbooks in D:\工作数据\新建文件夹 into the local strategy review DB.
 // Safe by default: without --apply it extracts, maps, and previews rows only.
-// Usage: node front/scripts/import-review-folder-local.cjs [folder-or-xlsx] [--file=<xlsx> ...] [--apply] [--only-key-audience --replace-key-audience]
+// Usage: node front/scripts/import-review-folder-local.cjs [folder-or-xlsx] [--file=<xlsx> ...] [--apply] [--only-upgrade --match-strategy-name]
 const fs = require('node:fs')
 const path = require('node:path')
 const crypto = require('node:crypto')
@@ -17,8 +17,10 @@ const ONLY_LEAVE = process.argv.includes('--only-leave')
 const REPLACE_LEAVE = process.argv.includes('--replace-leave')
 const ONLY_KEY_AUDIENCE = process.argv.includes('--only-key-audience')
 const REPLACE_KEY_AUDIENCE = process.argv.includes('--replace-key-audience')
+const ONLY_UPGRADE = process.argv.includes('--only-upgrade')
+const MATCH_STRATEGY_NAME = process.argv.includes('--match-strategy-name')
 const ONLY_STABLE = process.argv.includes('--only-stable')
-const ONLY_CLASS = ONLY_STABLE ? '稳' : ONLY_KEY_AUDIENCE ? '重点客群' : ONLY_LEAVE ? '离' : ONLY_DECLINE ? '降拆' : null
+const ONLY_CLASS = ONLY_UPGRADE ? '升接' : ONLY_STABLE ? '稳' : ONLY_KEY_AUDIENCE ? '重点客群' : ONLY_LEAVE ? '离' : ONLY_DECLINE ? '降拆' : null
 const REPLACE_CLASS = REPLACE_KEY_AUDIENCE ? '重点客群' : REPLACE_LEAVE ? '离' : REPLACE_DECLINE ? '降拆' : null
 const DATABASE = 'strategy_review_active_class_local'
 const HOST = process.env.SR_DB_HOST || '127.0.0.1'
@@ -236,6 +238,7 @@ function group(rows, keyFn) {
 function stableKey(parts) { return JSON.stringify(parts) }
 function sourceConfig(workbook) {
   const name = workbook.sourceFile
+  if (name === '1027升接.xlsx') return { strategyClass: '升接', customerGroup: null, suffix: '', cutoff: 24, mode: 'dailyWeights', displayName: '升接1027' }
   if (name.includes('稳-升接稳补充到厅策略-汇总')) return { strategyClass: '稳', customerGroup: null, suffix: '', cutoff: 0, mode: 'sourceDaily', displayName: '稳补充到厅' }
   if (name.includes('升接-补充到厅策略')) return { strategyClass: '升接', customerGroup: null, suffix: '', cutoff: 21, mode: 'volatile', displayName: '升接补充到厅' }
   if (/^离(?:\.|\(|$)/.test(name)) return { strategyClass: '离', customerGroup: null, suffix: '_special', cutoff: 21, mode: 'leave', displayName: '离' }
@@ -391,22 +394,58 @@ function sourceDate(workbook, config) {
   if (explicit.length && Math.max(...explicit) < dayCount(SOURCE_MONTH)) config.explicitCutoff = Math.max(...explicit)
   return SOURCE_MONTH
 }
-function mapDataset(workbook, config, dictionaries) {
+function mapDataset(workbook, config, dictionaries, existingStrategies = []) {
   const tables = tableNames(config.suffix)
   const archive = new Map()
+  const sourceToCanonical = new Map()
+  const sourceNameMappings = []
+  const existingByName = new Map()
+  const existingByCode = new Map()
+  if (MATCH_STRATEGY_NAME) {
+    for (const row of existingStrategies) {
+      const name = normalizeText(row.strategy_name)
+      if (!name) continue
+      if (!existingByName.has(name)) existingByName.set(name, [])
+      existingByName.get(name).push(row)
+      if (!existingByCode.has(row.strategy_code)) existingByCode.set(row.strategy_code, [])
+      existingByCode.get(row.strategy_code).push(row)
+    }
+    const duplicateNames = [...existingByName].filter(([, rows]) => rows.length > 1)
+    assert(!duplicateNames.length, `数据库升接策略名不唯一：${JSON.stringify(duplicateNames.map(([name, rows]) => ({ name, codes: rows.map((row) => row.strategy_code) })))}`)
+  }
+  const sourceNames = new Set()
   for (const source of workbook.strategies) {
     const code = normalizeText(source.strategy_code)
     assert(code, `${workbook.sourceFile} 第${source._source_row}行缺少 strategy_code`)
     assert(!archive.has(code), `${workbook.sourceFile} 策略档案重复编码 ${code}`)
+    const name = normalizeText(source.strategy_name ?? source['strategy-name'])
+    if (MATCH_STRATEGY_NAME) {
+      assert(name, `${workbook.sourceFile} 第${source._source_row}行缺少 strategy_name`)
+      assert(!sourceNames.has(name), `${workbook.sourceFile} 策略名重复：${name}`)
+      sourceNames.add(name)
+    }
     const sourceClass = normalizeText(source.strategy_class)
-    if (config.strategyClass === '升接') assert(sourceClass === '升' || sourceClass === '升接', `升接文件分类值不匹配：${sourceClass}`)
+    if (config.strategyClass === '升接') assert(['升', '接', '升接'].includes(sourceClass), `升接文件分类值不匹配：${sourceClass}`)
     else assert(sourceClass === config.strategyClass, `${workbook.sourceFile} 分类 ${sourceClass} 与文件映射 ${config.strategyClass} 不一致`)
     archive.set(code, source)
+    let canonicalCode = code
+    if (MATCH_STRATEGY_NAME) {
+      const nameMatches = existingByName.get(name) || []
+      assert(nameMatches.length <= 1, `策略名 ${name} 在数据库升接档案中不唯一`)
+      const codeMatches = existingByCode.get(code) || []
+      assert(!codeMatches.length || codeMatches.some((row) => row.strategy_name === name) || nameMatches.length === 1,
+        `策略编码 ${code} 已对应不同策略名，无法按名称安全更新：${codeMatches.map((row) => row.strategy_name).join('、')}`)
+      canonicalCode = nameMatches[0]?.strategy_code || code
+      sourceNameMappings.push({ sourceCode: code, strategyName: name, strategyCode: canonicalCode,
+        matchedBy: nameMatches.length ? 'strategy_name' : 'new_strategy_name' })
+    }
+    assert(![...sourceToCanonical.values()].includes(canonicalCode), `${workbook.sourceFile} 多个源策略名映射到同一策略编码 ${canonicalCode}`)
+    sourceToCanonical.set(code, canonicalCode)
   }
   assert(archive.size > 0, `${workbook.sourceFile} 没有策略档案记录`)
 
   const masterRows = [...archive.values()].map((source) => ({
-    strategy_code: String(source.strategy_code),
+    strategy_code: sourceToCanonical.get(String(source.strategy_code)) || String(source.strategy_code),
     strategy_name: normalizeText(source.strategy_name ?? source['strategy-name']), tab_type: 'active', strategy_class: config.strategyClass,
     customer_group: normalizeText(source.customer_group) || config.customerGroup,
     channel: dictionaries.channelCode(normalizeText(source.channel)),
@@ -416,6 +455,27 @@ function mapDataset(workbook, config, dictionaries) {
     start_date: asSqlDate(source.start_date, `start_date/${source.strategy_code}`),
     end_date: asSqlDate(source.end_date, `end_date/${source.strategy_code}`), is_deleted: 0,
   }))
+  if (MATCH_STRATEGY_NAME) {
+    const usedSourceCodes = new Set([...workbook.execution, ...workbook.details].map((row) => normalizeText(row.strategy_code)).filter(Boolean))
+    for (const sourceCode of usedSourceCodes) {
+      if (sourceToCanonical.has(sourceCode)) continue
+      const codeMatches = existingByCode.get(sourceCode) || []
+      assert(codeMatches.length === 1,
+        `${workbook.sourceFile} 执行/明细策略编码 ${sourceCode} 不在策略档案中，且无法唯一关联到现有策略名`)
+      const existing = codeMatches[0]
+      const name = normalizeText(existing.strategy_name)
+      const nameMatches = existingByName.get(name) || []
+      assert(nameMatches.length === 1 && nameMatches[0].strategy_code === sourceCode,
+        `工作簿外策略 ${sourceCode} 无法通过唯一策略名关联现有档案`)
+      sourceToCanonical.set(sourceCode, nameMatches[0].strategy_code)
+      if (!masterRows.some((row) => row.strategy_code === sourceCode)) {
+        const preserved = Object.fromEntries(Object.entries(existing).filter(([key]) => !['id', 'create_time', 'update_time'].includes(key)))
+        masterRows.push({ ...preserved, tab_type: 'active', strategy_class: config.strategyClass,
+          city_id: CITY_ID, county_id: null, is_deleted: 0 })
+      }
+      sourceNameMappings.push({ sourceCode, strategyName: name, strategyCode: sourceCode, matchedBy: 'existing_name_bridge' })
+    }
+  }
   const customerGroups = [...new Set(masterRows.map((row) => row.customer_group).filter(Boolean))].sort()
   if (config.expectedCustomerGroups) {
     assert(JSON.stringify(customerGroups) === JSON.stringify([...config.expectedCustomerGroups].sort()),
@@ -427,13 +487,14 @@ function mapDataset(workbook, config, dictionaries) {
   assert(monthlySources.length > 0, `${workbook.sourceFile} 没有月度口径行`)
   assert(workbook.execution.every((source) => ['月', '日'].includes(String(source.period_type || '').trim())),
     `${workbook.sourceFile} 存在无法识别的数据周期`)
-  if (config.mode === 'sourceDaily') assert(dailySources.length > 0, `${workbook.sourceFile} 缺少来源日数据`)
+  if (['sourceDaily', 'dailyWeights'].includes(config.mode)) assert(dailySources.length > 0, `${workbook.sourceFile} 缺少来源日数据`)
   else assert(dailySources.length === 0, `${workbook.sourceFile} 含日数据，但当前来源映射未声明读取日数据`)
   const mapExecution = (source, isDaily = false) => {
-    const code = normalizeText(source.strategy_code)
+    const sourceCode = normalizeText(source.strategy_code)
+    const code = sourceToCanonical.get(sourceCode) || sourceCode
     assert(masterById.has(code), `${workbook.sourceFile} 执行数据引用了档案外策略 ${code}`)
     const sourceChannel = normalizeText(source.channel)
-    const sourceDateValue = isDaily ? asSqlDate(source.stat_date, `${code}/stat_date`) : null
+    const sourceDateValue = isDaily ? asSqlDate(source.stat_date, `${sourceCode}/stat_date`) : null
     if (isDaily) assert(sourceDateValue.startsWith(`${SOURCE_MONTH}-`), `${code} 日数据日期不在来源月：${sourceDateValue}`)
     const targetConversion = asNumber(source.target_conv_num, `${code}/target_conv_num`)
     const common = {
@@ -466,7 +527,7 @@ function mapDataset(workbook, config, dictionaries) {
         usage_count: asNumber(source.usage_count, `${code}/usage_count`),
         reach_count: asNumber(source.reach_count, `${code}/reach_count`),
         target_conv_num: targetConversion,
-        product_conv_num: config.mode === 'sourceDaily'
+        product_conv_num: ['sourceDaily', 'dailyWeights'].includes(config.mode)
           ? targetConversion
           : product == null ? targetConversion : product,
         expected_income: asNumber(source.expected_income, `${code}/expected_income`) ?? actualIncome,
@@ -490,19 +551,80 @@ function mapDataset(workbook, config, dictionaries) {
   }
   const executionRows = monthlySources.map((source) => mapExecution(source))
   const sourceDailyRows = dailySources.map((source) => mapExecution(source, true))
-  assert(new Set(executionRows.map((row) => row.strategy_id)).size === archive.size || config.strategyClass === '降拆', `${workbook.sourceFile} 策略档案与执行行数量不一致`)
+  const sourceMonthlyStrategyIds = new Set(executionRows.map((row) => row.strategy_id))
+  const sourceMonthlyDerivedMetrics = []
+  if (config.mode === 'dailyWeights') {
+    const rawDailyByStrategy = group(sourceDailyRows, (row) => row.strategy_id)
+    const sumSourceField = (rows, field) => {
+      const values = rows.map((row) => row[field])
+      if (!values.length || values.some((value) => value == null)) return null
+      const numbers = values.map(Number)
+      assert(numbers.every(Number.isFinite), `${field} 日权重含非数值`)
+      return numbers.reduce((sum, value) => sum + value, 0)
+    }
+    for (const fact of executionRows) {
+      const daily = rawDailyByStrategy.get(fact.strategy_id) || []
+      assert(daily.length > 0, `${fact.strategy_id} 月事实缺少日权重`)
+      assert(daily.every((row) => row.channel === fact.channel && row.big_category === fact.big_category
+        && row.small_category === fact.small_category), `${fact.strategy_id} 月行和日权重筛选维度不一致`)
+      for (const field of ['push_count', 'usage_count', 'reach_count', 'target_conv_num', 'actual_income']) {
+        if (fact[field] == null) {
+          fact[field] = sumSourceField(daily, field)
+          if (fact[field] != null) sourceMonthlyDerivedMetrics.push({ strategyId: fact.strategy_id, metric: field, method: 'sum_daily_rows' })
+        }
+      }
+      if (fact.expected_income == null && fact.actual_income != null) fact.expected_income = fact.actual_income
+      if (fact.product_conv_num == null && fact.target_conv_num != null) fact.product_conv_num = fact.target_conv_num
+      for (const field of AMOUNT_FIELDS) if (fact[field] != null) fact[field] = round2(fact[field])
+      pctRow(fact)
+    }
+    for (const [strategyId, daily] of rawDailyByStrategy) {
+      if (sourceMonthlyStrategyIds.has(strategyId)) continue
+      const first = daily[0]
+      assert(daily.every((row) => row.channel === first.channel && row.big_category === first.big_category
+        && row.small_category === first.small_category), `${strategyId} 日行筛选维度不一致`)
+      const target = sumSourceField(daily, 'target_conv_num')
+      const actualIncome = sumSourceField(daily, 'actual_income')
+      const derived = {
+        ...first, stat_month: MONTH_START, strategy_count: 1, original_cust: null,
+        push_count: sumSourceField(daily, 'push_count'),
+        usage_count: sumSourceField(daily, 'usage_count'),
+        reach_count: sumSourceField(daily, 'reach_count'),
+        target_conv_num: target, product_conv_num: target,
+        expected_income: sumSourceField(daily, 'expected_income') ?? actualIncome,
+        actual_income: actualIncome,
+        reject_count: sumSourceField(daily, 'reject_count'),
+      }
+      delete derived.stat_date
+      for (const field of COUNT_FIELDS) if (derived[field] != null) sourceMonthlyDerivedMetrics.push({ strategyId: derived.strategy_id, metric: field, method: 'sum_daily_rows' })
+      for (const field of AMOUNT_FIELDS) if (derived[field] != null) {
+        derived[field] = round2(derived[field])
+        sourceMonthlyDerivedMetrics.push({ strategyId: derived.strategy_id, metric: field, method: 'sum_daily_rows' })
+      }
+      executionRows.push(pctRow(derived))
+    }
+  }
+  assert(new Set(executionRows.map((row) => row.strategy_id)).size === executionRows.length,
+    `${workbook.sourceFile} 策略月度行按名称映射后出现重复策略`)
+  assert(executionRows.every((row) => masterById.has(row.strategy_id)), `${workbook.sourceFile} 月事实包含档案外策略`)
+  if (config.mode !== 'dailyWeights') {
+    assert(new Set(executionRows.map((row) => row.strategy_id)).size === archive.size || config.strategyClass === '降拆',
+      `${workbook.sourceFile} 策略档案与执行行数量不一致`)
+  }
   assert(executionRows.every((row) => row.stat_month === MONTH_START), `${workbook.sourceFile} 执行数据月份不一致`)
   if (config.mode !== 'sourceDaily') roundCountsLargestRemainder(executionRows, COUNT_FIELDS)
   for (const row of executionRows) pctRow(row)
   for (const row of sourceDailyRows) pctRow(row)
   let sourceDailyReconciliation = []
   let sourceDailyCutoff = null
-  if (config.mode === 'sourceDaily') {
+  if (['sourceDaily', 'dailyWeights'].includes(config.mode)) {
     const dates = [...new Set(sourceDailyRows.map((row) => row.stat_date))].sort()
     assert(dates.length > 0 && dates[0] === `${SOURCE_MONTH}-01`, '来源日数据必须从来源月1日开始')
     sourceDailyCutoff = Number(dates.at(-1).slice(-2))
     assert(dates.length === sourceDailyCutoff && dates.every((date, index) => date === `${SOURCE_MONTH}-${String(index + 1).padStart(2, '0')}`),
       `来源日数据日期不连续：${dates[0]} 至 ${dates.at(-1)}`)
+  }
+  if (config.mode === 'sourceDaily') {
     const dailyByStrategy = group(sourceDailyRows, (row) => row.strategy_id)
     assert(dailyByStrategy.size === executionRows.length, '来源月行与来源日策略集合不一致')
     const monthlyByStrategy = new Map(executionRows.map((row) => [row.strategy_id, row]))
@@ -523,20 +645,46 @@ function mapDataset(workbook, config, dictionaries) {
       }
     }
   }
+  let sourceDailyWeightSummary = []
+  if (config.mode === 'dailyWeights') {
+    const monthlyByStrategy = new Map(executionRows.map((row) => [row.strategy_id, row]))
+    const dailyByStrategy = group(sourceDailyRows, (row) => row.strategy_id)
+    const dailyKeys = new Set()
+    for (const row of sourceDailyRows) {
+      const monthly = monthlyByStrategy.get(row.strategy_id)
+      assert(monthly, `${row.strategy_id} 日权重没有可关联的月事实`)
+      assert(row.stat_date <= `${SOURCE_MONTH}-${String(sourceDailyCutoff).padStart(2, '0')}`,
+        `${row.strategy_id} 日权重超出来源截至日`)
+      assert(row.channel === monthly.channel && row.big_category === monthly.big_category
+        && row.small_category === monthly.small_category, `${row.strategy_id} 月行和日权重筛选维度不一致`)
+      const key = stableKey([row.strategy_id, row.stat_date, row.channel, row.big_category, row.small_category])
+      assert(!dailyKeys.has(key), `${row.strategy_id}/${row.stat_date} 存在重复日权重行`)
+      dailyKeys.add(key)
+      for (const field of ['push_count', 'usage_count', 'reach_count', 'target_conv_num', 'actual_income']) {
+        assert(row[field] == null || (Number.isFinite(Number(row[field])) && Number(row[field]) >= 0),
+          `${row.strategy_id}/${row.stat_date}/${field} 日权重无效`)
+      }
+    }
+    sourceDailyWeightSummary = [...dailyByStrategy].map(([strategyId, rows]) => ({
+      strategyId, rows: rows.length,
+      missingDays: sourceDailyCutoff - new Set(rows.map((row) => row.stat_date)).size,
+    }))
+  }
   const gridFaceRows = executionRows.filter((row) => row.sourceChannel === '网格-面客')
   assert(gridFaceRows.every((row) => row.usage_count == null && row.product_conv_num == null && row.target_conv_num == null),
     '降拆面客只映射接单量和成功量；接触量、派单量必须为空')
 
   const sourceDetails = workbook.details.filter((row) => normalizeText(row.item_name) && row.item_count != null)
   let details = sourceDetails.map((source) => {
-    const code = normalizeText(source.strategy_code)
-    assert(masterById.has(code) || (config.strategyClass === '降拆' && code.startsWith('jd_')), `${workbook.sourceFile} 明细引用了档案外策略 ${code}`)
+    const sourceCode = normalizeText(source.strategy_code)
+    const code = sourceToCanonical.get(sourceCode) || sourceCode
+    assert(masterById.has(code) || (config.strategyClass === '降拆' && code.startsWith('jd_')), `${workbook.sourceFile} 明细引用了档案外策略 ${sourceCode}`)
     const type = normalizeText(source.detail_type)
     assert(type === '业务产能' || type === '拒绝原因', `${workbook.sourceFile} 第${source._source_row}行明细类型无法映射：${type}`)
     const name = normalizeText(source.item_name)
-    const mapped = dictionaries.detailCode(name, type === '业务产能' ? 'businesses' : 'reasons', source.item_code)
+    const mapped = dictionaries.detailCode(name, type === '业务产能' ? 'businesses' : 'reasons', source.item_code, config.strategyClass)
     return {
-      detail_type: type, strategy_id: code, source_strategy_id: code,
+      detail_type: type, strategy_id: code, source_strategy_id: sourceCode,
       code: mapped.code, name, count: asNumber(source.item_count, `${code}/${name}`), sourceRow: source._source_row,
       source_channel: normalizeText(source.channel),
     }
@@ -579,7 +727,7 @@ function mapDataset(workbook, config, dictionaries) {
   }
 
   const parsedMonth = sourceDate(workbook, config)
-  const cutoff = config.mode === 'sourceDaily' ? sourceDailyCutoff
+  const cutoff = ['sourceDaily', 'dailyWeights'].includes(config.mode) ? sourceDailyCutoff
     : config.strategyClass === '降拆' || config.strategyClass === '升接' ? 21 : (config.explicitCutoff || config.cutoff)
   const sourceWeights = config.mode === 'sourceWeights' ? declineSourceWeights(workbook, cutoff)
     : config.mode === 'leave' ? leaveSourceWeights(workbook, cutoff) : null
@@ -588,13 +736,17 @@ function mapDataset(workbook, config, dictionaries) {
     byteLength: workbook.byteLength, sheetNames: workbook.sheetNames, strategyClass: config.strategyClass,
     customerGroup: config.customerGroup, customerGroups, suffix: config.suffix, tables, sourceMonth: parsedMonth,
     cutoff, cutoffDate: `${parsedMonth}-${String(cutoff).padStart(2, '0')}`, countyId: config.countyId ?? null,
-    mode: config.mode, sourceWeights, sourceDailyRows, sourceDailyReconciliation, masters: masterRows, facts: executionRows,
+    mode: config.mode, sourceWeights, sourceDailyRows, sourceDailyReconciliation, sourceDailyWeightSummary,
+    sourceNameMappings, sourceArchiveRows: archive.size, sourceMonthlyRowCount: monthlySources.length,
+    sourceMonthlyStrategyIds: [...sourceMonthlyStrategyIds], sourceMonthlyDerivedMetrics,
+    masters: masterRows, facts: executionRows,
     sourceRejectRows: sourceDetails.filter((row) => normalizeText(row.detail_type) === '拒绝原因').length,
     businesses: details.filter((row) => row.detail_type === '业务产能'),
     reasons: details.filter((row) => row.detail_type === '拒绝原因'),
     mappings: {
-      archive: { strategy_code: 'strategy_code（主键业务编码，同时映射 facts.strategy_id）', strategy_name: 'strategy_name（兼容源列 strategy-name）', strategy_class: 'strategy_class（源“升”规范为“升接”）', customer_group: 'customer_group', channel: 't_sr_dim_channel.key_name → channel/key_code', strategy_level: 'strategy_level', caliber: 'caliber', iteration: 'iteration', owner: 'owner', status: 'status', start_date: 'start_date', end_date: 'end_date' },
-      execution: config.mode === 'sourceDaily'
+      archive: { identity: MATCH_STRATEGY_NAME ? 'strategy_name唯一匹配当前升接策略；strategy_code仅作为输入行关联值' : 'strategy_code', strategy_code: 'strategy_code（映射到数据库策略编码）', strategy_name: 'strategy_name（兼容源列 strategy-name）', strategy_class: 'strategy_class（升/接/升接规范为升接）', customer_group: 'customer_group', channel: 't_sr_dim_channel.key_name → channel/key_code', strategy_level: 'strategy_level', caliber: 'caliber', iteration: 'iteration', owner: 'owner', status: 'status', start_date: 'start_date', end_date: 'end_date' },
+      strategyNameMappings: sourceNameMappings,
+      execution: ['sourceDaily', 'dailyWeights'].includes(config.mode)
         ? { period_type: '月→t_sr_strategy_period_summary_ap，日→t_sr_strategy_daily_ap', stat_date: '月行统一使用来源月；日行保留原始日期', strategy_code: 'strategy_id/strategy_code', channel: 'channel code', original_cust: 'original_cust；空值保留NULL', push_count: 'push_count', usage_count: 'usage_count；空值保留NULL', reach_count: 'reach_count；空值保留NULL', target_conv_num: 'target_conv_num', product_conv_num: '源列为转化率辅助值；产品转化量按项目规则取 target_conv_num', expected_income: 'expected_income；源缺失取 actual_income', actual_income: 'actual_income', reject_count: 'reject_count；源缺失保留 NULL' }
         : config.strategyClass === '降拆'
         ? { period_type: '仅月度来源；映射 stat_month', stat_date: 'stat_month', strategy_code: 'strategy_id/strategy_code', channel: 'channel code', big_category: 'big_category', small_category: 'small_category', push_count: '咨询量/接单量；直接保留V3原列', usage_count: '接触量；保留原值和NULL', reach_count: '全部渠道成功量；直接保留V3原列', target_conv_num: '在线/营服派单量；直接保留V3原列', product_conv_num: '派单量副本，与target_conv_num逐行一致', reach_rate: '成功量reach_count/push_count×100', target_conv_rate: '派单量target_conv_num/push_count×100' }
@@ -872,8 +1024,89 @@ function simulateDeclineHistory(dataset) {
   }
   return { facts, businesses: [], reasons, ids: allIds }
 }
+function buildDailyFromWeights(dataset) {
+  const days = dataset.cutoff
+  const datePrefix = `${SOURCE_MONTH}-`
+  const inputByStrategy = group(dataset.sourceDailyRows, (row) => row.strategy_id)
+  const dateKeys = Array.from({ length: days }, (_, index) => `${datePrefix}${String(index + 1).padStart(2, '0')}`)
+  const output = []
+  for (const monthly of dataset.facts) {
+    const inputRows = inputByStrategy.get(monthly.strategy_id) || []
+    assert(inputRows.length > 0, `${monthly.strategy_id} 缺少 Excel 日权重`)
+    const byDate = new Map(inputRows.map((row) => [row.stat_date, row]))
+    assert(byDate.size === inputRows.length, `${monthly.strategy_id} 日权重日期重复`)
+    assert(inputRows.every((row) => row.channel === monthly.channel && row.big_category === monthly.big_category
+      && row.small_category === monthly.small_category), `${monthly.strategy_id} 月事实与日权重维度不一致`)
+    const weights = (field) => dateKeys.map((date) => {
+      const value = byDate.get(date)?.[field]
+      return value == null ? 0 : Number(value)
+    })
+    const positiveWeights = (field, fallback) => {
+      const primary = weights(field)
+      if (primary.some((value) => value > 0)) return primary
+      const secondary = fallback ? weights(fallback) : []
+      assert(secondary.some((value) => value > 0), `${monthly.strategy_id}/${field} 没有可用日权重`)
+      return secondary
+    }
+    const split = {}
+    const pushWeights = positiveWeights('push_count')
+    const usageWeights = positiveWeights('usage_count', 'push_count')
+    const reachWeights = positiveWeights('reach_count', 'usage_count')
+    const targetWeights = positiveWeights('target_conv_num', 'reach_count')
+    const standard = dataset.strategyClass !== '降拆'
+    const validUsageFunnel = standard && monthly.usage_count != null && monthly.push_count != null
+      && monthly.usage_count <= monthly.push_count
+    const validReachFunnel = standard && monthly.reach_count != null && monthly.usage_count != null
+      && monthly.reach_count <= monthly.usage_count
+    const validTargetFunnel = standard && monthly.target_conv_num != null && monthly.reach_count != null
+      && monthly.target_conv_num <= monthly.reach_count
+    split.push_count = monthly.push_count == null ? dateKeys.map(() => null) : largestRemainder(monthly.push_count, pushWeights)
+    split.usage_count = monthly.usage_count == null ? dateKeys.map(() => null) : validUsageFunnel
+      ? largestRemainderBounded(monthly.usage_count, usageWeights, split.push_count)
+      : largestRemainder(monthly.usage_count, usageWeights)
+    split.reach_count = monthly.reach_count == null ? dateKeys.map(() => null) : validReachFunnel
+      ? largestRemainderBounded(monthly.reach_count, reachWeights, split.usage_count)
+      : largestRemainder(monthly.reach_count, reachWeights)
+    split.target_conv_num = monthly.target_conv_num == null ? dateKeys.map(() => null) : validTargetFunnel
+      ? largestRemainderBounded(monthly.target_conv_num, targetWeights, split.reach_count)
+      : largestRemainder(monthly.target_conv_num, targetWeights)
+    const productWeights = monthly.product_conv_num === monthly.target_conv_num
+      ? targetWeights : positiveWeights('product_conv_num', 'target_conv_num')
+    split.product_conv_num = monthly.product_conv_num == null ? dateKeys.map(() => null)
+      : monthly.product_conv_num === monthly.target_conv_num ? split.target_conv_num.slice()
+        : largestRemainder(monthly.product_conv_num, productWeights)
+    split.reject_count = monthly.reject_count == null ? dateKeys.map(() => null)
+      : largestRemainder(monthly.reject_count, pushWeights)
+    const actualWeights = positiveWeights('actual_income', 'push_count')
+    const expectedWeights = positiveWeights('expected_income', 'actual_income')
+    const splitMoney = (total, weight) => total == null ? dateKeys.map(() => null)
+      : largestRemainder(Math.round(Number(total) * 100), weight).map((value) => value / 100)
+    split.actual_income = splitMoney(monthly.actual_income, actualWeights)
+    split.expected_income = monthly.expected_income === monthly.actual_income
+      ? split.actual_income.slice() : splitMoney(monthly.expected_income, expectedWeights)
+
+    for (let index = 0; index < days; index++) {
+      const row = {
+        tab_type: 'active', strategy_class: monthly.strategy_class, strategy_id: monthly.strategy_id,
+        strategy_code: monthly.strategy_code, strategy_name: monthly.strategy_name,
+        channel: monthly.channel, big_category: monthly.big_category, small_category: monthly.small_category,
+        stat_date: dateKeys[index], stat_month: dateKeys[index], original_cust: null,
+        push_count: split.push_count[index], usage_count: split.usage_count[index],
+        reach_count: split.reach_count[index], target_conv_num: split.target_conv_num[index],
+        product_conv_num: split.product_conv_num[index], expected_income: split.expected_income[index],
+        actual_income: split.actual_income[index], reject_count: split.reject_count[index],
+        city_id: CITY_ID, county_id: monthly.county_id, is_deleted: 0, daily_is_simulated: 1,
+      }
+      pctRow(row)
+      output.push(row)
+    }
+  }
+  return output
+}
+
 function buildDaily(dataset) {
   if (dataset.mode === 'sourceDaily') return dataset.sourceDailyRows.map((row) => ({ ...row, daily_is_simulated: 0 }))
+  if (dataset.mode === 'dailyWeights') return buildDailyFromWeights(dataset)
   const days = dataset.cutoff
   const datePrefix = `${SOURCE_MONTH}-`
   const dailyRows = []
@@ -1419,9 +1652,13 @@ function outputSummary(datasets, history, dailyRows) {
       syntheticDaily: datasets.some((dataset) => dataset.mode !== 'sourceDaily'),
       dailyLabel: datasets.every((dataset) => dataset.mode === 'sourceDaily')
         ? '逐日记录直接来自 Excel；未按月度值重新分摊。'
+        : datasets.some((dataset) => dataset.mode === 'dailyWeights')
+          ? '按 Excel 逐日数值作为权重，以来源月总量拆分整数模拟日数据；不代表实际逐日业绩。'
         : '模拟日分摊，不代表实际逐日业绩',
       dailyRangeByFile: datasets.map((dataset) => `${dataset.sourceFile}: ${SOURCE_MONTH}-01 至 ${dataset.cutoffDate}`).join('；'),
       sourceDailyReconciliation: datasets.flatMap((dataset) => dataset.sourceDailyReconciliation || []),
+      dailyWeightSummary: datasets.flatMap((dataset) => dataset.sourceDailyWeightSummary || []),
+      sourceMonthlyDerivedMetrics: datasets.flatMap((dataset) => dataset.sourceMonthlyDerivedMetrics || []),
       keyAudienceDailyRule: datasets.some((dataset) => dataset.strategyClass === '重点客群')
         ? '客群及触点汇总转化率相对来源月在 ±2pp 内波动；每条策略每日推送量相对该策略日均值在 ±10% 内；每日整数分配后保留来源月月合计。'
         : null,
@@ -1451,10 +1688,24 @@ function outputSummary(datasets, history, dailyRows) {
   }
 }
 
-async function prepareDictionaries(conn) {
+async function prepareDictionaries(conn, strategyClasses = []) {
   const [channels] = await conn.query('SELECT key_code,key_name,tab_type,status,sort_no,is_deleted FROM t_sr_dim_channel')
   const [bizNames] = await conn.query('SELECT DISTINCT biz_code AS code,biz_name AS name FROM v_sr_strategy_biz_capacity_read WHERE is_deleted=0 AND biz_code IS NOT NULL')
   const [reasonNames] = await conn.query('SELECT DISTINCT reason_code AS code,reason_name AS name FROM v_sr_strategy_reject_reason_read WHERE is_deleted=0 AND reason_code IS NOT NULL')
+  const targetNames = { businesses: Object.create(null), reasons: Object.create(null) }
+  for (const strategyClass of strategyClasses) {
+    const tables = tableNames(suffixForClass(strategyClass))
+    const [businesses] = await conn.query(
+      "SELECT DISTINCT b.biz_code AS code,b.biz_name AS name FROM ?? b JOIN ?? s ON s.strategy_code=b.strategy_id AND s.tab_type='active' AND s.strategy_class=? AND s.is_deleted=0 WHERE b.tab_type='active' AND b.is_deleted=0 AND b.city_id=? AND b.county_id IS NULL AND b.biz_code IS NOT NULL",
+      [tables.business, tables.master, strategyClass, CITY_ID],
+    )
+    const [reasons] = await conn.query(
+      "SELECT DISTINCT r.reason_code AS code,r.reason_name AS name FROM ?? r JOIN ?? s ON s.strategy_code=r.strategy_id AND s.tab_type='active' AND s.strategy_class=? AND s.is_deleted=0 WHERE r.is_deleted=0 AND r.city_id=? AND r.county_id IS NULL AND r.reason_code IS NOT NULL",
+      [tables.reject, tables.master, strategyClass, CITY_ID],
+    )
+    targetNames.businesses[strategyClass] = businesses
+    targetNames.reasons[strategyClass] = reasons
+  }
   const newChannels = []
   const mappings = { channels: [], businesses: [], reasons: [] }
   function channelCode(name) {
@@ -1479,12 +1730,14 @@ async function prepareDictionaries(conn) {
     if (!mappings.channels.some((item) => item.name === name)) mappings.channels.push({ name, code: row.key_code })
     return row.key_code
   }
-  function detailCode(name, kind, sourceCode) {
+  function detailCode(name, kind, sourceCode, strategyClass) {
     assert(name, '业务或拒绝原因名称为空')
     const current = mappings[kind].find((item) => item.name === name)
     if (current) return current
     const existing = kind === 'businesses' ? bizNames : reasonNames
-    const matching = existing.filter((row) => row.name === name)
+    const scoped = targetNames[kind][strategyClass] || []
+    const scopedMatches = scoped.filter((row) => row.name === name)
+    const matching = scopedMatches.length ? scopedMatches : existing.filter((row) => row.name === name)
     const unique = [...new Set(matching.map((row) => row.code))]
     assert(unique.length <= 1, `${name} 在当前数据库中有多个编码：${unique.join(',')}`)
     let code = unique[0] || null
@@ -1501,7 +1754,8 @@ async function prepareDictionaries(conn) {
       while (used.has(`${prefix}${String(number).padStart(6, '0')}`) || mappings[kind].some((item) => item.code === `${prefix}${String(number).padStart(6, '0')}`)) number++
       code = `${prefix}${String(number).padStart(6, '0')}`
     }
-    const codeConflict = existing.find((row) => row.code === code && row.name !== name)
+    const codeScope = scopedMatches.length ? scoped : existing
+    const codeConflict = codeScope.find((row) => row.code === code && row.name !== name)
     assert(!codeConflict, `${code} 已对应 ${codeConflict?.name}，不能映射到 ${name}`)
     const mapped = { name, code }
     mappings[kind].push(mapped)
@@ -1788,6 +2042,8 @@ function manifestUpdates(datasets, dailyRows, histories) {
       dailyIsSimulated: dataset.mode !== 'sourceDaily',
       dailyMethod: dataset.mode === 'sourceDaily'
         ? '日明细按 Excel 逐日记录原样导入；月度指标按 Excel 月度行保留，两种来源不相互分摊或调整。'
+        : dataset.mode === 'dailyWeights'
+        ? 'Excel“2_执行数据”的逐日数值作为分日权重；按月行总量用最大余数法拆分并按逐日上限校验漏斗。无月行策略按可加总的日报指标汇总生成月事实。日数据为模拟分摊，不代表实际逐日业绩。'
         : dataset.mode === 'sourceWeights'
         ? 'Excel 分日比例按截至日重新归一化后进行最大余数拆分；为模拟分摊，不代表实际逐日业绩。'
         : dataset.mode === 'leave'
@@ -1801,6 +2057,8 @@ function manifestUpdates(datasets, dailyRows, histories) {
         ? 'Excel分日权重按10月1日至截至日范围重新归一化'
         : dataset.mode === 'sourceDaily'
           ? 'Excel“2_执行数据”中 period_type=日 的逐日记录'
+        : dataset.mode === 'dailyWeights'
+          ? 'Excel“2_执行数据”中的逐日数值按策略/指标作为权重；保留源文件缓存值，不重算辅助RAND公式'
         : dataset.mode === 'weekday'
           ? '工作日/周末固定权重（1.0/0.65）'
           : dataset.mode === 'keyAudience'
@@ -1813,15 +2071,20 @@ function manifestUpdates(datasets, dailyRows, histories) {
       dailyVariationScope: dataset.mode === 'keyAudience' ? '客群及触点汇总转化率；逐策略推送量' : null,
       dailySimulationMonths: dataset.mode === 'keyAudience' ? [SOURCE_MONTH] : undefined,
       dailyRuleSourceSha256: dataset.sourceSha256,
-      dailyStrategyIds: ids,
+      dailyStrategyIds: [...new Set(dataset.facts.map((row) => row.strategy_id))],
       sourceFile: dataset.sourceFile, sourceSha256: dataset.sourceSha256,
       sourceRows: { strategies: dataset.strategyClass === '降拆' ? 47 : dataset.masters.length,
-        strategyArchive: dataset.masters.length, monthly: dataset.facts.length,
+        strategyArchive: dataset.sourceArchiveRows ?? dataset.masters.length,
+        monthly: dataset.sourceMonthlyRowCount ?? dataset.facts.length,
+        sourceMonthFacts: dataset.facts.length,
+        monthlyDerivedFromDaily: dataset.sourceMonthlyDerivedMetrics?.length || 0,
         daily: dataset.sourceDailyRows?.length || 0,
         businesses: dataset.businesses.length, rejectReasons: dataset.sourceRejectRows,
         mappedRejectReasons: dataset.reasons.length },
       sourceMonthlyDailyMismatchCount: dataset.sourceDailyReconciliation?.length || 0,
       sourceDailyReconciliation: dataset.sourceDailyReconciliation || [],
+      dailyWeightSummary: dataset.sourceDailyWeightSummary || [],
+      sourceMonthlyDerivedMetrics: dataset.sourceMonthlyDerivedMetrics || [],
     }
     if (dataset.strategyClass === '降拆') {
       common.fieldMappingVersion = 3
@@ -1879,6 +2142,38 @@ function manifestUpdates(datasets, dailyRows, histories) {
               : dataset.strategyClass === '离' ? 'leaveSimulation.json' : 'declineSimulation.json'
     const existingPath = path.join(activeDir, filename)
     const prior = fs.existsSync(existingPath) ? JSON.parse(fs.readFileSync(existingPath, 'utf8')) : {}
+    if (dataset.mode === 'dailyWeights' && dataset.strategyClass === '升接') {
+      const dailyStrategies = new Set(dataset.sourceDailyRows.map((row) => row.strategy_id))
+      const derivedStrategies = new Set((dataset.sourceMonthlyDerivedMetrics || []).map((row) => row.strategyId))
+      const currentSource = {
+        sourceFile: dataset.sourceFile, sourceSha256: dataset.sourceSha256,
+        sourceMonth: SOURCE_MONTH, sourceCutoff: dataset.cutoffDate,
+        dailyIsSimulated: true, dailyWeightMode: true,
+        counts: {
+          strategies: dataset.sourceArchiveRows,
+          matchedStrategies: dataset.masters.length,
+          monthlyFacts: dataset.facts.length,
+          sourceMonthlyRows: dataset.sourceMonthlyRowCount,
+          dailyRows: dataset.sourceDailyRows.length,
+          dailyStrategies: dailyStrategies.size,
+          archiveOnlyStrategies: dataset.masters.length - dailyStrategies.size,
+          dailyOnlyStrategies: derivedStrategies.size,
+          businessRows: dataset.businesses.length,
+          rejectReasonRows: dataset.sourceRejectRows,
+        },
+        strategyNameIdentity: 'strategy_name',
+        strategyNameMappingCount: dataset.sourceNameMappings.length,
+        sourceMonthlyDailyComparison: { compared: 0, mismatchCount: 0, examples: [],
+          method: '逐日数值作为权重重新分摊；月行作为总量锚点，不将原始日值当作实绩。' },
+        dailyWeightSummary: dataset.sourceDailyWeightSummary,
+        derivedMonthlyStrategyIds: [...derivedStrategies],
+      }
+      common.supplementalSources = [
+        ...(prior.supplementalSources || []).filter((item) => item.sourceFile !== dataset.sourceFile),
+        currentSource,
+      ]
+      common.supplementalSources.at(-1).counts.monthlySourceStrategies = dataset.sourceMonthlyStrategyIds.length
+    }
     const payload = REPLACE_KEY_AUDIENCE ? { ...common } : { ...prior, ...common }
     if (prior.dailyStartDate && prior.dailyStartDate < common.dailyStartDate && !(REPLACE_CLASS && dataset.strategyClass === REPLACE_CLASS)) payload.dailyStartDate = prior.dailyStartDate
     if (prior.dailySimulationMonths && dataset.customerGroup === '拆弹客户' && !(REPLACE_CLASS && dataset.strategyClass === REPLACE_CLASS)) {
@@ -1892,11 +2187,12 @@ function manifestUpdates(datasets, dailyRows, histories) {
 async function main() {
   assert(isLoopback(HOST), '导入程序仅允许连接本机数据库')
   assert(DATABASE === 'strategy_review_active_class_local', '导入程序仅允许 strategy_review_active_class_local')
-  assert([ONLY_STABLE, ONLY_DECLINE, ONLY_LEAVE, ONLY_KEY_AUDIENCE].filter(Boolean).length <= 1,
+  assert([ONLY_UPGRADE, ONLY_STABLE, ONLY_DECLINE, ONLY_LEAVE, ONLY_KEY_AUDIENCE].filter(Boolean).length <= 1,
     '不能同时指定多个 --only-* 分类')
   assert([REPLACE_DECLINE, REPLACE_LEAVE, REPLACE_KEY_AUDIENCE].filter(Boolean).length <= 1,
     '不能同时替换多个分类')
   assert(!REPLACE_CLASS || ONLY_CLASS === REPLACE_CLASS, '整类替换必须同时指定相同分类的 --only-* 参数')
+  assert(!MATCH_STRATEGY_NAME || ONLY_CLASS === '升接', '--match-strategy-name 仅用于升接分类')
   assert(!REPLACE_DECLINE || SOURCE_ONLY, 'V3历史规则的数量、成功率和关键月份约束存在冲突；待确认优先级后生成历史。当前可用 --source-only 导入10月原值。')
   assert(!REPLACE_KEY_AUDIENCE || !SOURCE_ONLY, '重点客群整类替换需要同时生成模拟历史')
   assert(fs.existsSync(SOURCE_DIR), `来源目录不存在：${SOURCE_DIR}`)
@@ -1927,8 +2223,12 @@ async function main() {
   try {
     const [[identity]] = await conn.query('SELECT DATABASE() AS db, @@hostname AS host, @@port AS port')
     assert(identity.db === DATABASE && isLoopback(HOST), `当前数据库不匹配：${JSON.stringify(identity)}`)
-    const dictionaries = await prepareDictionaries(conn)
-    const mappedDatasets = workbookConfigs.map(({ workbook, config }) => mapDataset(workbook, config, dictionaries))
+    const targetStrategyClasses = [...new Set(workbookConfigs.map(({ config }) => config.strategyClass))]
+    const dictionaries = await prepareDictionaries(conn, targetStrategyClasses)
+    const [existingStrategies] = MATCH_STRATEGY_NAME
+      ? await conn.query("SELECT * FROM t_sr_strategy WHERE tab_type='active' AND strategy_class=? AND city_id=? AND is_deleted=0", [ONLY_CLASS, CITY_ID])
+      : [[]]
+    const mappedDatasets = workbookConfigs.map(({ workbook, config }) => mapDataset(workbook, config, dictionaries, existingStrategies))
     const datasets = mappedDatasets
     if (ONLY_CLASS === '重点客群') assert(datasets.length === KEY_AUDIENCE_SOURCE_FILES.length && datasets.every((dataset) => dataset.strategyClass === ONLY_CLASS),
       `重点客群模式需要 ${KEY_AUDIENCE_SOURCE_FILES.length} 个重点客群 Excel`)
@@ -2216,7 +2516,9 @@ async function main() {
       const expectedDaily = dataset.facts.length * dataset.cutoff
       assert(Number(monthly[0].n) === dataset.facts.length, `${dataset.sourceFile} 月事实记录数校验失败：${monthly[0].n}/${dataset.facts.length}`)
       assert(Number(daily[0].n) === expectedDaily, `${dataset.sourceFile} 日事实记录数校验失败：${daily[0].n}/${expectedDaily}`)
-      assert(Number(daily[0].strategies) === dataset.masters.length, `${dataset.sourceFile} 日策略数校验失败`)
+      const expectedDailyStrategies = new Set(dataset.facts.map((row) => row.strategy_id)).size
+      assert(Number(daily[0].strategies) === expectedDailyStrategies,
+        `${dataset.sourceFile} 日策略数校验失败：${daily[0].strategies}/${expectedDailyStrategies}`)
       assert(daily[0].first_day === `${SOURCE_MONTH}-01` && daily[0].last_day === dataset.cutoffDate, `${dataset.sourceFile} 日表范围不符：${daily[0].first_day}—${daily[0].last_day}`)
       verification.push({ sourceFile: dataset.sourceFile, monthly: monthly[0], daily: daily[0], expectedDaily })
       if (REPLACE_CLASS === dataset.strategyClass) {

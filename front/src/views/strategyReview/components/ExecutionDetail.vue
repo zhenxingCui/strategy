@@ -68,7 +68,6 @@
               </el-table>
             </div>
             <div class="biz-footer">
-              <span class="biz-total">共{{ bizTotal }}条</span>
               <el-pagination
                 background
                 layout="prev, pager, next"
@@ -149,7 +148,7 @@
                 </el-table>
               </div>
               <div class="exec-footer">
-                <span class="exec-total">共{{ dailyTotal }}条，每页{{ dailyPageSize }}条</span>
+                <span class="exec-total">每页{{ dailyPageSize }}条</span>
                 <el-pagination
                   background
                   layout="prev, pager, next"
@@ -1212,13 +1211,9 @@ export default {
     .biz-footer {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       margin-top: 4px;
       flex-shrink: 0;
-      .biz-total {
-        font-size: 11px;
-        color: #9ca3af;
-      }
       /deep/ .el-pagination--small { font-size: 11px; }
       /deep/ .btn-prev, /deep/ .btn-next, /deep/ .el-pager li {
         min-width: 22px;

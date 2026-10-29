@@ -25,10 +25,25 @@ def is_empty(value):
     return value is None or value == ""
 
 
+def paired_rows(values_sheet, formula_sheet):
+    """Read physical worksheet rows without scanning formatted blank rows.
+
+    Some workbooks set the used range to Excel's final row even when the XML only
+    contains a few thousand rows. Read-only mode plus reset_dimensions follows the
+    worksheet XML and avoids allocating or iterating through that blank tail.
+    """
+    values_sheet.reset_dimensions()
+    formula_sheet.reset_dimensions()
+    for row_num, (values, formulas) in enumerate(
+        zip(values_sheet.iter_rows(), formula_sheet.iter_rows()), start=1
+    ):
+        yield row_num, values, formulas
+
+
 def extract(path: Path):
     content = path.read_bytes()
-    formula_wb = load_workbook(path, data_only=False, read_only=False)
-    values_wb = load_workbook(path, data_only=True, read_only=False)
+    formula_wb = load_workbook(path, data_only=False, read_only=True)
+    values_wb = load_workbook(path, data_only=True, read_only=True)
     raw_rows = []
     sheets = {}
     for spec in (("1_策略档案", "strategies"), ("2_执行数据", "execution"), ("3_业务及拒绝明细", "details")):
@@ -39,18 +54,20 @@ def extract(path: Path):
         headers = [cell.value for cell in values_sheet[1]]
         sheets[f"{spec[1]}_columns"] = headers
         records = []
-        for row_num in range(3, values_sheet.max_row + 1):
-            values = [cell.value for cell in values_sheet[row_num]]
+        for row_num, value_cells, formula_cells_in_row in paired_rows(values_sheet, formula_sheet):
+            if row_num < 3:
+                continue
+            values = [cell.value for cell in value_cells]
             if not values or is_empty(values[0]):
                 continue
-            for cell in values_sheet[row_num]:
+            for cell in value_cells:
                 if cell.data_type == "e":
                     raise ValueError(f"{path.name}/{spec[0]}!{cell.coordinate}: {cell.value}")
             record = {header: json_value(value) for header, value in zip(headers, values) if header is not None}
             record["_source_row"] = row_num
             formula_cells = []
             formula_fields = []
-            for formula_cell, value_cell in zip(formula_sheet[row_num], values_sheet[row_num]):
+            for formula_cell, value_cell in zip(formula_cells_in_row, value_cells):
                 if formula_cell.data_type == "f":
                     formula_cells.append({"cell": formula_cell.coordinate, "formula": json_value(formula_cell.value),
                                           "cached": json_value(value_cell.value)})
@@ -67,12 +84,14 @@ def extract(path: Path):
     for worksheet in values_wb.worksheets:
         if worksheet.title == "填报与加工说明" or worksheet.title.startswith("3_业务及拒绝明细"):
             continue
-        for row_num in range(1, worksheet.max_row + 1):
-            values = [cell.value for cell in worksheet[row_num]]
-            if any(not is_empty(value) for value in values):
-                formula_sheet = formula_wb[worksheet.title]
+        formula_sheet = formula_wb[worksheet.title]
+        for row_num, value_cells, formula_cells_in_row in paired_rows(worksheet, formula_sheet):
+            values = [cell.value for cell in value_cells]
+            if any(not is_empty(value) for value in values) or any(
+                cell.data_type == "f" for cell in formula_cells_in_row
+            ):
                 formula_cells = []
-                for formula_cell, value_cell in zip(formula_sheet[row_num], worksheet[row_num]):
+                for formula_cell, value_cell in zip(formula_cells_in_row, value_cells):
                     if formula_cell.data_type == "f":
                         formula_cells.append({"cell": formula_cell.coordinate, "formula": json_value(formula_cell.value),
                                               "cached": json_value(value_cell.value)})

@@ -36,8 +36,8 @@
                 :key="column.prop"
                 :class="{ num: !column.text }"
                 :aria-sort="
-                  sortable && !column.text && sortField === column.prop
-                    ? sortDir === 'asc'
+                  sortable && !column.text && activeSortField === column.prop
+                    ? activeSortDir === 'asc'
                       ? 'ascending'
                       : 'descending'
                     : null
@@ -47,8 +47,8 @@
                   {{ column.label }}
                   <i
                     :class="
-                      sortField === column.prop
-                        ? sortDir === 'asc'
+                      activeSortField === column.prop
+                        ? activeSortDir === 'asc'
                           ? 'el-icon-caret-top'
                           : 'el-icon-caret-bottom'
                         : 'el-icon-sort'
@@ -97,7 +97,6 @@
       </div>
     </review-state>
     <div v-if="pagination" class="table-note">
-      <span>共 {{ total }} 条</span>
       <el-pagination
         small
         background
@@ -137,12 +136,20 @@ export default {
     exportData: { type: Array, default: null },
     selectable: Boolean,
     sortable: Boolean,
+    sortState: { type: Object, default: null },
+    reverseChangeColors: Boolean,
     emptyText: { type: String, default: '没有符合筛选条件的数据' },
   },
   data() {
     return { fullscreen: false, selected: [], sortField: '', sortDir: 'desc' }
   },
   computed: {
+    activeSortField() {
+      return this.sortState ? this.sortState.sortField : this.sortField
+    },
+    activeSortDir() {
+      return this.sortState ? this.sortState.sortDir : this.sortDir
+    },
     hasExportData() {
       return Array.isArray(this.exportData) ? this.exportData.length > 0 : this.total > 0 || this.rows.length > 0
     },
@@ -181,7 +188,9 @@ export default {
     changeClass(row, col) {
       if (!['qoq', 'momRatio'].includes(col.prop) || row[col.prop] == null) return ''
       const value = Number(row[col.prop])
-      return value < 0 ? 'up' : value > 0 ? 'down' : ''
+      if (value === 0) return ''
+      const isPositive = this.reverseChangeColors ? value < 0 : value > 0
+      return isPositive ? 'up' : 'down'
     },
     selectRow(index, checked) {
       this.selected = checked ? [...this.selected, index] : this.selected.filter((i) => i !== index)
@@ -198,9 +207,12 @@ export default {
       )
     },
     sort(field) {
-      this.sortDir = this.sortField === field && this.sortDir === 'desc' ? 'asc' : 'desc'
-      this.sortField = field
-      this.$emit('sort', { sortField: field, sortDir: this.sortDir })
+      const sortDir = this.activeSortField === field && this.activeSortDir === 'desc' ? 'asc' : 'desc'
+      if (!this.sortState) {
+        this.sortField = field
+        this.sortDir = sortDir
+      }
+      this.$emit('sort', { sortField: field, sortDir })
     },
     toggleFullscreen() {
       this.fullscreen = !this.fullscreen

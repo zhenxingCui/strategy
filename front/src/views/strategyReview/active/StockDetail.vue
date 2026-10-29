@@ -5,10 +5,12 @@
       <div class="card">
         <review-table
           ref="strategyTable"
-          title="策略执行情况（逐策略）"
+          title="策略执行情况"
           tools
+          :reverse-change-colors="isDowngrade"
           :exporting="exportingStrategies"
           sortable
+          :sort-state="sort"
           :columns="columns"
           :rows="strategies"
           :state="panels.list"
@@ -64,8 +66,6 @@
               <dd>{{ info.level || '—' }}</dd>
               <dt>客群口径</dt>
               <dd>{{ info.caliber || '—' }}</dd>
-              <dt>创建时间</dt>
-              <dd>{{ info.createTime || '—' }}</dd>
             </dl>
           </review-state>
         </div>
@@ -93,6 +93,7 @@
         <div v-if="!hideBusinessCapacity" class="card">
           <review-table
             title="业务产能明细"
+            :reverse-change-colors="isDowngrade"
             :columns="bizColumns"
             :rows="biz"
             :state="panels.biz"
@@ -111,6 +112,7 @@
         ref="dailyTable"
         title="执行明细（分日）"
         tools
+        :reverse-change-colors="isDowngrade"
         :exporting="exportingDaily"
         :columns="dailyColumns"
         :rows="daily"
@@ -153,6 +155,12 @@ import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyB
 import { visibleSimulationTrend, passiveDataNote } from './simulationTrend'
 import { fetchAllPagedRows } from './fetchAllPagedRows'
 
+function defaultStrategySort(query) {
+  return query.tabType === 'active' && ['升接', '稳'].includes(query.strategyClass)
+    ? { sortField: 'usageCount', sortDir: 'desc' }
+    : {}
+}
+
 export default {
   name: 'StockDetail',
   components: { EChart, ReviewState, ReviewTable },
@@ -183,10 +191,13 @@ export default {
       draftSmallCategory: '',
       bigCategory: '',
       smallCategory: '',
-      sort: {},
+      sort: defaultStrategySort(this.query),
     }
   },
   computed: {
+    isDowngrade() {
+      return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
+    },
     hideBusinessCapacity() {
       return this.query.tabType === 'active' && ['降拆', '离'].includes(this.query.strategyClass)
     },
@@ -195,10 +206,18 @@ export default {
         ? controlStrategyColumns
         : strategyColumns.filter((column) => column.prop !== 'strategyClass')
       const labeledColumns = categoryLabelColumns(columns, this.query)
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      const hideLobbyMetrics = this.query.tabType === 'active' && (
+        (this.query.strategyClass === '升接' && channel.includes('营业厅')) ||
+        (this.query.strategyClass === '稳' && (channel.includes('营业厅') || channel.includes('线下')))
+      )
+      const visibleColumns = hideLobbyMetrics
+        ? labeledColumns.filter((column) => !['usageCount', 'usageRate', 'reachCount'].includes(column.prop))
+        : labeledColumns
       if (this.query.tabType === 'active' && ['升接', '稳', '重点客群'].includes(this.query.strategyClass)) {
-        return [...labeledColumns, { prop: 'actualIncome', label: '收入(元)' }]
+        return [...visibleColumns, { prop: 'actualIncome', label: '收入(元)' }]
       }
-      return labeledColumns
+      return visibleColumns
     },
     bizColumns() {
       return this.query.tabType === 'control'
@@ -229,7 +248,9 @@ export default {
       const metricName = this.query.tabType === 'active' && ['升接', '稳', '降拆'].includes(this.query.strategyClass)
         ? '成功量'
         : '产能'
-      return barLineOption(trend.months, trend.capacity, trend.qoq, metricName, trend.unit || '')
+      return barLineOption(trend.months, trend.capacity, trend.qoq, metricName, trend.unit || '', {
+        integerBarLabels: true,
+      })
     },
     passiveNote() {
       return passiveDataNote(this.query)
@@ -274,6 +295,7 @@ export default {
       deep: true,
       handler() {
         this.page = 1
+        this.sort = defaultStrategySort(this.query)
         this.dailyRange = monthRange(this.query.statMonth)
         this.resetCategoryFilters()
         this.clearDetails()

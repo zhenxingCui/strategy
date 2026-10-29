@@ -6,10 +6,7 @@ const mysql = require('mysql2/promise')
 const DATABASE = process.env.SR_DB_NAME || 'strategy_review_active_class_local'
 const TABLE = 't_sr_key_audience_strategy_monthly_trend_manual'
 const ALL = '全部'
-const METRICS = [
-  'original_cust', 'push_count', 'usage_count', 'reach_count', 'target_conv_num',
-  'product_conv_num', 'expected_income', 'actual_income',
-]
+const METRICS = ['product_conv_num']
 const SCALE = 10000n
 
 function toScaled(value) {
@@ -156,11 +153,14 @@ function buildRows(facts, partialMonth) {
 }
 
 async function seed(connection) {
+  // The single-strategy trend endpoint only reads product_conv_num.
+  // Remove the other backfilled metrics so rerunning this seed keeps the table lean.
+  await connection.query(`DELETE FROM ${TABLE} WHERE metric_code <> 'product_conv_num'`)
+
   const [facts] = await connection.query(`
     SELECT DATE_FORMAT(stat_month, '%Y-%m-%d') AS stat_month,
            strategy_id, channel, city_id, county_id,
-           original_cust, push_count, usage_count, reach_count, target_conv_num,
-           product_conv_num, expected_income, actual_income
+           product_conv_num
     FROM t_sr_strategy_period_summary_ap_key_audience
     WHERE tab_type = 'active' AND strategy_class = '重点客群' AND is_deleted = 0
       AND strategy_id IS NOT NULL AND strategy_id != '999'

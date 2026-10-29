@@ -4,31 +4,296 @@
   "cityId": "999",
   "countyId": null,
   "sourceMonth": "2026-10",
-  "sourceCutoff": "2026-10-21",
+  "sourceCutoff": "2026-10-24",
   "dailyStartDate": "2026-10-01",
-  "dailyEndDate": "2026-10-21",
+  "dailyEndDate": "2026-10-26",
   "dailyIsSimulated": true,
-  "dailyMethod": "按固定种子生成有波动的每日权重，使用最大余数法；适用时按逐日上限分配；为模拟分摊，不代表实际逐日业绩。",
-  "dailyRuleSource": "固定种子生成有波动的日权重",
-  "dailyRuleSourceSha256": "3bf6cadd9c416850efad18f041ab0768008574b30fb7122ddb14abecb24515d3",
+  "dailyMethod": "基于 2026-10 月度基数，按日量重新分配；使用率按每日使用量/推送量计算，目标及全产品转化率按每日转化量/触达量计算。日波动目标：使用率约 ±2pp，转化率约 ±0.2pp；数据库当前保留 10 月 1–26 日。",
+  "dailyRuleSource": "t_sr_strategy_period_summary_ap（2026-10 月度基数）",
+  "dailyRuleSourceSha256": null,
   "dailyStrategyIds": [
-    "sdyy_1001",
-    "sdyy_1002",
-    "sdyy_1003",
-    "sdyy_1004",
-    "sdyy_1005",
-    "sdyy_1006",
-    "sdyy_1007"
+    "1336646",
+    "1338409",
+    "1343264",
+    "1348761",
+    "1350953",
+    "1354691",
+    "1355837",
+    "1355973",
+    "1356949",
+    "1357315",
+    "1358120",
+    "1358257",
+    "1359097",
+    "1359099",
+    "1362889",
+    "1363951",
+    "1364313",
+    "1372031",
+    "1372040",
+    "1372471",
+    "1373592",
+    "1375740",
+    "1375743",
+    "1375787",
+    "1375788",
+    "1375789",
+    "1375992",
+    "1376044",
+    "1377955",
+    "1377977",
+    "1378200",
+    "1378233",
+    "1378237",
+    "1378364",
+    "1378376",
+    "1379062",
+    "1380055",
+    "1380684",
+    "1380686",
+    "1380691",
+    "1380692",
+    "1380693",
+    "1380694",
+    "1380696",
+    "1380697",
+    "1380699",
+    "1380707",
+    "1380709",
+    "1380751",
+    "1380808",
+    "1380820",
+    "1380821",
+    "1380841",
+    "1381114",
+    "1381196",
+    "1381451",
+    "1381454",
+    "1382257",
+    "1382294",
+    "1382365",
+    "1382366",
+    "1382873",
+    "1382874",
+    "1383517",
+    "1384047",
+    "1384137",
+    "1384152",
+    "1386489",
+    "1387933",
+    "1387934",
+    "1389173",
+    "1389174",
+    "1389225",
+    "1389226",
+    "1389265",
+    "1389266",
+    "1389603",
+    "1389660",
+    "1395350",
+    "1395908",
+    "1396081",
+    "1396206",
+    "1398092",
+    "1399164",
+    "1399697",
+    "1399729",
+    "1399734",
+    "1399947",
+    "1736403246141324100",
+    "1736405340049674100",
+    "1747637938846788100",
+    "1748592415867297100",
+    "1748592616680863100",
+    "1748592781742106100",
+    "1748593008882415100",
+    "1751619211934653100",
+    "1758097683486712100",
+    "1758098022170422100",
+    "1774249611197545100",
+    "1774313971494248100",
+    "1774314108061457100",
+    "1774314178464434100",
+    "20210119584539",
+    "2021023288314",
+    "20215334895155",
+    "20220221173666",
+    "20220221346735",
+    "20220617071786",
+    "20220617146922",
+    "20220617162755",
+    "20220808231482",
+    "20220808821378",
+    "20220830163024",
+    "20220914329846",
+    "20230104813272",
+    "20230306399512",
+    "20230317388561",
+    "20230317500687",
+    "20230417690380",
+    "20230608183326",
+    "202310534569023",
+    "20231215243176",
+    "20231215334511",
+    "20231215783748",
+    "20240307610141",
+    "20240403924668",
+    "20240415428188",
+    "20240509221948",
+    "20240515903652",
+    "20240517030851",
+    "20240517103593",
+    "20240517415756",
+    "20240517582551",
+    "20240517589667",
+    "20240906856562",
+    "20240914006180",
+    "20240914043637",
+    "20240914098630",
+    "20240914814108",
+    "20240914857116",
+    "20240914973562",
+    "20240925449708",
+    "20240927155126",
+    "20240927185963",
+    "20240927191713",
+    "20240927257670",
+    "20240927310551",
+    "20240927517039",
+    "20240927607921",
+    "20240927661097",
+    "20240927681308",
+    "20240927773255",
+    "20240927806445",
+    "20240927838305",
+    "20240927931365",
+    "20240927982475",
+    "20241008239991",
+    "20244512931309",
+    "20250126375996",
+    "20250212756588",
+    "20250220038126",
+    "20250226136544",
+    "20250226380000",
+    "20250226725971",
+    "20250310158181",
+    "20250311104418",
+    "20250311469628",
+    "20250326000770",
+    "20250327000808",
+    "20250415436261",
+    "20250425795899",
+    "20250430374590",
+    "20250430441480",
+    "20250430650991",
+    "20250605431099",
+    "20250701572303",
+    "20250715531332",
+    "20250724015627",
+    "20250724456612",
+    "20250923007753",
+    "20251021861269",
+    "20251222514923",
+    "20251222970131",
+    "20260112279285",
+    "20260112738284",
+    "20260128465412",
+    "20260401013326",
+    "20260401013327",
+    "20260423838696",
+    "20260508014308",
+    "20260508014309",
+    "20260508014312",
+    "20260508014321",
+    "20260508014323",
+    "20260508014324",
+    "20260717086288",
+    "20260717600004",
+    "2026345349499",
+    "2026520159392",
+    "20265224919000",
+    "20265231823175",
+    "2026524795753",
+    "20266110237187",
+    "20266148860260",
+    "busi_1008",
+    "busi_1075",
+    "busi_1087",
+    "busi_1094",
+    "busi_1095",
+    "busi_1110",
+    "busi_1111",
+    "busi_1112",
+    "xx_1001",
+    "xx_1002",
+    "xx_1003",
+    "xx_1004",
+    "xx_1005",
+    "xx_1006",
+    "xx_1007",
+    "xx_1008",
+    "xx_1009",
+    "xx_1010",
+    "xx_1011",
+    "xx_1012",
+    "xx_1013",
+    "xx_1014",
+    "xx_1015",
+    "xx_1016",
+    "xx_1017",
+    "xx_1018",
+    "xx_1024",
+    "xx_1025",
+    "xx_1045",
+    "xx_1050",
+    "xx_1051",
+    "xx_1053",
+    "zxhr_1001",
+    "zxhr_1008",
+    "zxhr_1009",
+    "zxhr_1013",
+    "zxhr_1014",
+    "zxhr_1015",
+    "zxhr_1016",
+    "zxhr_1017",
+    "zxhr_1018",
+    "zxhr_1019",
+    "zxhr_1021",
+    "zxhr_1022",
+    "zxhr_1023",
+    "zxhr_1024",
+    "zxhr_1025",
+    "zxhr_1026",
+    "zxhr_1027",
+    "zxhr_1028",
+    "zxhr_1029",
+    "zxhr_1030",
+    "zxhr_1031",
+    "zxhr_1032",
+    "zxhr_1033",
+    "zxhr_1034",
+    "zxhr_1035",
+    "zxhr_1036",
+    "zxhr_1037",
+    "zxhr_1038",
+    "zxhr_1039",
+    "zxhr_1040",
+    "zxhr_1041"
   ],
-  "sourceFile": "升接-补充到厅策略(1).xlsx",
-  "sourceSha256": "3bf6cadd9c416850efad18f041ab0768008574b30fb7122ddb14abecb24515d3",
+  "sourceFile": "1027升接.xlsx",
+  "sourceSha256": "68ae0d46c737ef6f19ffc7ce14e767ee67fb6d016b662a821544eea574c48383",
   "sourceRows": {
-    "strategies": 7,
-    "monthly": 7,
-    "businesses": 42,
-    "rejectReasons": 35
+    "strategies": 57,
+    "strategyArchive": 56,
+    "monthly": 53,
+    "sourceMonthFacts": 55,
+    "monthlyDerivedFromDaily": 14,
+    "daily": 1271,
+    "businesses": 56,
+    "rejectReasons": 285,
+    "mappedRejectReasons": 285
   },
-  "startMonth": "2025-12",
+  "startMonth": "2026-01",
   "endMonth": "2026-09",
   "baselineMonth": "2025-12",
   "baselineSimulated": true,
@@ -255,6 +520,316 @@
         "xx_1005",
         "xx_1053"
       ]
+    },
+    {
+      "sourceFile": "1027升接.xlsx",
+      "sourceSha256": "68ae0d46c737ef6f19ffc7ce14e767ee67fb6d016b662a821544eea574c48383",
+      "sourceMonth": "2026-10",
+      "sourceCutoff": "2026-10-24",
+      "dailyIsSimulated": true,
+      "dailyWeightMode": true,
+      "counts": {
+        "strategies": 56,
+        "matchedStrategies": 57,
+        "monthlyFacts": 55,
+        "sourceMonthlyRows": 53,
+        "dailyRows": 1271,
+        "dailyStrategies": 55,
+        "archiveOnlyStrategies": 2,
+        "dailyOnlyStrategies": 2,
+        "businessRows": 56,
+        "rejectReasonRows": 285,
+        "monthlySourceStrategies": 53
+      },
+      "strategyNameIdentity": "strategy_name",
+      "strategyNameMappingCount": 57,
+      "sourceMonthlyDailyComparison": {
+        "compared": 0,
+        "mismatchCount": 0,
+        "examples": [],
+        "method": "逐日数值作为权重重新分摊；月行作为总量锚点，不将原始日值当作实绩。"
+      },
+      "dailyWeightSummary": [
+        {
+          "strategyId": "zxhr_1001",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1008",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1009",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1013",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1014",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1015",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1016",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1017",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1018",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1019",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1021",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1022",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1023",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1024",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1025",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1026",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1027",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1028",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1029",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1030",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1031",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1033",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1034",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1035",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1036",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1037",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1038",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1039",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1040",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1041",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "zxhr_1032",
+          "rows": 2,
+          "missingDays": 22
+        },
+        {
+          "strategyId": "xx_1001",
+          "rows": 23,
+          "missingDays": 1
+        },
+        {
+          "strategyId": "xx_1002",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1003",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1004",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1006",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1007",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1008",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1009",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1010",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1011",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1012",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1013",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1014",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1015",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1016",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1017",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1018",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1024",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1025",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1045",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1050",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1051",
+          "rows": 24,
+          "missingDays": 0
+        },
+        {
+          "strategyId": "xx_1053",
+          "rows": 12,
+          "missingDays": 12
+        },
+        {
+          "strategyId": "xx_1005",
+          "rows": 10,
+          "missingDays": 14
+        }
+      ],
+      "derivedMonthlyStrategyIds": [
+        "xx_1053",
+        "xx_1005"
+      ]
     }
   ],
   "actualDailyStrategyIds": [
@@ -313,5 +888,363 @@
     "zxhr_1039",
     "zxhr_1040",
     "zxhr_1041"
-  ]
+  ],
+  "dailyDays": 24,
+  "dailyRowCount": 40898,
+  "dailyConversionRateVariancePp": null,
+  "dailyPushRelativeVariance": null,
+  "dailyVariationScope": null,
+  "sourceMonthlyDailyMismatchCount": 0,
+  "sourceDailyReconciliation": [],
+  "dailyWeightSummary": [
+    {
+      "strategyId": "zxhr_1001",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1008",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1009",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1013",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1014",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1015",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1016",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1017",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1018",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1019",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1021",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1022",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1023",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1024",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1025",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1026",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1027",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1028",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1029",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1030",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1031",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1033",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1034",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1035",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1036",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1037",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1038",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1039",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1040",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1041",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "zxhr_1032",
+      "rows": 2,
+      "missingDays": 22
+    },
+    {
+      "strategyId": "xx_1001",
+      "rows": 23,
+      "missingDays": 1
+    },
+    {
+      "strategyId": "xx_1002",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1003",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1004",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1006",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1007",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1008",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1009",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1010",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1011",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1012",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1013",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1014",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1015",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1016",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1017",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1018",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1024",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1025",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1045",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1050",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1051",
+      "rows": 24,
+      "missingDays": 0
+    },
+    {
+      "strategyId": "xx_1053",
+      "rows": 12,
+      "missingDays": 12
+    },
+    {
+      "strategyId": "xx_1005",
+      "rows": 10,
+      "missingDays": 14
+    }
+  ],
+  "sourceMonthlyDerivedMetrics": [
+    {
+      "strategyId": "xx_1053",
+      "metric": "push_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "usage_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "reach_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "target_conv_num",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "product_conv_num",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "expected_income",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1053",
+      "metric": "actual_income",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "push_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "usage_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "reach_count",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "target_conv_num",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "product_conv_num",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "expected_income",
+      "method": "sum_daily_rows"
+    },
+    {
+      "strategyId": "xx_1005",
+      "metric": "actual_income",
+      "method": "sum_daily_rows"
+    }
+  ],
+  "dailyImportSourceFile": "升接当月日数据全量重建.xlsx",
+  "dailyImportSourceSha256": "d1571a6da2a392646bcdfe76987e931c2878cc9fad74258c9edbfb9e7a6e86b6"
 }

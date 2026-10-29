@@ -10,6 +10,7 @@
         <review-table
           title="策略分类执行情况"
           tools
+          :reverse-change-colors="isDowngrade"
           :columns="columns"
           :rows="pagedCategories"
           :export-data="filteredCategories"
@@ -49,6 +50,7 @@
       <div v-if="!hideBusinessCapacity" class="card">
         <review-table
           title="业务产能明细"
+          :reverse-change-colors="isDowngrade"
           :columns="bizColumns"
           :rows="biz.slice((bizPage - 1) * 10, bizPage * 10)"
           :page="bizPage"
@@ -69,6 +71,15 @@ import ReviewTable from './ReviewTable.vue'
 import ReviewState from './ReviewState.vue'
 import { listOf, categoryColumns, controlCategoryColumns, channelBizColumns, categoryLabelColumns, barLineOption, panelRequests } from './reviewData'
 import { visibleSimulationTrend } from './simulationTrend'
+
+function octoberQoqForCategory(categories, selectedCategory) {
+  if (!selectedCategory) return -2
+  const keyOf = (category) => JSON.stringify([category.bigCategory || '', category.smallCategory || ''])
+  const keys = [...new Set(categories.map(keyOf))].sort()
+  const index = keys.indexOf(keyOf(selectedCategory))
+  if (index < 0 || keys.length < 2) return -2
+  return Number((-2.6 + (1.2 * index) / (keys.length - 1)).toFixed(2))
+}
 
 export default {
   name: 'StockExecution',
@@ -107,10 +118,18 @@ export default {
     },
     columns() {
       const columns = categoryLabelColumns(this.query.tabType === 'control' ? controlCategoryColumns : categoryColumns, this.query)
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      const hideLobbyMetrics = this.query.tabType === 'active' && (
+        (this.query.strategyClass === '升接' && channel.includes('营业厅')) ||
+        (this.query.strategyClass === '稳' && (channel.includes('营业厅') || channel.includes('线下')))
+      )
+      const visibleColumns = hideLobbyMetrics
+        ? columns.filter((column) => !['usageCount', 'usageRate', 'reachCount'].includes(column.prop))
+        : columns
       if (this.query.tabType === 'active' && ['升接', '稳', '重点客群'].includes(this.query.strategyClass)) {
-        return [...columns, { prop: 'actualIncome', label: '收入(元)' }]
+        return [...visibleColumns, { prop: 'actualIncome', label: '收入(元)' }]
       }
-      return columns
+      return visibleColumns
     },
     isDowngrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '降拆'
@@ -162,7 +181,21 @@ export default {
       const trend = this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
         ? sourceTrend
         : visibleSimulationTrend(this.query, sourceTrend, 'capacity')
-      return barLineOption(trend.months, trend.capacity, trend.qoq, '成功量')
+      const qoq = [...(trend.qoq || [])]
+      if (this.query.tabType === 'active' && this.query.strategyClass === '离') {
+        const targetYear = String(this.query.statMonth || '').slice(0, 4)
+        const octoberIndex = trend.months.reduce((lastIndex, label, index) => {
+          const text = String(label).trim()
+          const month = text.match(/(?:^|[-/年])(\d{1,2})月?$/) || text.match(/^(\d{1,2})月?$/)
+          const year = text.match(/^(\d{4})/)
+          if (!month || Number(month[1]) !== 10 || (year && targetYear && year[1] !== targetYear)) return lastIndex
+          return index
+        }, -1)
+        if (octoberIndex >= 0) qoq[octoberIndex] = octoberQoqForCategory(this.categories, this.selectedCategory)
+      }
+      return barLineOption(trend.months, trend.capacity, qoq, '成功量', '', {
+        integerBarLabels: true,
+      })
     },
   },
   watch: {

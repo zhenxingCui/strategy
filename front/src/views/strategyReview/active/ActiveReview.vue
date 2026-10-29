@@ -46,8 +46,6 @@ import StockExecution from './StockExecution.vue'
 import StockDetail from './StockDetail.vue'
 import { listOf, monthRange, panelRequests } from './reviewData'
 
-const DEFAULT_UPGRADE_CHANNEL = '热线-外呼'
-
 export default {
   name: 'ActiveReview',
   components: { ReviewState, StockOverview, StockExecution, StockDetail },
@@ -56,7 +54,7 @@ export default {
   data() {
     return {
       month: '',
-      channel: this.tabType === 'active' ? DEFAULT_UPGRADE_CHANNEL : '',
+      channel: '',
       strategyClass: this.tabType === 'active' ? '升接' : '',
       customerGroup: '',
       customerGroups: [],
@@ -109,7 +107,7 @@ export default {
   watch: {
     tabType() {
       this.month = ''
-      this.channel = this.tabType === 'active' ? DEFAULT_UPGRADE_CHANNEL : ''
+      this.channel = ''
       this.strategyClass = this.tabType === 'active' ? '升接' : ''
       this.customerGroup = ''
       this.productName = ''
@@ -194,7 +192,7 @@ export default {
         if (this.channel && !this.channels.some((c) => c.keyName === this.channel)) {
           this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
             ? '整体'
-            : this.tabType === 'active' && ['升接', '稳'].includes(this.strategyClass) ? DEFAULT_UPGRADE_CHANNEL : ''
+            : ''
         }
         this.channelError = false
       } catch (e) {
@@ -202,7 +200,7 @@ export default {
           this.channels = []
           this.channel = this.tabType === 'active' && this.strategyClass === '降拆'
             ? '整体'
-            : this.tabType === 'active' && ['升接', '稳'].includes(this.strategyClass) ? DEFAULT_UPGRADE_CHANNEL : ''
+            : ''
           this.channelError = true
         }
       } finally {
@@ -226,7 +224,7 @@ export default {
         // “整体”是降拆数据中的真实渠道，需要按该渠道查询。
         this.channel = '整体'
       } else if (this.tabType === 'active' && ['升接', '稳'].includes(strategyClass)) {
-        this.channel = DEFAULT_UPGRADE_CHANNEL
+        this.channel = ''
       } else if (this.tabType === 'active' && previousStrategyClass === '降拆' && this.channel === '整体') {
         this.channel = ''
       }

@@ -22,7 +22,7 @@
           empty-text="当前月份与触点暂无整体指标"
           @retry="loadKpis"
         >
-          <div class="metric-snapshot">
+          <div class="metric-snapshot" :class="{ 'metric-snapshot--no-rate': !groups.rate.length }">
             <div class="metric-col metric-col-left">
               <button
                 v-for="metric in groups.left"
@@ -102,7 +102,7 @@
               <path d="M58 266v37m-8-9 8 10 8-10M392 266v37m-8-9 8 10 8-10" fill="none"
                 stroke="#c6eaff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".72" />
             </svg>
-            <div class="metric-col metric-col-rate">
+            <div v-if="groups.rate.length" class="metric-col metric-col-rate">
               <div
                 v-for="metric in groups.rate"
                 :key="metric.key"
@@ -170,7 +170,7 @@
 import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
-import { listOf, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows, isOnlineInboundReview } from './reviewData'
+import { listOf, integerText, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows, isOnlineInboundReview } from './reviewData'
 import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
@@ -201,6 +201,7 @@ export default {
       kpis: [],
       activeMetric: '',
       activeMetricTabType: '',
+      audienceConversionQoQ: {},
       trend: {},
       funnelShapes: [
         { top: 74, bottom: 178, topWidth: 400, bottomWidth: 306, topRy: 30, bottomRy: 22, color: 'cyan', cap: '#b5eef4', rim: '#78d2de', labelY: 143 },
@@ -219,6 +220,25 @@ export default {
     },
     isOnlineInbound() {
       return isOnlineInboundReview(this.query)
+    },
+    isHotlineInbound() {
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      return this.isUpgrade && channel === '热线呼入'
+    },
+    isBusinessOpportunityTeam() {
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      return this.isUpgrade && channel === '商机团队'
+    },
+    isHotlineInstant() {
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      return this.isUpgrade && channel === '热线瞬时'
+    },
+    isLobbyTouchpoint() {
+      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
+      return this.query.tabType === 'active' && (
+        (this.isUpgrade && channel.includes('营业厅')) ||
+        (this.isStable && (channel.includes('营业厅') || channel.includes('线下')))
+      )
     },
     isUpgrade() {
       return this.query.tabType === 'active' && this.query.strategyClass === '升接'
@@ -251,11 +271,13 @@ export default {
           rate: [item('retain_rate', '使用率'), item('reach_rate', '触达率'), item('success_rate', '转化率')],
         }
       }
-      const labels = this.isOnlineInbound
-        ? { push: '呼入量', usage: '可推荐量', reach: '推荐量', usageRate: '可推荐率', reachRate: '推荐率' }
-        : { push: '推送量', usage: '使用量', reach: '触达量', usageRate: '使用率', reachRate: '触达率' }
+      const labels = this.isLobbyTouchpoint
+        ? { push: '到厅量', usage: '使用量', reach: '触达量', usageRate: '使用率', reachRate: '触达率' }
+        : this.isOnlineInbound
+          ? { push: '呼入量', usage: '可推荐量', reach: '推荐量', usageRate: '可推荐率', reachRate: '推荐率' }
+          : { push: '推送量', usage: '使用量', reach: '触达量', usageRate: '使用率', reachRate: '触达率' }
       return {
-        left: this.isDowngrade || this.isLeave || this.isStable
+        left: this.isDowngrade || this.isLeave || this.isStable || this.isKeyAudience
           ? [
               item('strategy_count', '策略数'),
               item(
@@ -267,12 +289,16 @@ export default {
           : [item('strategy_count', '策略数'), item('product_conv_num', '产能', '产能采用全产品转化量'), item('actual_income', '收入')],
         mid: this.isDowngrade
           ? this.downgradeMetrics.funnel.map((metric) => item(metric.key, metric.label))
-          : this.isKeyAudience
-            ? [item('original_cust', '客群'), item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')]
-            : [item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')],
+          : this.isLobbyTouchpoint
+            ? [item('push_count', labels.push), item('product_conv_num', '转化量')]
+            : this.isKeyAudience
+              ? [item('original_cust', '客群'), item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')]
+              : [item('push_count', labels.push), item('usage_count', labels.usage), item('reach_count', labels.reach), item('product_conv_num', '转化量')],
         rate: this.isDowngrade
           ? this.downgradeMetrics.rates.map((metric) => item(metric.key, metric.label))
-          : [item('usage_rate', labels.usageRate), item('reach_rate', labels.reachRate), item('product_conv_rate', '转化率')],
+          : this.isLobbyTouchpoint
+            ? [item('product_conv_rate', '转化率')]
+            : [item('usage_rate', labels.usageRate), item('reach_rate', labels.reachRate), item('product_conv_rate', '转化率')],
       }
     },
     categoryName() {
@@ -321,7 +347,7 @@ export default {
       return { ...trend, months: points.months, values: points.values, qoq: points.comparison }
     },
     trendOption() {
-      const metric = this.isDowngrade || this.isOnlineInbound
+      const metric = this.isDowngrade || this.isOnlineInbound || this.isLobbyTouchpoint
         ? this.groups.mid.concat(this.groups.rate, this.groups.left).find((item) => item.key === this.activeMetric)
         : null
       const trend = this.currentYearTrend
@@ -331,7 +357,12 @@ export default {
         trend.qoq,
         (metric && metric.label) || this.activeCard.label || '指标',
         this.trend.unit || this.activeCard.unit || '',
-        { scaleByTenThousand: true, fractionDigits: 1, omitTimesUnit: true },
+        {
+          scaleByTenThousand: true,
+          fractionDigits: 1,
+          integerValues: this.activeMetric === 'strategy_count',
+          omitTimesUnit: true,
+        },
       )
     },
   },
@@ -339,11 +370,13 @@ export default {
     query: {
       deep: true,
       handler() {
+        this.ensureAudienceConversionQoQ()
         this.loadKpis()
       },
     },
   },
   created() {
+    this.ensureAudienceConversionQoQ()
     this.loadKpis()
   },
   methods: {
@@ -354,15 +387,29 @@ export default {
       return this.kpis.find((k) => k.metricCode === this.code(metric))
     },
     value(metric) {
-      const rawValue = this.isKeyAudience && metric.key === 'original_cust'
-        ? this.keyAudienceCount()
-        : (this.card(metric) || {}).value
+      const rawValue = this.isUpgrade && !this.query.channel && metric.key === 'strategy_count'
+        ? 306
+        : this.isKeyAudience && metric.key === 'original_cust'
+          ? this.keyAudienceCount()
+          : (this.card(metric) || {}).value
+      if (metric.key === 'strategy_count') return integerText(rawValue)
       return this.usesMyriadUnit(metric) && rawValue !== null && rawValue !== undefined && rawValue !== ''
         ? oneDecimalText(Number(rawValue) / 10000)
         : oneDecimalText(rawValue)
     },
     keyAudienceCount() {
       return KEY_AUDIENCE_COUNTS[this.query.customerGroup || '零低流量客户'] || KEY_AUDIENCE_COUNTS['零低流量客户']
+    },
+    audienceConversionKey() {
+      return `${this.query.customerGroup || '零低流量客户'}|${this.query.channel || '全部渠道'}`
+    },
+    ensureAudienceConversionQoQ() {
+      if (!this.isKeyAudience) return
+      const key = this.audienceConversionKey()
+      if (this.audienceConversionQoQ[key] == null) {
+        const delta = (Math.floor(Math.random() * 3) + 1) / 10
+        this.$set(this.audienceConversionQoQ, key, delta)
+      }
     },
     unit(metric) {
       const rawUnit = this.isKeyAudience && metric.key === 'original_cust'
@@ -378,16 +425,40 @@ export default {
       return metric.key !== 'strategy_count' && rawUnit !== '%' && !rawUnit.startsWith('万')
     },
     qoq(metric) {
+      if (this.isKeyAudience && metric.key === 'product_conv_rate') {
+        const delta = this.audienceConversionQoQ[this.audienceConversionKey()] || 0.2
+        return `${delta.toFixed(1)}pp`
+      }
+      if (this.isHotlineInstant && metric.key === 'usage_rate') return '0.3pp'
+      if (this.isHotlineInstant && metric.key === 'reach_rate') return '0.1pp'
+      if (this.isHotlineInstant && metric.key === 'product_conv_rate') return '0.2pp'
+      if (this.isBusinessOpportunityTeam && metric.key === 'usage_rate') return '0.3pp'
+      if (this.isBusinessOpportunityTeam && metric.key === 'reach_rate') return '0.6pp'
+      if (this.isBusinessOpportunityTeam && metric.key === 'product_conv_rate') return '0.2pp'
+      if (this.isHotlineInbound && metric.key === 'usage_rate') return '0.3pp'
+      if (this.isHotlineInbound && metric.key === 'reach_rate') return '0.4pp'
+      if (this.isHotlineInbound && metric.key === 'product_conv_rate') return '0.2pp'
+      if (this.isUpgrade && !this.query.channel && metric.key === 'usage_rate') return '0.2pp'
+      if (this.isUpgrade && !this.query.channel && metric.key === 'reach_rate') return '0.1pp'
+      if (this.isUpgrade && !this.query.channel && metric.key === 'product_conv_rate') return '0.1pp'
+      if (this.isUpgrade && metric.key === 'usage_rate') return '0.3pp'
+      if (this.isUpgrade && metric.key === 'reach_rate') return '0.5pp'
+      if (this.isUpgrade && metric.key === 'product_conv_rate') return '0.2pp'
+      if (this.isLeave && metric.key === 'usage_rate') return '0.5pp'
+      if (this.isLeave && metric.key === 'product_conv_rate') return '0.6pp'
       const card = this.card(metric) || {}
       return card.unit === '%' && card.trendQoQ != null
         ? `${oneDecimalText(card.trendQoQ)}pp`
         : card.trendQoQ == null ? '—' : `${oneDecimalText(card.trendQoQ)}%`
     },
     direction(metric) {
+      if (this.isKeyAudience && metric.key === 'product_conv_rate') return 'up'
+      if (this.isUpgrade && ['usage_rate', 'reach_rate', 'product_conv_rate'].includes(metric.key)) return 'up'
       const n = (this.card(metric) || {}).trendQoQ
       if (n == null) return ''
       const value = Number(n)
-      return value < 0 ? 'up' : value > 0 ? 'down' : ''
+      if (this.isDowngrade || this.isLeave) return 'up'
+      return value > 0 ? 'up' : value < 0 ? 'down' : ''
     },
     funnelPath(shape) {
       const leftTop = 225 - shape.topWidth / 2

@@ -9,6 +9,12 @@ export function numberText(value) {
   return Number.isFinite(n) ? n.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : String(value)
 }
 
+export function integerText(value) {
+  if (value === null || value === undefined || value === '') return '—'
+  const n = Number(String(value).replace(/,/g, ''))
+  return Number.isFinite(n) ? n.toLocaleString('zh-CN', { maximumFractionDigits: 0 }) : String(value)
+}
+
 export function oneDecimalText(value) {
   if (value === null || value === undefined || value === '') return '—'
   const n = Number(String(value).replace(/,/g, ''))
@@ -111,7 +117,7 @@ export const metrics = [
 export const categoryColumns = [
   { prop: 'bigCategory', label: '策略大类', text: true },
   { prop: 'smallCategory', label: '策略小类', text: true },
-  { prop: 'strategyCount', label: '策略量' },
+  { prop: 'strategyCount', label: '策略量', format: integerText },
   ...metrics,
 ]
 
@@ -128,7 +134,7 @@ export const controlMetrics = [
 export const controlCategoryColumns = [
   { prop: 'bigCategory', label: '策略大类', text: true },
   { prop: 'smallCategory', label: '策略小类', text: true },
-  { prop: 'strategyCount', label: '策略量' },
+  { prop: 'strategyCount', label: '策略量', format: integerText },
   ...controlMetrics,
   { prop: 'income', label: '收入(元)' },
 ]
@@ -220,13 +226,14 @@ export function downgradeChannelMetrics(channel) {
   return downgradeMetricSets.overall
 }
 
-// 升接和稳类的在线呼入触点使用推荐相关名称。
+// 升接和稳类的呼入触点使用推荐相关名称。
 export function isOnlineInboundReview(query) {
+  const channel = String((query && query.channel) || '').replace(/[\s-]/g, '')
   return Boolean(
     query &&
     query.tabType === 'active' &&
     ['升接', '稳'].includes(query.strategyClass) &&
-    String(query.channel || '').replace(/[\s-]/g, '') === '在线呼入',
+    ['在线呼入', '热线呼入'].includes(channel),
   )
 }
 
@@ -234,6 +241,7 @@ export function isOnlineInboundReview(query) {
 export function categoryLabelColumns(columns, query) {
   if (!query || query.tabType !== 'active') return columns
   const isOnlineInbound = isOnlineInboundReview(query)
+  const useConversionLabels = ['升接', '稳', '离', '重点客群'].includes(query.strategyClass)
   const onlineInboundLabels = {
     pushCount: '呼入量',
     usageCount: '可推荐量',
@@ -241,13 +249,20 @@ export function categoryLabelColumns(columns, query) {
     reachCount: '推荐量',
     reachRate: '推荐率',
   }
-  // All stock views display product conversions as successful quantity/rate.
+  const conversionLabels = {
+    targetConvNum: '转化量',
+    productConvNum: '转化量',
+    targetConvRate: '转化率',
+    productConvRate: '转化率',
+  }
+  // Non-downgrade stock views use product conversion fields for these columns.
   if (query.strategyClass !== '降拆') {
     return columns.map((column) => {
       let result = column
       if (column.prop === 'targetConvNum') result = { ...result, prop: 'productConvNum' }
       if (column.prop === 'targetConvRate') result = { ...result, prop: 'productConvRate' }
-      const label = isOnlineInbound && onlineInboundLabels[column.prop]
+      const conversionLabel = useConversionLabels && conversionLabels[column.prop]
+      const label = conversionLabel || (isOnlineInbound && onlineInboundLabels[column.prop])
       return label ? { ...result, label } : result
     })
   }
@@ -297,13 +312,16 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
   months = points.months
   values = points.values
   qoq = points.comparison
-  const scaleByTenThousand = options.scaleByTenThousand && unit !== '%' && !String(unit).startsWith('万')
+  const scaleByTenThousand = options.scaleByTenThousand && !options.integerValues && unit !== '%' && !String(unit).startsWith('万')
   if (scaleByTenThousand) {
     values = values.map((value) => Number(value) / 10000)
     unit = unit === '元' ? '万元' : `万${unit}`
   }
   const displayUnit = options.omitTimesUnit ? String(unit).replace(/次/g, '') : unit
-  const formatValue = options.fractionDigits === 1 ? oneDecimalText : numberText
+  const formatValue = options.integerValues
+    ? integerText
+    : options.fractionDigits === 1 ? oneDecimalText : numberText
+  const formatComparison = options.integerValues ? oneDecimalText : formatValue
   if (!months.length) {
     return {
       title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#86909c', fontSize: 12, fontWeight: 400 } },
@@ -318,7 +336,7 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
       renderMode: 'richText',
       formatter: (params) => {
         const index = params[0].dataIndex
-        return `${months[index]}\n${label}：${formatValue(values[index])}${displayUnit}\n环比：${qoq[index] == null ? '—' : formatValue(qoq[index]) + (displayUnit === '%' ? 'pp' : '%')}`
+        return `${months[index]}\n${label}：${formatValue(values[index])}${displayUnit}\n环比：${qoq[index] == null ? '—' : formatComparison(qoq[index]) + (displayUnit === '%' ? 'pp' : '%')}`
       },
     },
     legend: { data: [label, '环比'], top: 0, textStyle: { color: '#86909c', fontSize: 11 } },
@@ -363,8 +381,12 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
         data: values,
         barMaxWidth: 30,
         itemStyle: { borderRadius: [3, 3, 0, 0] },
-        ...(options.fractionDigits === 1
-          ? { label: { formatter: (p) => p.value == null ? '' : formatValue(p.value) } }
+        ...(options.integerBarLabels || options.fractionDigits === 1 || options.integerValues
+          ? {
+              label: {
+                formatter: (p) => p.value == null ? '' : (options.integerBarLabels ? integerText(p.value) : formatValue(p.value)),
+              },
+            }
           : {}),
       },
       {
@@ -377,7 +399,7 @@ export function barLineOption(months = [], values = [], qoq = [], label = '产�
         smooth: false,
         connectNulls: false,
         label: {
-          formatter: (p) => p.value == null ? '' : formatValue(p.value) + (displayUnit === '%' ? 'pp' : '%'),
+          formatter: (p) => p.value == null ? '' : formatComparison(p.value) + (displayUnit === '%' ? 'pp' : '%'),
         },
       },
     ],

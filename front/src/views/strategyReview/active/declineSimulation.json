@@ -16,10 +16,10 @@
   "mappedRejectRows": 1175,
   "dailyAvailable": true,
   "dailyStartDate": "2026-10-01",
-  "dailyEndDate": "2026-10-21",
-  "dailyDays": 21,
-  "dailyRowCount": 4935,
-  "dailyMethod": "Excel 分日比例按截至日重新归一化后进行最大余数拆分；为模拟分摊，不代表实际逐日业绩。",
+  "dailyEndDate": "2026-10-26",
+  "dailyDays": 26,
+  "dailyRowCount": 6110,
+  "dailyMethod": "Excel 分日比例按截至21日重新归一化后分摊1–21日；以相同全月权重外推22–26日。为模拟分摊，不代表实际逐日业绩。",
   "missingDispatchRows": 141,
   "sourceFile": "降拆 - 修改后V3.xlsx",
   "sourceSha256": "4b5dbefdd660644ab0fc4f98d93c4e901758b97ad274b3510023f67ae698748f",
@@ -290,5 +290,9 @@
   "historyStatus": "completed",
   "method": "补入2026-01至2026-09模拟月数据；保留2026-10来源月现值。 t_sr_channel_summary_ap_special 写入54条渠道月汇总，t_sr_channel_monthly_capacity_ap_special 写入1566条渠道/场景月产能；旧逻辑删除数据保持删除状态。",
   "monthlySummaryRows": 54,
-  "monthlyCapacityRows": 1566
+  "monthlyCapacityRows": 1566,
+  "dailyExtensionStartDate": "2026-10-22",
+  "dailyExtensionEndDate": "2026-10-26",
+  "dailyExtensionIsSimulated": true,
+  "dailyExtensionMethod": "decline-excel-weights"
 }

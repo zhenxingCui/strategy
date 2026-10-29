@@ -48,13 +48,13 @@
                 </template>
                 <template v-else-if="col.qoqField">
                   <div class="cell-with-qoq">
-                    <span>{{ formatNum(row[col.key]) }}</span>
+                    <span>{{ formatNum(row[col.key], col.key) }}</span>
                     <span v-if="row[col.qoqField] != null" class="qoq-badge" :class="row[col.qoqField] >= 0 ? 'up' : 'down'">
                       {{ row[col.qoqField] >= 0 ? '+' : '' }}{{ row[col.qoqField].toFixed(1) + '%' }}
                     </span>
                   </div>
                 </template>
-                <template v-else>{{ formatNum(row[col.key]) }}</template>
+                <template v-else>{{ formatNum(row[col.key], col.key) }}</template>
               </template>
             </el-table-column>
           </el-table>
@@ -200,18 +200,17 @@
                 <template slot-scope="{ row }">
                   <template v-if="col.qoqField">
                     <div class="cell-with-qoq">
-                      <span>{{ formatNum(row[col.key]) }}</span>
+                      <span>{{ formatNum(row[col.key], col.key) }}</span>
                       <span v-if="row[col.qoqField] != null" class="qoq-badge" :class="row[col.qoqField] >= 0 ? 'up' : 'down'">
                         {{ (row[col.qoqField] >= 0 ? '+' : '') + row[col.qoqField].toFixed(1) + '%' }}
                       </span>
                     </div>
                   </template>
-                  <template v-else>{{ formatNum(row[col.key]) }}</template>
+                  <template v-else>{{ formatNum(row[col.key], col.key) }}</template>
                 </template>
               </el-table-column>
             </el-table>
-            <div class="table-footer">
-              <span>共{{ categoryTotalCount }}条</span>
+            <div class="table-footer pagination-only">
               <el-pagination
                 background
                 layout="prev, pager, next"
@@ -297,18 +296,18 @@
                   </template>
                   <template v-else-if="col.qoqField">
                     <div class="cell-with-qoq">
-                      <span>{{ formatNum(row[col.key]) }}</span>
+                      <span>{{ formatNum(row[col.key], col.key) }}</span>
                       <span class="qoq-badge" :class="row[col.qoqField] >= 0 ? 'up' : 'down'">
                         {{ row[col.qoqField] != null ? (row[col.qoqField] >= 0 ? '+' : '') + row[col.qoqField].toFixed(1) + '%' : '' }}
                       </span>
                     </div>
                   </template>
-                  <template v-else>{{ formatNum(row[col.key]) }}</template>
+                  <template v-else>{{ formatNum(row[col.key], col.key) }}</template>
                 </template>
               </el-table-column>
             </el-table>
             <div class="table-footer">
-              <span>共{{ rightTotal }}条，每页{{ rightPageSize }}条</span>
+              <span>每页{{ rightPageSize }}条</span>
               <el-pagination
                 background
                 layout="prev, pager, next"
@@ -413,13 +412,13 @@
           <template slot-scope="{ row }">
             <template v-if="col.qoqField">
               <div class="cell-with-qoq">
-                <span>{{ formatNum(row[col.key]) }}</span>
+                <span>{{ formatNum(row[col.key], col.key) }}</span>
                 <span v-if="row[col.qoqField] != null" class="qoq-badge" :class="row[col.qoqField] >= 0 ? 'up' : 'down'">
                   {{ (row[col.qoqField] >= 0 ? '+' : '') + row[col.qoqField].toFixed(1) + '%' }}
                 </span>
               </div>
             </template>
-            <template v-else>{{ formatNum(row[col.key]) }}</template>
+            <template v-else>{{ formatNum(row[col.key], col.key) }}</template>
           </template>
         </el-table-column>
       </el-table>
@@ -507,13 +506,13 @@
             </template>
             <template v-else-if="col.qoqField">
               <div class="cell-with-qoq">
-                <span>{{ formatNum(row[col.key]) }}</span>
+                <span>{{ formatNum(row[col.key], col.key) }}</span>
                 <span class="qoq-badge" :class="row[col.qoqField] >= 0 ? 'up' : 'down'">
                   {{ row[col.qoqField] != null ? (row[col.qoqField] >= 0 ? '+' : '') + row[col.qoqField].toFixed(1) + '%' : '' }}
                 </span>
               </div>
             </template>
-            <template v-else>{{ formatNum(row[col.key]) }}</template>
+            <template v-else>{{ formatNum(row[col.key], col.key) }}</template>
           </template>
         </el-table-column>
       </el-table>
@@ -524,7 +523,7 @@
 <script>
 import { getChannelSummary, getStrategyList, getDim, getChannelCapacityTrend, getChannelBizCapacity, getCategorySummary, addFavorite } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
-import { chartRows } from '../active/reviewData'
+import { chartRows, integerText } from '../active/reviewData'
 import { exportTableToCsv } from '../utils/csvExport'
 import EChart from '@/components/EChart.vue'
 
@@ -1368,9 +1367,11 @@ export default {
     // 兼容两种调用：el-table :formatter 传 (row, column, cellValue)，模板直传单值
     formatNum (row, column, cellValue) {
       const value = arguments.length >= 3 ? cellValue : row
+      const field = arguments.length >= 3 && column && typeof column === 'object' ? column.property : column
       if (value === null || value === undefined || value === '') return '--'
       const num = Number(value)
       if (Number.isNaN(num)) return value
+      if (field === 'strategyCount') return integerText(value)
       // 保留最多2位小数，整数部分千分位
       return num.toLocaleString('en-US', { maximumFractionDigits: 2 })
     },
@@ -1382,9 +1383,9 @@ export default {
             formatter: (row) => {
               const val = row[col.key]
               const qoq = row[col.qoqField]
-              if (qoq == null) return val != null ? val : ''
+              if (qoq == null) return val != null ? this.formatNum(val, col.key) : ''
               const sign = qoq >= 0 ? '+' : ''
-              return `${val != null ? val : ''} (${sign}${qoq.toFixed(1)}%)`
+              return `${val != null ? this.formatNum(val, col.key) : ''} (${sign}${qoq.toFixed(1)}%)`
             }
           }
         }
@@ -1409,9 +1410,9 @@ export default {
             formatter: (row) => {
               const val = row[col.key]
               const qoq = row[col.qoqField]
-              if (qoq == null) return val != null ? val : ''
+              if (qoq == null) return val != null ? this.formatNum(val, col.key) : ''
               const sign = qoq >= 0 ? '+' : ''
-              return `${val != null ? val : ''} (${sign}${qoq.toFixed(1)}%)`
+              return `${val != null ? this.formatNum(val, col.key) : ''} (${sign}${qoq.toFixed(1)}%)`
             }
           }
         }
@@ -1442,9 +1443,9 @@ export default {
               formatter: (row) => {
                 const val = row[col.key]
                 const qoq = row[col.qoqField]
-                if (qoq == null) return val != null ? val : ''
+                if (qoq == null) return val != null ? this.formatNum(val, col.key) : ''
                 const sign = qoq >= 0 ? '+' : ''
-                return `${val != null ? val : ''} (${sign}${qoq.toFixed(1)}%)`
+                return `${val != null ? this.formatNum(val, col.key) : ''} (${sign}${qoq.toFixed(1)}%)`
               }
             }
           }
@@ -1715,6 +1716,7 @@ export default {
     overflow: hidden;
     font-size: 11px;
     color: #6b7280;
+    &.pagination-only { justify-content: flex-end; }
   }
   .strategy-block {
     display: flex;

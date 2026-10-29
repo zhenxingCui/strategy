@@ -60,12 +60,15 @@ export function upgradeDataNote(query) {
   const source = (upgrade.supplementalSources || []).slice(-1)[0]
   const months = (upgrade.monthlySimulationMonths || []).filter(month => month >= upgrade.startMonth && month < upgrade.sourceMonth)
   const history = months.length ? `${months[0]}—${months[months.length - 1]}为模拟月数据` : ''
-  const oldDaily = upgrade.dailyIsSimulated ? `原7条策略日报为模拟分摊，截至${upgrade.sourceCutoff}` : ''
+  const oldDaily = upgrade.dailyIsSimulated && !source?.dailyWeightMode
+    ? `日数据为模拟分摊，截至${upgrade.sourceCutoff}` : ''
   if (!source) return `${history}${history ? '；' : ''}${oldDaily}`
   const mismatch = source.sourceMonthlyDailyComparison && source.sourceMonthlyDailyComparison.mismatchCount
   const counts = source.counts || {}
-  const supplement = `补充Excel档案${counts.strategies || 0}条，其中${counts.dailyStrategies || 0}条有日报、${counts.archiveOnlyStrategies || 0}条仅有档案；月事实${counts.monthlyFacts || 0}条，原始日报${counts.dailyRows || 0}条至${source.sourceCutoff}`
-  const sourceRule = `月度优先采用Excel月行，缺月策略按日报汇总可加指标；月行与日报有${mismatch || 0}项指标差异，页面分别按来源展示`
+  const supplement = `${source.sourceFile || '补充Excel'}档案${counts.strategies || 0}条，其中${counts.dailyStrategies || 0}条有日报、${counts.archiveOnlyStrategies || 0}条仅有档案；月事实${counts.monthlyFacts || 0}条，原始日报${counts.dailyRows || 0}条至${source.sourceCutoff}`
+  const sourceRule = source.dailyWeightMode
+    ? `采用${counts.sourceMonthlyRows || 0}条月行作为总量，逐日数值按策略和指标作权重拆分；${counts.dailyOnlyStrategies || 0}条无月行策略按可加日报汇总；日数据为模拟分摊，不代表实际逐日业绩`
+    : `月度优先采用Excel月行，缺月策略按日报汇总可加指标；月行与日报有${mismatch || 0}项指标差异，页面分别按来源展示`
   return [history, oldDaily, `${supplement}；${sourceRule}`].filter(Boolean).join('；') + '。'
 }
 

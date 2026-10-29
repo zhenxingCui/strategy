@@ -166,7 +166,7 @@
               </template>
             </el-table>
             <div class="table-footer">
-              <span>共 {{ warningTotal }} 条，每页 {{ warningPageSize }} 条</span>
+              <span>每页 {{ warningPageSize }} 条</span>
               <el-pagination
                 background
                 layout="prev, pager, next"
@@ -268,7 +268,7 @@
               </template>
             </el-table>
             <div class="table-footer">
-              <span>共 {{ focusTotal }} 条，每页 {{ focusPageSize }} 条</span>
+              <span>每页 {{ focusPageSize }} 条</span>
               <el-pagination
                 background
                 layout="prev, pager, next"
@@ -325,7 +325,7 @@
           </div>
           <div class="detail-field" v-if="detailRule.hitCount != null">
             <span class="detail-label">命中策略数</span>
-            <span class="detail-value">{{ detailRule.hitCount }} 条</span>
+            <span class="detail-value">{{ integerText(detailRule.hitCount) }} 条</span>
           </div>
           <div class="detail-field" v-if="detailRule.conditions && detailRule.conditions.length">
             <span class="detail-label">指标条件</span>
@@ -355,6 +355,7 @@ import {
   getDim
 } from '@/api/strategyReview'
 import { getCityId, getUserId } from '@/utils/auth'
+import { integerText } from '../active/reviewData'
 import RuleCreateDialog from './RuleCreateDialog.vue'
 
 // 比较符映射：UI 展示 → API 编码
@@ -467,6 +468,7 @@ export default {
     this.fetchRules()
   },
   methods: {
+    integerText,
     // 千分位格式化：推送量、收入等大数字便于阅读；比率/字符串原样返回
     // 兼容两种调用：el-table :formatter 传 (row, column, cellValue)，模板直传单值
     formatNum (row, column, cellValue) {

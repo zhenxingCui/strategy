@@ -8,10 +8,7 @@ const TABLE = 't_sr_upgrade_stable_strategy_monthly_trend_manual'
 const DDL = 'strategy_review_add_upgrade_stable_strategy_monthly_trend_manual.sql'
 const ALL = '全部'
 const CLASSES = ['升接', '稳']
-const METRICS = [
-  'original_cust', 'push_count', 'usage_count', 'reach_count', 'target_conv_num',
-  'product_conv_num', 'expected_income', 'actual_income',
-]
+const METRICS = ['product_conv_num']
 const SCALE = 10000n
 
 function toScaled(value) {
@@ -186,11 +183,14 @@ function buildRows(facts, partialMonthByStrategy = {}) {
 }
 
 async function seed(connection) {
+  // The single-strategy trend endpoint only reads product_conv_num.
+  // Remove the other backfilled metrics so rerunning this seed keeps the table lean.
+  await connection.query(`DELETE FROM ${TABLE} WHERE metric_code <> 'product_conv_num'`)
+
   const [facts] = await connection.query(`
     SELECT DATE_FORMAT(stat_month, '%Y-%m-%d') AS stat_month,
            strategy_class, strategy_id, channel, big_category, small_category, city_id, county_id,
-           original_cust, push_count, usage_count, reach_count, target_conv_num,
-           product_conv_num, expected_income, actual_income
+           product_conv_num
     FROM t_sr_strategy_period_summary_ap
     WHERE tab_type = 'active' AND strategy_class IN ('升接', '稳') AND is_deleted = 0
       AND strategy_id IS NOT NULL AND strategy_id != '999'

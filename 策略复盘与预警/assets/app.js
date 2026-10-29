@@ -205,7 +205,7 @@ function pagerHTML(page, size, total, key) {
   const cur = Math.min(Math.max(1, page), pages);
   const btn = (n, label, disabled) =>
     `<button class="page${n === cur && !disabled ? ' is-active' : ''}" data-action="翻页" data-pagerkey="${esc(key)}" data-page="${n}"${disabled ? ' disabled' : ''}>${label || n}</button>`;
-  const parts = [`<span>共 ${total} 条</span>`, btn(cur - 1, '‹', cur <= 1)];
+  const parts = [btn(cur - 1, '‹', cur <= 1)];
   const nums = [];
   if (pages <= 7) { for (let i = 1; i <= pages; i++) nums.push(i); }
   else {
@@ -236,10 +236,11 @@ function refreshNote(sec) {
   const el = sec && sec.querySelector('[data-note]');
   if (!el || sec._total == null) return;
   const pages = Math.max(1, Math.ceil(sec._total / (sec._size || 10)));
-  let s = `共 ${sec._total} 条`;
-  if (pages > 1) s += ` · 第 ${sec._page || 1}/${pages} 页`;
-  if (sec._sampleLimited) s += '（原型仅内置首屏样例数据，翻页重复展示）';
-  else if (sec._filtered) s += '（按当前筛选条件）';
+  const notes = [];
+  if (pages > 1) notes.push(`第 ${sec._page || 1}/${pages} 页`);
+  if (sec._sampleLimited) notes.push('原型仅内置首屏样例数据，翻页重复展示');
+  else if (sec._filtered) notes.push('按当前筛选条件');
+  const s = notes.join(' · ');
   el.textContent = s;
 }
 
@@ -1079,7 +1080,7 @@ function updatePickedNote(sec) {
   const allBtn = wrap.querySelector('[data-action="查看全部"]');
   const show = picked.length > 0;
   wrap.hidden = !show;
-  if (nameEl) nameEl.textContent = sec.dataset.pickedName || `共 ${picked.length} 条`;
+  if (nameEl) nameEl.textContent = sec.dataset.pickedName || `已选 ${picked.length} 条`;
   if (allBtn) allBtn.hidden = picked.length <= 1;
 }
 
