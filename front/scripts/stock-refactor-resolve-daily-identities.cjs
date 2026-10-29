@@ -13,6 +13,7 @@ async function main() {
     await c.query('USE ??', [TARGET])
     await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
     await c.beginTransaction()
+    const [manualTables] = await c.query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_NAME='sr_manual_trend'", [TARGET])
     const [candidates] = await c.query("SELECT m.legacy_table,m.legacy_id,m.original_data, f.strategy_class FROM sr_legacy_strategy_map m JOIN (SELECT strategy_id, MIN(strategy_class) strategy_class FROM (SELECT strategy_id,strategy_class FROM sr_strategy_monthly WHERE is_deleted=0 AND strategy_id IS NOT NULL AND strategy_id<>'999' UNION ALL SELECT strategy_id,strategy_class FROM sr_strategy_daily WHERE is_deleted=0 AND strategy_id IS NOT NULL AND strategy_id<>'999') facts GROUP BY strategy_id HAVING COUNT(DISTINCT strategy_class)=1) f ON f.strategy_id=m.strategy_code WHERE m.status='unresolved' AND m.reason='classification unavailable'")
     console.log(JSON.stringify({ mode: apply ? 'apply' : 'inspect', candidates: candidates.length, classes: candidates.reduce((a, row) => { a[row.strategy_class] = (a[row.strategy_class] || 0) + 1; return a }, {}) }))
     if (!apply) { await c.rollback(); return }
@@ -24,6 +25,9 @@ async function main() {
       if (updated.affectedRows !== 1) throw new Error('Legacy mapping changed during resolution')
       for (const table of ['sr_strategy_monthly', 'sr_strategy_daily']) {
         await c.query("UPDATE ?? SET strategy_ref=?, row_kind='detail' WHERE strategy_id=? AND strategy_class=? AND row_kind='unresolved'", [table, insert.insertId, original.strategy_code, candidate.strategy_class])
+      }
+      if (manualTables.length) {
+        await c.query('UPDATE sr_manual_trend SET strategy_ref=? WHERE strategy_code=? AND strategy_class=? AND strategy_ref IS NULL', [insert.insertId, original.strategy_code, candidate.strategy_class])
       }
     }
     await c.commit()
