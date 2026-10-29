@@ -14,6 +14,9 @@ public interface SrStrategyScopeMapper {
     List<DimItemVO> selectProductDimensions();
     List<Map<String, Object>> selectMetrics(@Param("query") TouchpointQueryReq query,
                                           @Param("dimension") String dimension);
+    Map<String, Object> selectOverviewMonthlyFacts(@Param("query") OverviewQueryReq query,
+                                                   @Param("statMonth") String statMonth,
+                                                   @Param("channel") String channel);
     Integer selectDailyCutoff(@Param("query") TouchpointQueryReq query);
     List<Map<String, Object>> selectSamePeriodMetrics(@Param("query") TouchpointQueryReq query,
                                                        @Param("dimension") String dimension,

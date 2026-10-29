@@ -1,6 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.asiainfo.biapp.pec.plan.jx.strategyreview.mapper.SrStrategyScopeMapper">
+    <!-- Common fact source for the current stock overview. The read view unifies
+         the existing physical table families without copying or changing them. -->
+    <select id="selectOverviewMonthlyFacts" resultType="java.util.HashMap">
+        SELECT COUNT(*) AS fact_rows,
+          <choose>
+            <when test="query.strategyClass == '重点客群'">COUNT(*)</when>
+            <otherwise>SUM(s.strategy_count)</otherwise>
+          </choose> AS strategy_count,
+          SUM(s.original_cust) AS original_cust, SUM(s.push_count) AS push_count,
+          SUM(s.usage_count) AS usage_count, SUM(s.reach_count) AS reach_count,
+          SUM(s.target_conv_num) AS target_conv_num, SUM(s.product_conv_num) AS product_conv_num,
+          SUM(s.expected_income) AS expected_income, SUM(s.actual_income) AS actual_income,
+          SUM(s.reject_count) AS reject_count,
+          ROUND(SUM(s.usage_count) * 100 / NULLIF(SUM(s.push_count), 0), 2) AS usage_rate,
+          ROUND(SUM(s.reach_count) * 100 / NULLIF(SUM(
+            <choose><when test="query.strategyClass == '降拆'">s.push_count</when><otherwise>s.usage_count</otherwise></choose>
+          ), 0), 2) AS reach_rate,
+          ROUND(SUM(s.target_conv_num) * 100 / NULLIF(SUM(
+            <choose><when test="query.strategyClass == '降拆'">s.push_count</when><otherwise>s.reach_count</otherwise></choose>
+          ), 0), 2) AS target_conv_rate,
+          ROUND(SUM(s.product_conv_num) * 100 / NULLIF(SUM(
+            <choose><when test="query.strategyClass == '降拆'">s.push_count</when><otherwise>s.reach_count</otherwise></choose>
+          ), 0), 2) AS product_conv_rate,
+          ROUND(SUM(s.reject_count) * 100 / NULLIF(SUM(s.push_count), 0), 2) AS reject_rate
+        FROM v_sr_strategy_period_summary_ap_read s
+        WHERE s.tab_type = 'active' AND s.strategy_class = #{query.strategyClass}
+          AND s.stat_month = CONCAT(#{statMonth}, '-01') AND s.is_deleted = 0
+          AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
+          AND s.channel IS NOT NULL AND s.channel != '' AND s.channel != '全部'
+          AND s.big_category IS NOT NULL AND s.big_category != '全部'
+          <if test="query.strategyClass != '重点客群'">AND s.big_category != ''</if>
+          AND COALESCE(s.small_category, '') != '全部'
+          <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND s.city_id = #{query.cityId}</if>
+          <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND s.county_id = #{query.countyId}</if>
+          <if test="channel != null and channel != '' and channel != '全部' and channel != '全部渠道'">
+            AND (s.channel = #{channel} OR s.channel IN (
+              SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel}
+                AND d.status = 1 AND d.is_deleted = 0
+                AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)))
+          </if>
+          <if test="query.strategyClass == '重点客群' and query.customerGroup != null and query.customerGroup != ''">
+            AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience g
+              WHERE g.strategy_code = s.strategy_id AND g.tab_type = 'active'
+                AND g.strategy_class = '重点客群' AND g.is_deleted = 0
+                AND g.customer_group = #{query.customerGroup})
+          </if>
+    </select>
     <select id="selectCustomerDimensions" resultType="com.asiainfo.biapp.pec.plan.jx.strategyreview.vo.resp.DimItemVO">
         SELECT DISTINCT TRIM(customer_group) AS keyCode, TRIM(customer_group) AS keyName
         FROM t_sr_strategy_key_audience

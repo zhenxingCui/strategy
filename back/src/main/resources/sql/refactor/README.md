@@ -65,3 +65,18 @@
 ## 后续工作
 
 处理无主数据的事实和剩余未分类主数据；设计并迁移业务产能、拒绝原因、汇总、业务环比及用户操作数据；完成独立的版本化事实 DDL、导入链路及后端查询改造；迁移前后执行完整指标和页面对账。过渡事实表保留了旧的列和索引，仅用于无损核查，不能视为最终数据模型。
+
+## 策略整体情况：当月事实对账接入
+
+`OverviewMonthlyReconciler` 在现有已发布卡片和趋势结果上接入统一的月度事实查询，范围是五个存量分类的最新事实月份。升接、稳按事实的 `strategy_count` 求和，重点客群按事实行计数，均不按策略编码去重；降拆保留真实的“整体”渠道口径，离沿用当前不按渠道筛选的口径。月度事实通过现有 `v_sr_strategy_period_summary_ap_read` 兼容视图读取，未修改旧库表或导入路径。
+
+事实值与既有已发布值一致时，卡片和趋势当月点使用事实值；不一致或缺失时保留既有值并记录警告。环比、展示元数据、历史点和前端现有展示逻辑继续沿用原来源。这个保护步骤**尚未移除 KPI、渠道汇总和人工趋势表的运行时依赖**，也未完成最终人工覆盖表或前端固定值的迁移。历史月份的事实对账不在本次范围。
+
+本地已通过 `stock-overview-regression.cjs` 覆盖五类、各渠道及客群的当月接口比较，以及 `stock-refactor-baseline.cjs` 的其他页面接口比较。快照保存在被忽略的 `outputs/` 中，不进入 Git。执行比较示例：
+
+```text
+node scripts/stock-overview-regression.cjs capture ../outputs/overview-before.json 2026-10
+node scripts/stock-overview-regression.cjs compare ../outputs/overview-before.json --current-only
+```
+
+验证应使用相同数据版本，目标后端可通过 `SR_API_BASE` 指定本机另一端口。新旧结果一致并不意味着历史趋势或未来的新数据已完成迁移。

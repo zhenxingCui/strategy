@@ -105,6 +105,9 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
     @Autowired
     private StrategyScopeAggregationService scopeAggregation;
 
+    @Autowired
+    private OverviewMonthlyReconciler overviewMonthlyReconciler;
+
     @Override
     public List<DimItemVO> queryDims(DimQueryReq req) {
         switch (req.getType()) {
@@ -135,13 +138,13 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return scopeAggregation.passiveManualKpis(req);
         }
         if ("active".equals(req.getTabType()) && "重点客群".equals(req.getStrategyClass())) {
-            return scopeAggregation.audienceManualKpis(req);
+            return overviewMonthlyReconciler.reconcile(req, scopeAggregation.audienceManualKpis(req));
         }
         if ("control".equals(req.getTabType())) {
             return scopeAggregation.controlManualKpis(req);
         }
         if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
-            return scopeAggregation.upgradeStableManualKpis(req);
+            return overviewMonthlyReconciler.reconcile(req, scopeAggregation.upgradeStableManualKpis(req));
         }
         if (usesLeaveKpiSummary(req)) {
             String statMonth = normalizeStatMonth(req.getStatMonth());
@@ -151,10 +154,10 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             if (StringUtils.isBlank(statMonth)) return new ArrayList<>();
             List<KpiCardVO> cards = reviewMapper.selectKpiCard(req.getTabType(), statMonth,
                     req.getCityId(), req.getCountyId(), req.getStrategyClass());
-            return cards == null ? new ArrayList<>() : cards;
+            return overviewMonthlyReconciler.reconcile(req, cards == null ? new ArrayList<>() : cards);
         }
         if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.kpis(req);
-        if (usesDeclineChannelSummary(req)) return declineChannelKpis(req);
+        if (usesDeclineChannelSummary(req)) return overviewMonthlyReconciler.reconcile(req, declineChannelKpis(req));
         if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.kpis(req);
         String statMonth = normalizeStatMonth(req.getStatMonth());
         if (StringUtils.isBlank(statMonth)) {
@@ -331,16 +334,16 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return scopeAggregation.passiveManualTrend(req);
         }
         if ("active".equals(req.getTabType()) && "重点客群".equals(req.getStrategyClass())) {
-            return scopeAggregation.audienceManualTrend(req);
+            return overviewMonthlyReconciler.reconcileTrend(req, scopeAggregation.audienceManualTrend(req));
         }
         if ("control".equals(req.getTabType())) {
             return scopeAggregation.controlManualTrend(req);
         }
         if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
-            return scopeAggregation.upgradeStableManualTrend(req);
+            return overviewMonthlyReconciler.reconcileTrend(req, scopeAggregation.upgradeStableManualTrend(req));
         }
         boolean leaveKpiSummary = usesLeaveKpiSummary(req);
-        if (usesDeclineChannelSummary(req)) return declineChannelTrend(req);
+        if (usesDeclineChannelSummary(req)) return overviewMonthlyReconciler.reconcileTrend(req, declineChannelTrend(req));
         if (!leaveKpiSummary) {
             if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.trend(req);
             if ("active".equals(req.getTabType()) && "product_conv_num".equals(req.getMetricCode())) {
@@ -429,7 +432,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         resp.setMonths(months);
         resp.setValues(values);
         resp.setQoq(qoq);
-        return resp;
+        return overviewMonthlyReconciler.reconcileTrend(req, resp);
     }
 
     private static boolean usesDeclineChannelSummary(OverviewQueryReq req) {
