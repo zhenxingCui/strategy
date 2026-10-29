@@ -99,58 +99,45 @@ CREATE TABLE IF NOT EXISTS t_sr_kpi_summary (
     KEY idx_kpi_metric (metric_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='KPI汇总长表';
 
--- 重点客群月度趋势手工数据。环比按指标由填报方指定；rate 指标存百分点差，其他指标存百分比。
-CREATE TABLE IF NOT EXISTS t_sr_key_audience_monthly_trend_manual (
+-- Consolidated storage for the six manual trend / QoQ tables.
+-- Legacy tables are intentionally retained as rollback copies during cutover.
+CREATE TABLE IF NOT EXISTS t_sr_manual_metric (
     id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    record_type     VARCHAR(32)   NOT NULL COMMENT 'category_trend/strategy_trend/business_qoq/strategy_business_qoq',
+    tab_type        VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT '策略类型',
+    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类/客群类型',
+    strategy_id     VARCHAR(64)   DEFAULT NULL COMMENT '策略ID；非单策略记录为空',
+    strategy_name   VARCHAR(255)  DEFAULT NULL COMMENT '策略名称快照',
+    customer_group  VARCHAR(64)   DEFAULT NULL COMMENT '客群；不适用时为空',
     stat_month      DATE          NOT NULL COMMENT '账期，统一存每月1日',
-    customer_group  VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '客群名称；全部表示全部客群',
     channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点编码；全部表示全部触点',
     big_category    VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略大类；全部表示全部大类',
     small_category  VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略小类；全部表示全部小类',
     city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示全部地市',
     county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示全部区县',
-    metric_code     VARCHAR(64)   NOT NULL COMMENT '指标编码',
+    biz_code        VARCHAR(64)   NOT NULL DEFAULT '' COMMENT '业务编码；业务环比专用',
+    biz_name        VARCHAR(128)  NOT NULL DEFAULT '' COMMENT '业务名称；业务环比专用',
+    metric_code     VARCHAR(64)   NOT NULL COMMENT '趋势指标编码；纯环比记录使用 manual_qoq',
     metric_value    DECIMAL(20,4) DEFAULT NULL COMMENT '当月指标值',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '手工环比；缺值不回退到自动计算',
-    qoq_unit        VARCHAR(8)    NOT NULL COMMENT 'percent=百分比；pp=百分点',
-    scope_hash      CHAR(64)      NOT NULL COMMENT '其余筛选维度的SHA-256，用于唯一约束',
-    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0草稿/停用，1已发布',
-    source_batch    VARCHAR(64)   DEFAULT NULL COMMENT '数据来源批次',
-    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL,
-    updated_by      VARCHAR(64)   DEFAULT NULL,
-    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_katr_month_metric_scope (stat_month, metric_code, scope_hash),
-    KEY idx_katr_trend_lookup (metric_code, stat_month, customer_group(32), status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点客群月度趋势人工维护';
-
--- 重点客群单策略月度趋势，供策略执行明细的单策略产能图使用。
-CREATE TABLE IF NOT EXISTS t_sr_key_audience_strategy_monthly_trend_manual (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    stat_month      DATE          NOT NULL COMMENT '账期，统一存每月1日',
-    strategy_id     VARCHAR(64)   NOT NULL COMMENT '重点客群策略ID',
-    channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点编码；全部表示全部触点',
-    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示全部地市',
-    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示全部区县',
-    metric_code     VARCHAR(64)   NOT NULL COMMENT '指标编码，如 product_conv_num',
-    metric_value    DECIMAL(20,4) DEFAULT NULL COMMENT '当月指标值',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '月环比百分比；首月或上月为0时为空',
+    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '手工环比',
     qoq_unit        VARCHAR(8)    NOT NULL DEFAULT 'percent' COMMENT 'percent=百分比；pp=百分点',
-    scope_hash      CHAR(64)      NOT NULL COMMENT '渠道和地域维度SHA-256，用于唯一约束',
+    scope_hash      CHAR(64)      NOT NULL COMMENT '维度范围SHA-256',
     status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0草稿/停用，1已发布',
     source_batch    VARCHAR(64)   DEFAULT NULL COMMENT '数据来源批次',
     remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL,
-    updated_by      VARCHAR(64)   DEFAULT NULL,
+    created_by      VARCHAR(64)   DEFAULT NULL COMMENT '创建人',
+    updated_by      VARCHAR(64)   DEFAULT NULL COMMENT '更新人',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    legacy_table    VARCHAR(64)   DEFAULT NULL COMMENT '迁移来源表；完成切换后保留溯源',
+    legacy_id       BIGINT        DEFAULT NULL COMMENT '迁移来源行ID',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_kastr_month_strategy_metric_scope (stat_month, strategy_id, metric_code, scope_hash),
-    KEY idx_kastr_strategy_metric_month (strategy_id, metric_code, stat_month, status),
-    KEY idx_kastr_scope_month (channel, city_id, county_id, stat_month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点客群单策略月度趋势人工维护';
+    UNIQUE KEY uk_manual_metric_legacy (legacy_table, legacy_id),
+    KEY idx_manual_metric_scope (record_type, stat_month, strategy_class, metric_code, scope_hash),
+    KEY idx_manual_metric_lookup (record_type, strategy_class, metric_code, stat_month, status),
+    KEY idx_manual_metric_strategy (tab_type, strategy_class, strategy_id, stat_month, metric_code, status),
+    KEY idx_manual_metric_business (record_type, tab_type, strategy_class, customer_group, stat_month, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略趋势及业务环比人工维护统一表';
 
 -- 增量策略月度趋势手工数据，维度与增量策略事实表一致。
 CREATE TABLE IF NOT EXISTS t_sr_passive_monthly_trend_manual (
@@ -255,63 +242,6 @@ CREATE TABLE IF NOT EXISTS t_sr_control_strategy_monthly_trend_manual (
     KEY idx_ctrl_strategy_metric_month (strategy_id, metric_code, stat_month, status),
     KEY idx_ctrl_strategy_scope_month (channel, city_id, county_id, stat_month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点产品单策略月度趋势人工维护';
-
--- 升接/稳非策略级趋势手工数据；按策略分类区分两类，环比由业务人工维护。
-CREATE TABLE IF NOT EXISTS t_sr_upgrade_stable_monthly_trend_manual (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    stat_month      DATE          NOT NULL COMMENT '账期，统一存每月1日',
-    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：升接/稳',
-    channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点编码；全部表示全部触点',
-    big_category    VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略大类；全部表示全部大类',
-    small_category  VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略小类；全部表示全部小类',
-    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示全部地市',
-    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示全部区县',
-    metric_code     VARCHAR(64)   NOT NULL COMMENT '指标编码',
-    metric_value    DECIMAL(20,4) DEFAULT NULL COMMENT '当月指标值',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '手工环比；缺值不回退到自动计算',
-    qoq_unit        VARCHAR(8)    NOT NULL COMMENT 'percent=百分比；pp=百分点',
-    scope_hash      CHAR(64)      NOT NULL COMMENT '分类和其余筛选维度的SHA-256，用于唯一约束',
-    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0草稿/停用，1已发布',
-    source_batch    VARCHAR(64)   DEFAULT NULL COMMENT '数据来源批次',
-    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL,
-    updated_by      VARCHAR(64)   DEFAULT NULL,
-    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_ustr_month_metric_scope (stat_month, strategy_class, metric_code, scope_hash),
-    KEY idx_ustr_trend_lookup (strategy_class, metric_code, stat_month, status),
-    KEY idx_ustr_capacity_scope (strategy_class, channel, city_id, county_id, stat_month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='升接/稳非策略级月度趋势人工维护';
-
--- 升接/稳单策略月度趋势，供策略执行明细的单策略产能图使用。
-CREATE TABLE IF NOT EXISTS t_sr_upgrade_stable_strategy_monthly_trend_manual (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    stat_month      DATE          NOT NULL COMMENT '账期，统一存每月1日',
-    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：升接/稳',
-    strategy_id     VARCHAR(64)   NOT NULL COMMENT '策略ID',
-    channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点编码；全部表示全部触点',
-    big_category    VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略大类；全部表示全部大类',
-    small_category  VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略小类；全部表示全部小类',
-    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示全部地市',
-    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示全部区县',
-    metric_code     VARCHAR(64)   NOT NULL COMMENT '指标编码，如 product_conv_num',
-    metric_value    DECIMAL(20,4) DEFAULT NULL COMMENT '当月指标值',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '月环比百分比；首月或上月为0时为空',
-    qoq_unit        VARCHAR(8)    NOT NULL DEFAULT 'percent' COMMENT 'percent=百分比；pp=百分点',
-    scope_hash      CHAR(64)      NOT NULL COMMENT '分类、策略、触点、类别和地域维度SHA-256，用于唯一约束',
-    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0草稿/停用，1已发布',
-    source_batch    VARCHAR(64)   DEFAULT NULL COMMENT '数据来源批次',
-    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL,
-    updated_by      VARCHAR(64)   DEFAULT NULL,
-    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_ustr_strategy_month_metric_scope (stat_month, strategy_class, strategy_id, metric_code, scope_hash),
-    KEY idx_ustr_strategy_metric_month (strategy_class, strategy_id, metric_code, stat_month, status),
-    KEY idx_ustr_strategy_scope_month (strategy_class, channel, big_category, small_category, city_id, county_id, stat_month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='升接/稳单策略月度趋势人工维护';
 
 -- ---------------------------------------------------------------------
 -- 渠道执行汇总（control）
@@ -558,57 +488,6 @@ CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity (
     KEY idx_sbc_strategy_date (strategy_id, stat_date),
     KEY idx_sbc_tab_strategy_date (tab_type, strategy_id, stat_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略业务产能';
-
--- 存量策略及增量策略业务产能明细的人工环比。匹配账期、策略分类/客群、触点及地域。
-CREATE TABLE IF NOT EXISTS t_sr_strategy_biz_capacity_qoq_manual (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    tab_type        VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT '策略类型',
-    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：存量升接/稳/重点客群；增量填全部',
-    customer_group  VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '重点客群名称；全部客群或非重点客群填全部',
-    stat_month      DATE          NOT NULL COMMENT '账期月份，统一存每月1日',
-    channel         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '触点渠道编码；全部表示通用值',
-    big_category    VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略大类；全部表示该维度汇总值',
-    small_category  VARCHAR(128)  NOT NULL DEFAULT '全部' COMMENT '策略小类；全部表示该维度汇总值',
-    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市编码；全部表示通用值',
-    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县编码；全部表示通用值',
-    biz_name        VARCHAR(128)  NOT NULL COMMENT '业务名称，与页面业务名称一致',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '人工环比百分数，例如1表示1%',
-    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待填写/停用，1已发布',
-    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL COMMENT '创建人',
-    updated_by      VARCHAR(64)   DEFAULT NULL COMMENT '最后修改人',
-    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_biz_qoq_scope (tab_type, strategy_class, customer_group, stat_month, channel,
-        big_category, small_category, city_id, county_id, biz_name),
-    KEY idx_biz_qoq_lookup (stat_month, tab_type, strategy_class, customer_group, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='策略业务产能人工环比维护';
-
--- 升接/稳/重点客群及增量策略执行明细的逐策略业务产能人工环比。
-CREATE TABLE IF NOT EXISTS t_sr_strategy_detail_biz_capacity_qoq_manual (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    tab_type        VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT '策略类型',
-    strategy_class  VARCHAR(16)   NOT NULL COMMENT '策略分类：存量升接/稳/重点客群；增量填全部',
-    strategy_id     VARCHAR(64)   NOT NULL COMMENT '策略ID，与策略执行明细关联',
-    strategy_name   VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '策略名称，便于维护核对',
-    stat_month      DATE          NOT NULL COMMENT '账期月份，统一存每月1日',
-    biz_code        VARCHAR(64)   NOT NULL DEFAULT '' COMMENT '业务编码；空值时按业务名称匹配',
-    biz_name        VARCHAR(128)  NOT NULL COMMENT '业务名称，与策略业务产能明细一致',
-    city_id         VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '地市；全部表示通用值',
-    county_id       VARCHAR(64)   NOT NULL DEFAULT '全部' COMMENT '区县；全部表示通用值',
-    manual_qoq      DECIMAL(14,4) DEFAULT NULL COMMENT '人工维护环比百分数，例如1表示1%；不从源数据计算',
-    status          TINYINT       NOT NULL DEFAULT 0 COMMENT '状态：0待填写/停用，1已发布',
-    remark          VARCHAR(500)  DEFAULT NULL COMMENT '备注',
-    created_by      VARCHAR(64)   DEFAULT NULL COMMENT '创建人',
-    updated_by      VARCHAR(64)   DEFAULT NULL COMMENT '最后修改人',
-    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_strategy_detail_biz_qoq_scope (tab_type, strategy_class, strategy_id, stat_month, biz_code, biz_name, city_id, county_id),
-    KEY idx_strategy_detail_biz_qoq_lookup (tab_type, strategy_class, strategy_id, stat_month, status),
-    KEY idx_strategy_detail_biz_qoq_biz (biz_name, stat_month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='存量及增量策略执行明细业务产能人工环比';
 
 -- ---------------------------------------------------------------------
 -- 策略日粒度明细

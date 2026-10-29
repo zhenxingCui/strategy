@@ -1,5 +1,7 @@
 # 存量策略页面迁移与本地联调
 
+2026-10-29：六张人工趋势/环比表已合并到 `t_sr_manual_metric`。统一表通过 `record_type` 区分分类趋势、单策略趋势、业务环比和单策略业务环比；接口查询已切换到统一表。旧表保留作回滚副本，未删除。迁移前六表共 102,926 行，按来源表及原行 ID 保留并逐列核对，缺失/差异均为 0；切换前后当前月份 overview 接口 514 个用例一致。`npm run db:sync-manual-metrics` 可将旧维护脚本刚写入的记录同步到统一表，五个相关 `db:seed-*` 命令已自动执行同步。
+
 2026-10-26：增量策略月度趋势使用独立人工维护表：`t_sr_passive_monthly_trend_manual` 支持整体 KPI 月趋势及分类执行产能趋势，`t_sr_passive_strategy_monthly_trend_manual` 支持单策略产能趋势。数据由 `t_sr_strategy_period_summary_ap_passive` 聚合生成；单策略环比使用同表相邻月值，来源月为部分月时按截至日折算日均。新增本地补种命令 `npm run db:seed-passive-trend-manual`、`npm run db:seed-passive-strategy-trend-manual`。
 
 2026-10-25：存量各分类的“策略分类执行情况”统一从当前策略月度事实聚合，使用与产能趋势、业务产能相同的分类维度，避免主数据分类名称更新后，旧 `strategy_id=999` 预汇总行的分类在联动查询中匹配不到事实。升接、稳不再从旧分类预汇总读取列表。

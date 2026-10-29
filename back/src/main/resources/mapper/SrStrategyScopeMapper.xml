@@ -256,8 +256,10 @@
     <!-- Manual qoq is matched to the same category/business scope shown by StockExecution. -->
     <select id="selectManualBusinessQoq" resultType="java.util.HashMap">
         SELECT q.biz_name AS bizName, q.manual_qoq AS qoq
-        FROM t_sr_strategy_biz_capacity_qoq_manual q
+        FROM t_sr_manual_metric q
         WHERE q.status = 1
+          AND q.record_type = 'business_qoq'
+          AND q.metric_code = 'manual_qoq'
           AND q.manual_qoq IS NOT NULL
           AND q.tab_type = #{query.tabType}
           AND q.strategy_class = <choose>
@@ -310,6 +312,8 @@
 
     <sql id="audienceManualOverviewScope">
         m.status = 1
+        AND m.record_type = 'category_trend'
+        AND m.strategy_class = '重点客群'
         AND m.customer_group = <choose>
             <when test="query.customerGroup != null and query.customerGroup != ''">#{query.customerGroup}</when>
             <otherwise>'全部'</otherwise>
@@ -335,14 +339,14 @@
 
     <select id="selectLatestAudienceTrendMonth" resultType="java.lang.String">
         SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_key_audience_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="audienceManualOverviewScope"/>
     </select>
 
     <select id="selectAudienceManualKpis" resultType="java.util.HashMap">
         SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
                m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_key_audience_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="audienceManualOverviewScope"/>
           AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
         ORDER BY m.metric_code
@@ -351,7 +355,7 @@
     <select id="selectAudienceManualTrend" resultType="java.util.HashMap">
         SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
                m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_key_audience_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="audienceManualOverviewScope"/>
           AND m.metric_code = #{metricCode}
           AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
@@ -360,7 +364,8 @@
     </select>
 
     <sql id="audienceManualCapacityScope">
-        m.status = 1 AND m.metric_code = 'product_conv_num'
+        m.status = 1 AND m.record_type = 'category_trend'
+        AND m.strategy_class = '重点客群' AND m.metric_code = 'product_conv_num'
         AND m.customer_group = <choose>
             <when test="query.customerGroup != null and query.customerGroup != ''">#{query.customerGroup}</when>
             <otherwise>'全部'</otherwise>
@@ -393,14 +398,14 @@
 
     <select id="selectLatestAudienceCapacityTrendMonth" resultType="java.lang.String">
         SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_key_audience_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="audienceManualCapacityScope"/>
     </select>
 
     <select id="selectAudienceManualCapacityTrend" resultType="java.util.HashMap">
         SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
                m.metric_value AS capacity, m.manual_qoq AS qoq
-        FROM t_sr_key_audience_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="audienceManualCapacityScope"/>
           AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
         ORDER BY m.stat_month DESC
@@ -499,7 +504,7 @@
     </select>
 
     <sql id="upgradeStableManualOverviewScope">
-        m.status = 1
+        m.status = 1 AND m.record_type = 'category_trend'
         AND m.strategy_class = #{query.strategyClass}
         AND m.big_category = '全部' AND m.small_category = '全部'
         <choose>
@@ -522,14 +527,14 @@
 
     <select id="selectLatestUpgradeStableTrendMonth" resultType="java.lang.String">
         SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="upgradeStableManualOverviewScope"/>
     </select>
 
     <select id="selectUpgradeStableManualKpis" resultType="java.util.HashMap">
         SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
                m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="upgradeStableManualOverviewScope"/>
           AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
         ORDER BY m.metric_code
@@ -538,7 +543,7 @@
     <select id="selectUpgradeStableManualTrend" resultType="java.util.HashMap">
         SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
                m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="upgradeStableManualOverviewScope"/>
           AND m.metric_code = #{metricCode}
           AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
@@ -547,7 +552,8 @@
     </select>
 
     <sql id="upgradeStableManualCapacityScope">
-        m.status = 1 AND m.metric_code = 'product_conv_num'
+        m.status = 1 AND m.record_type = 'category_trend'
+        AND m.metric_code = 'product_conv_num'
         AND m.strategy_class = #{query.strategyClass}
         AND m.big_category = <choose>
             <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
@@ -577,14 +583,14 @@
 
     <select id="selectLatestUpgradeStableCapacityTrendMonth" resultType="java.lang.String">
         SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="upgradeStableManualCapacityScope"/>
     </select>
 
     <select id="selectUpgradeStableManualCapacityTrend" resultType="java.util.HashMap">
         SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
                m.metric_value AS capacity, m.manual_qoq AS qoq
-        FROM t_sr_upgrade_stable_monthly_trend_manual m
+        FROM t_sr_manual_metric m
         WHERE <include refid="upgradeStableManualCapacityScope"/>
           AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
         ORDER BY m.stat_month DESC

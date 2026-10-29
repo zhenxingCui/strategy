@@ -1432,8 +1432,10 @@
                        s.metric_value AS capacity,
                        s.manual_qoq AS qoq,
                        s.metric_value AS metricValue
-                FROM t_sr_key_audience_strategy_monthly_trend_manual s
-                WHERE s.strategy_id = #{strategyId}
+                FROM t_sr_manual_metric s
+                WHERE s.record_type = 'strategy_trend'
+                  AND s.strategy_class = '重点客群'
+                  AND s.strategy_id = #{strategyId}
                   AND s.metric_code = 'product_conv_num'
                   AND s.status = 1
                 <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') &lt;= #{statMonth}</if>
@@ -1457,8 +1459,9 @@
                        s.metric_value AS capacity,
                        s.manual_qoq AS qoq,
                        s.metric_value AS metricValue
-                FROM t_sr_upgrade_stable_strategy_monthly_trend_manual s
-                WHERE s.strategy_class = #{strategyClass}
+                FROM t_sr_manual_metric s
+                WHERE s.record_type = 'strategy_trend'
+                  AND s.strategy_class = #{strategyClass}
                   AND s.strategy_id = #{strategyId}
                   AND s.metric_code = 'product_conv_num'
                   AND s.status = 1
@@ -1591,8 +1594,10 @@
                    <when test="tabType == 'passive' or (tabType == 'active' and (strategyClass == &quot;升接&quot; or strategyClass == &quot;稳&quot; or strategyClass == &quot;重点客群&quot;))">
                         (
                            SELECT q.manual_qoq
-                           FROM t_sr_strategy_detail_biz_capacity_qoq_manual q
+                           FROM t_sr_manual_metric q
                            WHERE q.status = 1
+                             AND q.record_type = 'strategy_business_qoq'
+                             AND q.metric_code = 'manual_qoq'
                              AND q.manual_qoq IS NOT NULL
                              AND q.tab_type = #{tabType}
                              AND q.strategy_class = <choose>
