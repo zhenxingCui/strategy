@@ -74,43 +74,6 @@ import { exportTableToCsv } from '../utils/csvExport'
 
 // 默认高亮指标从 KPI 卡片第一条数据获取，不再写死
 
-// ===== fallback mock（后端未就绪时预览用，按 tabType 区分） =====
-const MOCK_KPI = {
-  active: [
-    { metricCode: 'strategy_count', label: '策略数', value: 100, unit: '个', trendQoQ: 6.7, trendYoY: 15.3, icon: 'grid' },
-    { metricCode: 'push_count', label: '推送量', value: 309.32, unit: '万', trendQoQ: 12.5, trendYoY: 26.8, icon: 'send' },
-    { metricCode: 'usage_count', label: '使用量', value: 298.56, unit: '万', trendQoQ: 11.8, trendYoY: 27.2, icon: 'user-check' },
-    { metricCode: 'reach_count', label: '触达量', value: 86.23, unit: '万', trendQoQ: -7.2, trendYoY: 19.4, icon: 'eye' },
-    { metricCode: 'product_conv_num', label: '转化量', value: 33.21, unit: '万', trendQoQ: 15.3, trendYoY: 32.8, icon: 'trending' },
-    { metricCode: 'product_conv_rate', label: '转化率', value: 3.85, unit: '%', trendQoQ: 0.39, trendYoY: 1.2, icon: 'percent' },
-    { metricCode: 'actual_income', label: '转收', value: 85.72, unit: '万元', trendQoQ: 18.5, trendYoY: 42.3, icon: 'dollar' }
-  ],
-  passive: [
-    { metricCode: 'strategy_count', label: '策略数', value: 80, unit: '个', trendQoQ: 4.2, trendYoY: 10.1, icon: 'grid' },
-    { metricCode: 'push_count', label: '推送量', value: 256.8, unit: '万', trendQoQ: -1.5, trendYoY: 6.3, icon: 'send' },
-    { metricCode: 'usage_count', label: '使用量', value: 231.2, unit: '万', trendQoQ: 4.2, trendYoY: 8.7, icon: 'user-check' },
-    { metricCode: 'reach_count', label: '触达量', value: 68.5, unit: '万', trendQoQ: 3.6, trendYoY: 7.4, icon: 'eye' },
-    { metricCode: 'product_conv_num', label: '转化量', value: 25.8, unit: '万', trendQoQ: 8.7, trendYoY: 15.6, icon: 'trending' },
-    { metricCode: 'product_conv_rate', label: '转化率', value: 3.76, unit: '%', trendQoQ: 0.5, trendYoY: 1.1, icon: 'percent' },
-    { metricCode: 'actual_income', label: '转收', value: 62.4, unit: '万元', trendQoQ: 12.3, trendYoY: 25.8, icon: 'dollar' }
-  ],
-  control: [
-    { metricCode: 'consult_count', label: '咨询量', value: 45000, unit: '次', trendQoQ: 10.2, trendYoY: 15.3, icon: 'eye' },
-    { metricCode: 'retain_count', label: '挽留量', value: 28000, unit: '个', trendQoQ: 8.7, trendYoY: 12.6, icon: 'user-check' },
-    { metricCode: 'retain_rate', label: '挽留率', value: 62.2, unit: '%', trendQoQ: 2.1, trendYoY: 3.8, icon: 'percent' },
-    { metricCode: 'dispatch_count', label: '派单量', value: 12000, unit: '单', trendQoQ: 15.3, trendYoY: 22.1, icon: 'send' },
-    { metricCode: 'success_count', label: '成功量', value: 8400, unit: '个', trendQoQ: 18.6, trendYoY: 26.4, icon: 'trending' },
-    { metricCode: 'success_rate', label: '成功率', value: 70.0, unit: '%', trendQoQ: 3.2, trendYoY: 5.1, icon: 'percent' },
-    { metricCode: 'income', label: '收入', value: 420000, unit: '元', trendQoQ: 22.1, trendYoY: 32.8, icon: 'dollar' }
-  ]
-}
-
-const MOCK_TREND = {
-  active: { months: ['2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'], values: [3500, 3800, 4100, 3900, 4200, 4600, 4800, 5300, 4500, 5800, 6200, 6800], qoq: [2.1, 8.6, 7.9, -4.9, 7.7, 9.5, 4.3, 10.4, -15.1, 28.9, 6.9, 9.7], unit: '个' },
-  passive: { months: ['2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'], values: [2400, 2700, 2900, 2800, 3100, 3300, 3500, 3900, 3300, 4200, 4500, 4900], qoq: [1.5, 12.5, 7.4, -3.4, 10.7, 6.5, 6.1, 11.4, -15.4, 27.3, 7.1, 8.9], unit: '个' },
-  control: { months: ['2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'], values: [5000, 5400, 5800, 5500, 6000, 6500, 7000, 7800, 6800, 8400, 9000, 9600], qoq: [5.2, 8.0, 7.4, -5.2, 9.1, 8.3, 7.7, 11.4, -12.8, 23.5, 7.1, 6.7], unit: '个' }
-}
-
 // 原型中 KPI icon 标识 → element-ui 图标类映射
 const ICON_CLASS_MAP = {
   grid: 'el-icon-menu',

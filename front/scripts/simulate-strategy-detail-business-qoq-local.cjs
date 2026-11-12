@@ -227,7 +227,7 @@ async function readBusinessFacts(connection, month, targetDetails) {
              COALESCE(NULLIF(b.county_id, ''), '全部') AS county_id
       FROM ${table} b
       WHERE b.tab_type = 'active' AND b.is_deleted = 0
-        AND b.stat_date >= ? AND b.stat_date < DATE_ADD(?, INTERVAL 1 MONTH)
+        AND b.stat_month >= ? AND b.stat_month < DATE_ADD(?, INTERVAL 1 MONTH)
         AND b.strategy_id IN (${placeholders})
         AND b.city_id = ?
         AND b.biz_name IS NOT NULL AND b.biz_name != '' AND b.biz_name != '全部'
@@ -394,7 +394,7 @@ async function verifyPersisted(connection, month, targetDetails, verificationPla
              b.yoy_ratio
       FROM ${table} b
       WHERE b.tab_type = 'active' AND b.is_deleted = 0
-        AND b.stat_date >= ? AND b.stat_date < DATE_ADD(?, INTERVAL 1 MONTH)
+        AND b.stat_month >= ? AND b.stat_month < DATE_ADD(?, INTERVAL 1 MONTH)
         AND b.strategy_id IN (${placeholders})
         AND b.city_id = ?
         AND b.biz_name IS NOT NULL AND b.biz_name != '' AND b.biz_name != '全部'

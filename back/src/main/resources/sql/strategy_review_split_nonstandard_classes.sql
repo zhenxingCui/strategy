@@ -1,3 +1,4 @@
+-- Must run before V007__align_production_table_schemas.sql; this one-time splitter uses local strategy_class extensions.
 -- Split active “降拆 / 离”, key-audience, and incremental (passive) data into dedicated table families.
 -- Run after the existing schema upgrade scripts. The script is safe to rerun.
 -- Active “全部” aggregate rows stay shared; all passive rows move to *_passive.
@@ -303,22 +304,10 @@ UNION ALL
 SELECT * FROM t_sr_strategy_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_kpi_summary_read AS
-SELECT * FROM t_sr_kpi_summary
-UNION ALL
-SELECT * FROM t_sr_kpi_summary_special
-UNION ALL
-SELECT * FROM t_sr_kpi_summary_passive
-UNION ALL
-SELECT * FROM t_sr_kpi_summary_key_audience;
+SELECT * FROM t_sr_kpi_summary UNION ALL SELECT * FROM t_sr_kpi_summary_special UNION ALL SELECT * FROM t_sr_kpi_summary_passive UNION ALL SELECT * FROM t_sr_kpi_summary_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_channel_summary_ap_read AS
-SELECT * FROM t_sr_channel_summary_ap
-UNION ALL
-SELECT * FROM t_sr_channel_summary_ap_special
-UNION ALL
-SELECT * FROM t_sr_channel_summary_ap_passive
-UNION ALL
-SELECT * FROM t_sr_channel_summary_ap_key_audience;
+SELECT * FROM t_sr_channel_summary_ap UNION ALL SELECT * FROM t_sr_channel_summary_ap_special UNION ALL SELECT * FROM t_sr_channel_summary_ap_passive UNION ALL SELECT * FROM t_sr_channel_summary_ap_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_strategy_period_summary_ap_read AS
 SELECT * FROM t_sr_strategy_period_summary_ap
@@ -330,13 +319,29 @@ UNION ALL
 SELECT * FROM t_sr_strategy_period_summary_ap_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_strategy_daily_ap_read AS
-SELECT * FROM t_sr_strategy_daily_ap
+SELECT id, tab_type, strategy_class, strategy_id, stat_month AS stat_date, channel, big_category, small_category,
+       strategy_name, original_cust, push_count, usage_count, usage_rate, reach_count, target_conv_num,
+       target_conv_rate, product_conv_num, product_conv_rate, expected_income, actual_income, reject_count,
+       reject_rate, city_id, county_id, is_deleted, strategy_code, create_time, update_time
+FROM t_sr_strategy_daily_ap
 UNION ALL
-SELECT * FROM t_sr_strategy_daily_ap_special
+SELECT id, tab_type, strategy_class, strategy_id, stat_month AS stat_date, channel, big_category, small_category,
+       strategy_name, original_cust, push_count, usage_count, usage_rate, reach_count, target_conv_num,
+       target_conv_rate, product_conv_num, product_conv_rate, expected_income, actual_income, reject_count,
+       reject_rate, city_id, county_id, is_deleted, strategy_code, create_time, update_time
+FROM t_sr_strategy_daily_ap_special
 UNION ALL
-SELECT * FROM t_sr_strategy_daily_ap_passive
+SELECT id, tab_type, strategy_class, strategy_id, stat_month AS stat_date, channel, big_category, small_category,
+       strategy_name, original_cust, push_count, usage_count, usage_rate, reach_count, target_conv_num,
+       target_conv_rate, product_conv_num, product_conv_rate, expected_income, actual_income, reject_count,
+       reject_rate, city_id, county_id, is_deleted, strategy_code, create_time, update_time
+FROM t_sr_strategy_daily_ap_passive
 UNION ALL
-SELECT * FROM t_sr_strategy_daily_ap_key_audience;
+SELECT id, tab_type, strategy_class, strategy_id, stat_month AS stat_date, channel, big_category, small_category,
+       strategy_name, original_cust, push_count, usage_count, usage_rate, reach_count, target_conv_num,
+       target_conv_rate, product_conv_num, product_conv_rate, expected_income, actual_income, reject_count,
+       reject_rate, city_id, county_id, is_deleted, strategy_code, create_time, update_time
+FROM t_sr_strategy_daily_ap_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_channel_monthly_capacity_ap_read AS
 SELECT * FROM t_sr_channel_monthly_capacity_ap
@@ -357,13 +362,7 @@ UNION ALL
 SELECT * FROM t_sr_channel_biz_capacity_ap_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_strategy_biz_capacity_read AS
-SELECT * FROM t_sr_strategy_biz_capacity
-UNION ALL
-SELECT * FROM t_sr_strategy_biz_capacity_special
-UNION ALL
-SELECT * FROM t_sr_strategy_biz_capacity_passive
-UNION ALL
-SELECT * FROM t_sr_strategy_biz_capacity_key_audience;
+SELECT * FROM t_sr_strategy_biz_capacity UNION ALL SELECT * FROM t_sr_strategy_biz_capacity_special UNION ALL SELECT * FROM t_sr_strategy_biz_capacity_passive UNION ALL SELECT * FROM t_sr_strategy_biz_capacity_key_audience;
 
 CREATE OR REPLACE VIEW v_sr_strategy_reject_reason_read AS
 SELECT * FROM t_sr_strategy_reject_reason

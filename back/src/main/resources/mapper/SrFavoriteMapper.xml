@@ -30,7 +30,7 @@
            AND s.is_deleted = 0
            <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
            <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
-        LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
+        LEFT JOIN t_sr_dim_channel d ON CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(f.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci
     </sql>
 
     <sql id="favoriteListJoinCtrl">
@@ -41,12 +41,12 @@
            AND s.is_deleted = 0
            <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
            <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
-        LEFT JOIN t_sr_dim_channel d ON d.key_code = f.channel
+        LEFT JOIN t_sr_dim_channel d ON CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(f.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci
     </sql>
 
     <sql id="favoriteFilters">
         <if test="query.manualOnly">AND f.source IN ('manual', 'manual+follow')</if>
-        <if test="query.channel != null and query.channel != ''">AND (f.channel = #{query.channel} OR f.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
+        <if test="query.channel != null and query.channel != ''">AND (f.channel = #{query.channel} OR CONVERT(f.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
         <if test="query.strategyName != null and query.strategyName != ''">
             AND f.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')
         </if>
@@ -81,7 +81,7 @@
                        COALESCE(s.strategy_code, f.strategy_id) AS strategyCode,
                        s.big_category AS bigCategory, s.small_category AS smallCategory,
                        f.channel      AS channel,
-                       COALESCE(d.key_name, f.channel) AS channelName,
+                       COALESCE(CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci, CONVERT(f.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci) AS channelName,
                        DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
                        f.source       AS source,
                        s.push_count             AS consultCount,
@@ -115,7 +115,7 @@
                        s.big_category AS bigCategory, s.small_category AS smallCategory,
                        s.strategy_class AS strategyClass,
                        f.channel      AS channel,
-                       COALESCE(d.key_name, f.channel) AS channelName,
+                       COALESCE(CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci, CONVERT(f.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci) AS channelName,
                        DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS favTime,
                        f.source       AS source,
                        s.original_cust        AS originalCust,

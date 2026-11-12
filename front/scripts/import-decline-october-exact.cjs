@@ -132,7 +132,7 @@ function buildDailyRows(facts, weights) {
       const values = Object.fromEntries(Object.keys(weightField).map((field) => [field, distributed[field][index]]))
       rows.push({
         tab_type: 'active', strategy_class: '降拆', strategy_id: monthly.strategy_id,
-        stat_date: weights.dates[index], channel: monthly.channel,
+        stat_month: weights.dates[index], channel: monthly.channel,
         big_category: monthly.big_category, small_category: monthly.small_category,
         strategy_name: monthly.strategy_name,
         ...values,
@@ -587,7 +587,7 @@ async function applyImport(ctx) {
     const monthFactsWhere = `tab_type='active' AND strategy_class='降拆' AND city_id='999' AND county_id='999' AND stat_month='2026-10-01' AND strategy_id IN (${idClause}) AND is_deleted=0`
     await conn.query(`UPDATE t_sr_strategy_period_summary_ap_special SET is_deleted=1,update_time=NOW() WHERE ${monthFactsWhere}`, strategyIds)
     await conn.query(`UPDATE t_sr_strategy_reject_reason_special SET is_deleted=1,update_time=NOW() WHERE city_id='999' AND county_id='999' AND stat_month='2026-10-01' AND strategy_id IN (${idClause}) AND is_deleted=0`, strategyIds)
-    await conn.query(`UPDATE t_sr_strategy_daily_ap_special SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND strategy_class='降拆' AND city_id='999' AND county_id='999' AND stat_date BETWEEN '2026-10-01' AND '2026-10-31' AND strategy_id IN (${idClause}) AND is_deleted=0`, strategyIds)
+    await conn.query(`UPDATE t_sr_strategy_daily_ap_special SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND strategy_class='降拆' AND city_id='999' AND county_id='999' AND stat_month BETWEEN '2026-10-01' AND '2026-10-31' AND strategy_id IN (${idClause}) AND is_deleted=0`, strategyIds)
     await conn.query("UPDATE t_sr_kpi_summary_special SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND strategy_class='降拆' AND city_id='999' AND county_id='999' AND stat_month='2026-10' AND is_deleted=0")
     await conn.query("UPDATE t_sr_channel_summary_ap_special SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND strategy_class='降拆' AND city_id='999' AND county_id='999' AND stat_month='2026-10-01' AND is_deleted=0")
     await insertRows(conn, 't_sr_strategy_period_summary_ap_special', facts.map((row) => ({ ...row, create_time: new Date(), update_time: new Date() })))
@@ -631,16 +631,16 @@ async function applyImport(ctx) {
   )
   const [dailyVerification] = await conn.query(
     `SELECT COUNT(*) AS row_count, COUNT(DISTINCT strategy_id) AS strategy_count,
-            COUNT(DISTINCT channel) AS channel_count, COUNT(DISTINCT stat_date) AS date_count
+            COUNT(DISTINCT channel) AS channel_count, COUNT(DISTINCT stat_month) AS date_count
      FROM t_sr_strategy_daily_ap_special WHERE tab_type='active' AND strategy_class='降拆'
-       AND city_id='999' AND county_id='999' AND stat_date BETWEEN '2026-10-01' AND ?
+       AND city_id='999' AND county_id='999' AND stat_month BETWEEN '2026-10-01' AND ?
        AND strategy_id IN (${idClause}) AND is_deleted=0`, [DAILY_CUTOFF, ...strategyIds],
   )
   const [dailyTotals] = await conn.query(
     `SELECT strategy_id, SUM(push_count) AS push_count, SUM(usage_count) AS usage_count,
             SUM(reach_count) AS reach_count, SUM(product_conv_num) AS product_conv_num
      FROM t_sr_strategy_daily_ap_special WHERE tab_type='active' AND strategy_class='降拆'
-       AND city_id='999' AND county_id='999' AND stat_date BETWEEN '2026-10-01' AND ?
+       AND city_id='999' AND county_id='999' AND stat_month BETWEEN '2026-10-01' AND ?
        AND strategy_id IN (${idClause}) AND is_deleted=0 GROUP BY strategy_id`, [DAILY_CUTOFF, ...strategyIds],
   )
   const [rawVerification] = await conn.query(

@@ -20,7 +20,7 @@ async function main() {
       const names = columns.map(column => column.Field).filter(column => !['id', 'legacy_table', 'legacy_id', 'strategy_ref', 'row_kind'].includes(column))
       for (const source of group.sources) {
         const conditions = names.map(column => {
-          const original = group.target === 'sr_strategy_daily' && source === 't_sr_strategy_daily_ap' && column === 'stat_date' ? 'stat_month' : column
+          const original = column
           return `(x.${c.escapeId(original)} <=> y.${c.escapeId(column)})`
         }).join(' AND ')
         const sql = `SELECT COUNT(*) AS source_count, SUM(y.id IS NULL) AS missing, SUM(y.id IS NOT NULL AND NOT (${conditions})) AS changed, SUM(y.id IS NOT NULL AND NOT (y.row_kind <=> CASE WHEN x.strategy_id='999' THEN 'aggregate' WHEN s.id IS NULL THEN 'unresolved' ELSE 'detail' END)) AS wrong_kind, SUM(y.id IS NOT NULL AND NOT (y.strategy_ref <=> s.id)) AS wrong_ref FROM ${c.escapeId(SOURCE)}.${c.escapeId(source)} x LEFT JOIN ${c.escapeId(TARGET)}.${c.escapeId(group.target)} y ON y.legacy_table=? AND y.legacy_id=x.id LEFT JOIN ${c.escapeId(TARGET)}.sr_strategy s ON s.strategy_code=x.strategy_id AND s.strategy_class=x.strategy_class WHERE x.tab_type=? AND x.strategy_class IN (?)`

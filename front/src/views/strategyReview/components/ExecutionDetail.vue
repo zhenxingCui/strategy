@@ -281,146 +281,6 @@ function extractTotal (res, list) {
   return (list || []).length
 }
 
-const CATEGORY_MAP = {
-  active: {
-    '高饱和策略': { bigCategory: '存量经营', smallCategory: '高饱和关怀' },
-    '套餐焕新挽留': { bigCategory: '存量经营', smallCategory: '套餐焕新' }
-  },
-  passive: {
-    '到期关怀-P1': { bigCategory: '存量经营', smallCategory: '到期关怀' }
-  },
-  control: {
-    '套餐咨询挽留-C1': { bigCategory: '咨询挽留', smallCategory: '套餐咨询' }
-  }
-}
-
-const getCategory = (tabType, name) => {
-  const map = CATEGORY_MAP[tabType] || {}
-  return map[name] || { bigCategory: '-', smallCategory: '-' }
-}
-
-const MOCK_STRATEGY_INFO = {
-  active: { strategyId: 1001, strategyCode: 'STR-ACT-001', name: '高饱和策略', channel: '在线-外呼', level: '省级策划', caliber: '80%饱和度以上', iteration: '3次', createTime: '2026-03-12' },
-  passive: { strategyId: 2001, strategyCode: 'STR-PSV-001', name: '到期关怀-P1', channel: 'App推送', level: '省级策划', caliber: '到期30天内用户', iteration: '2次', createTime: '2026-02-20' },
-  control: { strategyId: 3001, strategyCode: 'STR-CTL-001', name: '套餐咨询挽留-C1', channel: '热线', level: '客服级', caliber: '套餐咨询用户', iteration: '4次', createTime: '2026-01-15' }
-}
-
-const MOCK_CAPACITY_TREND = {
-  active: { months: ['2月', '3月', '4月', '5月', '6月', '7月'], capacity: [800, 950, 850, 1000, 1150, 1300], mom: [5, 18, -8, 15, 12, 10] },
-  passive: { months: ['2月', '3月', '4月', '5月', '6月', '7月'], capacity: [600, 720, 580, 800, 900, 1000], mom: [3, 15, -10, 12, 10, 8] },
-  control: { months: ['2月', '3月', '4月', '5月', '6月', '7月'], capacity: [2800, 3200, 2900, 3500, 3800, 4200], mom: [8, 12, -5, 14, 9, 7] }
-}
-
-const MOCK_REJECT_DATA = {
-  active: {
-    rejectRate: 8.0,
-    rejectCount: 3856,
-    reasons: [
-      { reasonName: '客群重叠', ratio: 33.6, count: 1296, color: '#3b6cb5' },
-      { reasonName: '价格因素', ratio: 21.5, count: 829, color: '#e67e22' },
-      { reasonName: '规则冲突', ratio: 17.8, count: 686, color: '#f1c40f' },
-      { reasonName: '资源不足', ratio: 14.2, count: 548, color: '#5aad3e' },
-      { reasonName: '其他原因', ratio: 12.9, count: 497, color: '#95a5a6' }
-    ]
-  },
-  passive: {
-    rejectRate: 12.3,
-    rejectCount: 5620,
-    reasons: [
-      { reasonName: '价格因素', ratio: 38.2, count: 2147, color: '#3b6cb5' },
-      { reasonName: '不需要', ratio: 25.6, count: 1439, color: '#e67e22' },
-      { reasonName: '已有类似', ratio: 18.1, count: 1017, color: '#f1c40f' },
-      { reasonName: '考虑中', ratio: 10.4, count: 584, color: '#5aad3e' },
-      { reasonName: '其他', ratio: 7.7, count: 433, color: '#95a5a6' }
-    ]
-  },
-  control: {
-    rejectRate: 0,
-    rejectCount: 0,
-    reasons: []
-  }
-}
-
-const MOCK_BIZ_CAPACITY = {
-  active: [
-    { bizName: '套餐焕新', capacity: 1256, qoq: 5.2 },
-    { bizName: '流量包', capacity: 986, qoq: 3.8 },
-    { bizName: '宽带新装', capacity: 865, qoq: 8.9 },
-    { bizName: '修复', capacity: 756, qoq: 1.2 },
-    { bizName: '百G包', capacity: 623, qoq: 2.4 },
-    { bizName: '5G升级', capacity: 580, qoq: 6.7 },
-    { bizName: '亲情网', capacity: 420, qoq: -1.5 }
-  ],
-  passive: [
-    { bizName: '到期续约', capacity: 2100, qoq: 8.5 },
-    { bizName: '套餐升级', capacity: 1800, qoq: 12.3 },
-    { bizName: '流量包', capacity: 1200, qoq: 4.2 },
-    { bizName: '宽带续约', capacity: 950, qoq: -2.1 },
-    { bizName: '权益包', capacity: 680, qoq: 15.6 }
-  ],
-  control: [
-    { bizName: '套餐挽留', capacity: 3200, qoq: 6.5 },
-    { bizName: '资费答疑', capacity: 2800, qoq: 4.2 },
-    { bizName: '故障处理', capacity: 2100, qoq: -1.8 },
-    { bizName: '业务办理', capacity: 1500, qoq: 9.3 }
-  ]
-}
-
-const generateDailyData = (tabType, strategyName) => {
-  const cat = getCategory(tabType, strategyName)
-  const list = []
-  const baseDate = new Date(2026, 6, 13)
-  for (let i = 0; i < 15; i++) {
-    const d = new Date(baseDate)
-    d.setDate(d.getDate() - i)
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    if (tabType === 'control') {
-      const consult = 8000 + Math.floor(Math.random() * 15000)
-      const retain = Math.floor(consult * (0.92 + Math.random() * 0.07))
-      const success = Math.floor(retain * (0.18 + Math.random() * 0.1))
-      list.push({
-        date: dateStr,
-        bigCategory: cat.bigCategory,
-        smallCategory: cat.smallCategory,
-        strategyName: strategyName,
-        consultCount: consult.toLocaleString(),
-        retainCount: retain.toLocaleString(),
-        retainRate: (retain / consult * 100).toFixed(1) + '%',
-        successCount: success.toLocaleString(),
-        successRate: (success / retain * 100).toFixed(1) + '%',
-        income: (success * (30 + Math.floor(Math.random() * 25))).toLocaleString()
-      })
-    } else {
-      const orig = 40000 + Math.floor(Math.random() * 12000)
-      const push = Math.floor(orig * (0.94 + Math.random() * 0.05))
-      const usage = Math.floor(push * (0.85 + Math.random() * 0.04))
-      const reach = Math.floor(usage * (0.88 + Math.random() * 0.05))
-      const targetConv = Math.floor(reach * (0.11 + Math.random() * 0.04))
-      const prodConv = Math.floor(reach * (0.21 + Math.random() * 0.04))
-      const expIncome = Math.floor(prodConv * (18 + Math.random() * 8)) * 100
-      const actIncome = Math.floor(expIncome * (0.85 + Math.random() * 0.1))
-      list.push({
-        date: dateStr,
-        bigCategory: cat.bigCategory,
-        smallCategory: cat.smallCategory,
-        strategyName: strategyName,
-        originalCust: orig.toLocaleString(),
-        pushCount: push.toLocaleString(),
-        usageCount: usage.toLocaleString(),
-        usageRate: (usage / push * 100).toFixed(1) + '%',
-        reachCount: reach.toLocaleString(),
-        targetConvNum: targetConv.toLocaleString(),
-        targetConvRate: (targetConv / reach * 100).toFixed(1) + '%',
-        productConvNum: prodConv.toLocaleString(),
-        productConvRate: (prodConv / reach * 100).toFixed(1) + '%',
-        expectedIncome: expIncome.toLocaleString(),
-        actualIncome: actIncome.toLocaleString()
-      })
-    }
-  }
-  return list
-}
-
 export default {
   name: 'ExecutionDetail',
   components: { EChart },
@@ -439,7 +299,7 @@ export default {
       activeTab: 'daily',
       strategyInfo: {},
       capacityTrend: { months: [], capacity: [], mom: [] },
-      rejectData: { rejectRate: 0, rejectCount: 0, reasons: [] },
+      rejectData: { rejectRate: null, rejectCount: null, reasons: [] },
       bizCapacity: [],
       bizPage: 1,
       bizPageSize: 5,
@@ -597,7 +457,7 @@ export default {
       // 重置数据，等待 activeStrategy 更新后再加载（避免用旧 tab 的 strategyId 请求）
       this.strategyInfo = {}
       this.capacityTrend = { months: [], capacity: [], mom: [] }
-      this.rejectData = { rejectRate: 0, rejectCount: 0, reasons: [] }
+      this.rejectData = { rejectRate: null, rejectCount: null, reasons: [] }
       this.bizCapacity = []
       this.dailyDetail = []
       this.dailyTotal = 0
@@ -794,7 +654,7 @@ export default {
     },
     async fetchRejectReason () {
       if (!this.activeStrategy.strategyId) {
-        this.rejectData = { rejectRate: 0, rejectCount: 0, reasons: [] }
+        this.rejectData = { rejectRate: null, rejectCount: null, reasons: [] }
         return
       }
       this.rejectLoading = true
@@ -807,15 +667,15 @@ export default {
         if (res && Array.isArray(res.reasons) && res.reasons.length > 0) {
           this.rejectData = res
         } else if (Array.isArray(res) && res.length > 0) {
-          this.rejectData = { rejectRate: 0, rejectCount: 0, reasons: res }
+          this.rejectData = { rejectRate: null, rejectCount: null, reasons: res }
         } else if (Array.isArray(res && res.list) && res.list.length > 0) {
-          this.rejectData = { rejectRate: res.rejectRate || 0, rejectCount: res.rejectCount || 0, reasons: res.list }
+          this.rejectData = { rejectRate: res.rejectRate ?? null, rejectCount: res.rejectCount ?? null, reasons: res.list }
         } else {
-          this.rejectData = { rejectRate: 0, rejectCount: 0, reasons: [] }
+          this.rejectData = { rejectRate: null, rejectCount: null, reasons: [] }
         }
       } catch (e) {
         console.error('[ExecutionDetail] getStrategyRejectReason error:', e)
-        this.rejectData = { rejectRate: 0, rejectCount: 0, reasons: [] }
+        this.rejectData = { rejectRate: null, rejectCount: null, reasons: [] }
       } finally {
         this.rejectLoading = false
       }

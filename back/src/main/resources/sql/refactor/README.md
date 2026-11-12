@@ -80,3 +80,19 @@ node scripts/stock-overview-regression.cjs compare ../outputs/overview-before.js
 ```
 
 验证应使用相同数据版本，目标后端可通过 `SR_API_BASE` 指定本机另一端口。新旧结果一致并不意味着历史趋势或未来的新数据已完成迁移。
+
+## V007：本地表对齐生产 DDL
+
+`V007__align_production_table_schemas.sql` 仅用于本地库 `strategy_review_active_class_local`，按邮件附件中的七张 `CREATE TABLE` 定义重建表结构。先备份七张表，再在本地执行；脚本自身会校验当前库名。它应在 `V003` 至 `V006` 和一次性分类拆表脚本之后执行。不要对生产库运行。
+
+迁移把 KPI 与渠道汇总中带本地 `strategy_class` 的分类行留在 `*_local_class_archive` 辅助表；主表仅保留可映射到生产无分类列的汇总行。策略业务产能的 control 行迁到 `t_sr_strategy_biz_capacity_ctrl`。月产能 `stat_month` 统一保存为 `yyyyMM`。目标表按生产 DDL 收紧的数值精度会四舍五入；为满足生产非空定义，KPI 空 `value` 填 0，日表空审计时间回填 `stat_month`，周期表空策略名回填策略编码或 ID。
+
+接口层从策略周期事实聚合 active 的 KPI 与渠道汇总；策略业务产能查询区分生产基表与 control 辅助表。迁移后可以只读检查七张表的 `information_schema.COLUMNS` 和 `STATISTICS`，确认字段顺序、类型、空值约束、默认值及索引与附件 DDL 一致。
+
+## V008：分类后缀表对齐基表
+
+`V008__align_variant_table_schemas.sql` 仅用于 `strategy_review_active_class_local`，在 V007 之后执行一次。脚本使用 `CREATE TABLE ... LIKE` 重建 9 组 `_special` 和 `_key_audience` 表，保留全部行，并在切换前核对行数。原表保留为 `__pre_v008` 结尾的本地备份表；执行前仍需另行备份数据。不要重复执行 V008，也不要在 V008 后重跑会给分类表添加扩展列的旧迁移。
+
+KPI、渠道汇总和策略业务产能中基表没有的分类、原始空值、触达率及本地日期字段保存到 `*_local_ext`，后端通过 `v_sr_*_compat` 视图读取。月产能账期从 DATE 转为 `yyyyMM`；超出基表精度的小数按目标位数四舍五入；KPI 空值在物理表填 0 并在扩展表记录原始空值，日表空审计时间使用统计日期回填。
+
+`front/scripts` 中旧版手工导入或模拟脚本若直接向分类物理表写入 `strategy_class`、`reach_rate`、`tab_type` 或 `stat_date` 等已移除字段，需要先改为按基表列写入并同步对应扩展表。特别是基表允许 `id` 为空；需要扩展数据的新增行必须使用唯一、非空的 `id` 并在同一事务中写入扩展表，才能通过兼容视图关联。

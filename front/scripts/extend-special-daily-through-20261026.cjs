@@ -106,7 +106,7 @@ function declineDailyRows(monthlyRows, sourceWeights, sampleById) {
     assert(sample, `Missing prior daily row for ${monthly.strategy_id}`)
     for (const date of DATE_LIST) {
       const dayIndex = Number(date.slice(-2)) - 1
-      const row = { ...sample, stat_date: date }
+      const row = { ...sample, stat_month: date }
       for (const field of fields) {
         const total = finiteOrNull(monthly[field])
         if (total === null) {
@@ -133,7 +133,7 @@ function declineDailyRows(monthlyRows, sourceWeights, sampleById) {
 
 function sameWeekdayAverage(rows, field, date) {
   const day = weekDay(date)
-  const matching = rows.filter((row) => weekDay(String(row.stat_date).slice(0, 10)) === day)
+  const matching = rows.filter((row) => weekDay(String(row.stat_month).slice(0, 10)) === day)
   return average(matching.length ? matching : rows, field)
 }
 
@@ -163,7 +163,7 @@ function leaveDailyRows(monthlyRows, previousRows, sampleById) {
     const productMatchesTarget = productObserved && targetObserved && history.every((row) => Number(row.product_conv_num) === Number(row.target_conv_num))
 
     for (const date of DATE_LIST) {
-      const row = { ...sample, stat_date: date }
+      const row = { ...sample, stat_month: date }
       const countNoise = stableNoise(`leave-daily-v1:${monthly.strategy_id}:${date}`, 0.92, 1.08)
     const pushBase = pushObserved ? sameWeekdayAverage(recent, 'push_count', date) : null
       row.push_count = pushBase === null ? null : Math.max(0, round(pushBase * countNoise))
@@ -206,20 +206,20 @@ function leaveDailyRows(monthlyRows, previousRows, sampleById) {
 function validateRows(config, rows) {
   assert.equal(rows.length, config.expectedStrategies * DATE_LIST.length, `${config.strategyClass} generated row count`)
   for (const row of rows) {
-    assert(DATE_LIST.includes(String(row.stat_date).slice(0, 10)), `${config.strategyClass} has an out-of-range date`)
+    assert(DATE_LIST.includes(String(row.stat_month).slice(0, 10)), `${config.strategyClass} has an out-of-range date`)
     for (const field of COUNT_FIELDS) {
       const value = finiteOrNull(row[field])
-      assert(value === null || Number.isSafeInteger(value) && value >= 0, `${config.strategyClass}/${row.strategy_id}/${row.stat_date}: invalid ${field}`)
+      assert(value === null || Number.isSafeInteger(value) && value >= 0, `${config.strategyClass}/${row.strategy_id}/${row.stat_month}: invalid ${field}`)
     }
     for (const field of MONEY_FIELDS) {
       const value = finiteOrNull(row[field])
-      assert(value === null || Number.isFinite(value) && value >= 0, `${config.strategyClass}/${row.strategy_id}/${row.stat_date}: invalid ${field}`)
+      assert(value === null || Number.isFinite(value) && value >= 0, `${config.strategyClass}/${row.strategy_id}/${row.stat_month}: invalid ${field}`)
     }
     if (config.strategyClass === '离') {
-      assert(row.usage_count <= row.push_count, `离 usage exceeds push: ${row.strategy_id}/${row.stat_date}`)
-      assert(row.reach_count <= row.usage_count, `离 reach exceeds usage: ${row.strategy_id}/${row.stat_date}`)
+      assert(row.usage_count <= row.push_count, `离 usage exceeds push: ${row.strategy_id}/${row.stat_month}`)
+      assert(row.reach_count <= row.usage_count, `离 reach exceeds usage: ${row.strategy_id}/${row.stat_month}`)
       assert(row.target_conv_num <= row.reach_count && row.product_conv_num <= row.reach_count,
-        `离 conversion exceeds reach: ${row.strategy_id}/${row.stat_date}`)
+        `离 conversion exceeds reach: ${row.strategy_id}/${row.stat_month}`)
     }
   }
 }
@@ -249,7 +249,7 @@ async function main() {
         assert.deepEqual([...ids].sort(), [...manifest.dailyStrategyIds].sort(), `${config.strategyClass} manifest strategy IDs`)
       }
       const [existing] = await conn.query(
-        `SELECT * FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0 ORDER BY strategy_id,stat_date`,
+        `SELECT * FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0 ORDER BY strategy_id,stat_month`,
         [TABLE, config.strategyClass, ids, START, SOURCE_CUTOFF],
       )
       assert.equal(existing.length, config.expectedStrategies * 21, `${config.strategyClass} source daily row count`)
@@ -261,15 +261,15 @@ async function main() {
       for (const id of ids) {
         const rows = byId.get(id) || []
         assert.equal(rows.length, 21, `${config.strategyClass}/${id} existing daily count`)
-        assert.equal(new Set(rows.map((row) => String(row.stat_date).slice(0, 10))).size, 21, `${config.strategyClass}/${id} duplicate source dates`)
+        assert.equal(new Set(rows.map((row) => String(row.stat_month).slice(0, 10))).size, 21, `${config.strategyClass}/${id} duplicate source dates`)
       }
       const [existingTarget] = await conn.query(
-        `SELECT * FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0 ORDER BY strategy_id,stat_date`,
+        `SELECT * FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0 ORDER BY strategy_id,stat_month`,
         [TABLE, config.strategyClass, ids, EXTENSION_START, END],
       )
       assert.equal(existingTarget.length, 0, `${config.strategyClass} already has daily rows in the requested extension range; review before replacing`)
       const sampleById = new Map()
-      for (const row of existing) if (String(row.stat_date).slice(0, 10) === SOURCE_CUTOFF) sampleById.set(row.strategy_id, row)
+      for (const row of existing) if (String(row.stat_month).slice(0, 10) === SOURCE_CUTOFF) sampleById.set(row.strategy_id, row)
       const rows = config.mode === 'decline-excel-weights'
         ? declineDailyRows(monthly, loadDeclineWeights(manifest), sampleById)
         : leaveDailyRows(monthly, existing, sampleById)
@@ -325,12 +325,12 @@ async function main() {
     const autoColumns = new Set(columns.filter((column) => String(column.Extra || '').includes('auto_increment')).map((column) => column.Field))
     const generatedColumns = new Set(columns.filter((column) => /GENERATED/i.test(String(column.Extra || ''))).map((column) => column.Field))
     const insertKeys = Object.keys(allRows[0]).filter((key) => key !== 'id' && !autoColumns.has(key) && !generatedColumns.has(key))
-    assert(insertKeys.includes('stat_date') && insertKeys.includes('strategy_id'))
+    assert(insertKeys.includes('stat_month') && insertKeys.includes('strategy_id'))
 
     await conn.beginTransaction(); transaction = true
     for (const item of prepared) {
       const [locked] = await conn.query(
-        `SELECT strategy_id,stat_date FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0 FOR UPDATE`,
+        `SELECT strategy_id,stat_month FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0 FOR UPDATE`,
         [TABLE, item.config.strategyClass, item.ids, EXTENSION_START, END],
       )
       assert.equal(locked.length, 0, `${item.config.strategyClass} extension range changed after preflight`)
@@ -341,7 +341,7 @@ async function main() {
     const verification = []
     for (const item of prepared) {
       const [result] = await conn.query(
-        `SELECT COUNT(*) rows_n,COUNT(DISTINCT strategy_id) strategies,COUNT(DISTINCT stat_date) days,MIN(stat_date) first_day,MAX(stat_date) last_day,SUM(push_count) push_count,SUM(usage_count) usage_count,SUM(reach_count) reach_count,SUM(target_conv_num) target_conv_num,SUM(product_conv_num) product_conv_num FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0`,
+        `SELECT COUNT(*) rows_n,COUNT(DISTINCT strategy_id) strategies,COUNT(DISTINCT stat_month) days,MIN(stat_month) first_day,MAX(stat_month) last_day,SUM(push_count) push_count,SUM(usage_count) usage_count,SUM(reach_count) reach_count,SUM(target_conv_num) target_conv_num,SUM(product_conv_num) product_conv_num FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0`,
         [TABLE, item.config.strategyClass, item.ids, START, END],
       )
       const current = result[0]
@@ -351,13 +351,13 @@ async function main() {
       assert.equal(String(current.first_day).slice(0, 10), START)
       assert.equal(String(current.last_day).slice(0, 10), END)
       const [byDate] = await conn.query(
-        `SELECT stat_date,COUNT(*) n FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0 GROUP BY stat_date ORDER BY stat_date`,
+        `SELECT stat_month,COUNT(*) n FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0 GROUP BY stat_month ORDER BY stat_month`,
         [TABLE, item.config.strategyClass, item.ids, START, END],
       )
       assert.equal(byDate.length, 26, `${item.config.strategyClass} daily date groups`)
       assert(byDate.every((row) => Number(row.n) === item.config.expectedStrategies), `${item.config.strategyClass} daily rows per date`)
       const [duplicates] = await conn.query(
-        `SELECT strategy_id,stat_date,COUNT(*) n FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_date BETWEEN ? AND ? AND is_deleted=0 GROUP BY strategy_id,stat_date HAVING COUNT(*)<>1 LIMIT 1`,
+        `SELECT strategy_id,stat_month,COUNT(*) n FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id='999' AND strategy_id IN (?) AND stat_month BETWEEN ? AND ? AND is_deleted=0 GROUP BY strategy_id,stat_month HAVING COUNT(*)<>1 LIMIT 1`,
         [TABLE, item.config.strategyClass, item.ids, START, END],
       )
       assert.equal(duplicates.length, 0, `${item.config.strategyClass} duplicate daily keys`)

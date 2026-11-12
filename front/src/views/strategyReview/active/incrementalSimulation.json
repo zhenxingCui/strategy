@@ -7,8 +7,8 @@
   "baselineMonth": "2025-12",
   "sourceMonth": "2026-10",
   "sourceCutoff": "2026-10-21",
-  "dailyStartDate": "2026-10-01",
-  "dailyEndDate": "2026-10-21",
+  "dailyStartDate": "2026-10-09",
+  "dailyEndDate": "2026-10-29",
   "dailyStrategyIds": [
     "zl_1001",
     "zl_1002",

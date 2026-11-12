@@ -36,14 +36,17 @@
           <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND s.city_id = #{query.cityId}</if>
           <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND s.county_id = #{query.countyId}</if>
           <if test="channel != null and channel != '' and channel != '全部' and channel != '全部渠道'">
-            AND (s.channel = #{channel} OR s.channel IN (
-              SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel}
+            AND ((s.channel COLLATE utf8mb4_unicode_ci) = (#{channel} COLLATE utf8mb4_unicode_ci)
+              OR (s.channel COLLATE utf8mb4_unicode_ci) IN (
+              SELECT d.key_code COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
+              WHERE d.key_name COLLATE utf8mb4_unicode_ci = #{channel} COLLATE utf8mb4_unicode_ci
                 AND d.status = 1 AND d.is_deleted = 0
                 AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)))
           </if>
           <if test="query.strategyClass == '重点客群' and query.customerGroup != null and query.customerGroup != ''">
             AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience g
-              WHERE g.strategy_code = s.strategy_id AND g.tab_type = 'active'
+              WHERE g.strategy_code COLLATE utf8mb4_unicode_ci = s.strategy_id COLLATE utf8mb4_unicode_ci
+                AND g.tab_type = 'active'
                 AND g.strategy_class = '重点客群' AND g.is_deleted = 0
                 AND g.customer_group = #{query.customerGroup})
           </if>
@@ -62,7 +65,8 @@
         WHERE s.is_deleted = 0 AND s.strategy_id IS NOT NULL AND s.strategy_id != '999'
           AND s.small_category IS NOT NULL AND TRIM(s.small_category) != '' AND s.small_category != '全部'
           AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
-              WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control' AND product.is_deleted = 0)
+              WHERE product.strategy_code COLLATE utf8mb4_unicode_ci = s.strategy_id COLLATE utf8mb4_unicode_ci
+                AND product.tab_type = 'control' AND product.is_deleted = 0)
         ORDER BY keyName
     </select>
 
@@ -70,6 +74,7 @@
         <choose>
             <when test="query.tabType == 'control'">t_sr_strategy_period_summary_ctrl</when>
             <when test="query.tabType == 'passive'">t_sr_strategy_period_summary_ap_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#21319;&#25509;&quot; or query.strategyClass == &quot;&#31283;&quot;)">t_sr_strategy_period_summary_ap</when>
             <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_period_summary_ap_key_audience</when>
             <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_period_summary_ap_special</when>
             <otherwise>v_sr_strategy_period_summary_ap_read</otherwise>
@@ -79,6 +84,7 @@
     <sql id="dailyTable">
         <choose>
             <when test="query.tabType == 'passive'">t_sr_strategy_daily_ap_passive</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#21319;&#25509;&quot; or query.strategyClass == &quot;&#31283;&quot;)">t_sr_strategy_daily_ap</when>
             <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_daily_ap_key_audience</when>
             <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_daily_ap_special</when>
             <otherwise>v_sr_strategy_daily_ap_read</otherwise>
@@ -87,11 +93,26 @@
 
     <sql id="strategyBizCapacityTable">
         <choose>
-            <when test="query.tabType == 'control'">t_sr_strategy_biz_capacity</when>
+            <when test="query.tabType == 'control'">t_sr_strategy_biz_capacity_ctrl</when>
             <when test="query.tabType == 'passive'">t_sr_strategy_biz_capacity_passive</when>
-            <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">t_sr_strategy_biz_capacity_key_audience</when>
-            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">t_sr_strategy_biz_capacity_special</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#21319;&#25509;&quot; or query.strategyClass == &quot;&#31283;&quot;)">t_sr_strategy_biz_capacity</when>
+            <when test="query.tabType == 'active' and query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;">v_sr_strategy_biz_capacity_key_audience_compat</when>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot;)">v_sr_strategy_biz_capacity_special_compat</when>
             <otherwise>v_sr_strategy_biz_capacity_read</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="dailyDateColumn">
+        <choose>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#21319;&#25509;&quot; or query.strategyClass == &quot;&#31283;&quot; or query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot; or query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;)">stat_month</when>
+            <otherwise>stat_date</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="strategyBizDateColumn">
+        <choose>
+            <when test="query.tabType == 'active' and (query.strategyClass == &quot;&#21319;&#25509;&quot; or query.strategyClass == &quot;&#31283;&quot; or query.strategyClass == &quot;&#38477;&#25286;&quot; or query.strategyClass == &quot;&#31163;&quot; or query.strategyClass == &quot;&#37325;&#28857;&#23458;&#32676;&quot;)">stat_month</when>
+            <otherwise>stat_date</otherwise>
         </choose>
     </sql>
 
@@ -103,7 +124,8 @@
         <choose>
             <when test="query.tabType == 'control'">
                 AND EXISTS (SELECT 1 FROM v_sr_strategy_read product
-                    WHERE product.strategy_code = s.strategy_id AND product.tab_type = 'control'
+                    WHERE product.strategy_code COLLATE utf8mb4_unicode_ci = s.strategy_id COLLATE utf8mb4_unicode_ci
+                      AND product.tab_type = 'control'
                       AND product.is_deleted = 0)
                 <if test="query.productName != null and query.productName != ''">
                     AND s.small_category = #{query.productName}
@@ -121,7 +143,8 @@
                 </choose>
                 <if test="query.customerGroup != null and query.customerGroup != ''">
                 AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
-                    WHERE cg.strategy_code = s.strategy_id AND cg.tab_type = 'active'
+                    WHERE cg.strategy_code COLLATE utf8mb4_unicode_ci = s.strategy_id COLLATE utf8mb4_unicode_ci
+                      AND cg.tab_type = 'active'
                       AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                       AND cg.customer_group = #{query.customerGroup})
                 </if>
@@ -129,7 +152,14 @@
         </choose>
         <if test="query.cityId != null and query.cityId != ''">AND s.city_id = #{query.cityId}</if>
         <if test="query.countyId != null and query.countyId != ''">AND s.county_id = #{query.countyId}</if>
-        <if test="query.channel != null and query.channel != ''">AND (s.channel = #{query.channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)))</if>
+        <if test="query.channel != null and query.channel != '' and query.channel != '全部' and query.channel != '全部渠道'">
+            AND ((s.channel COLLATE utf8mb4_unicode_ci) = (#{query.channel} COLLATE utf8mb4_unicode_ci)
+              OR (s.channel COLLATE utf8mb4_unicode_ci) IN (
+                SELECT d.key_code COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
+                WHERE d.key_name COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci
+                  AND d.status = 1 AND d.is_deleted = 0
+                  AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0)))
+        </if>
         <if test="query.bigCategory != null and query.bigCategory != ''">AND s.big_category = #{query.bigCategory}</if>
         <if test="query.smallCategory != null and query.smallCategory != ''">AND s.small_category = #{query.smallCategory}</if>
         <if test="query.strategyName != null and query.strategyName != ''">AND s.strategy_name LIKE CONCAT('%', #{query.strategyName}, '%')</if>
@@ -151,15 +181,18 @@
         </choose>
         <if test="query.customerGroup != null and query.customerGroup != ''">
             AND EXISTS (SELECT 1 FROM t_sr_strategy_key_audience cg
-                WHERE cg.strategy_code = d.strategy_id AND cg.tab_type = 'active'
+                WHERE cg.strategy_code COLLATE utf8mb4_unicode_ci = d.strategy_id COLLATE utf8mb4_unicode_ci
+                  AND cg.tab_type = 'active'
                   AND cg.strategy_class = '重点客群' AND cg.is_deleted = 0
                   AND cg.customer_group = #{query.customerGroup})
         </if>
         <if test="query.cityId != null and query.cityId != ''">AND d.city_id = #{query.cityId}</if>
         <if test="query.countyId != null and query.countyId != ''">AND d.county_id = #{query.countyId}</if>
         <if test="query.channel != null and query.channel != ''">
-            AND (d.channel = #{query.channel} OR d.channel IN (SELECT ch.key_code FROM t_sr_dim_channel ch
-                WHERE ch.key_name = #{query.channel} AND ch.status = 1 AND ch.is_deleted = 0
+            AND ((d.channel COLLATE utf8mb4_unicode_ci) = (#{query.channel} COLLATE utf8mb4_unicode_ci)
+              OR (d.channel COLLATE utf8mb4_unicode_ci) IN (SELECT ch.key_code COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel ch
+                WHERE ch.key_name COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci
+                  AND ch.status = 1 AND ch.is_deleted = 0
                   AND (ch.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, ch.tab_type) &gt; 0)))
         </if>
         <if test="query.bigCategory != null and query.bigCategory != ''">AND d.big_category = #{query.bigCategory}</if>
@@ -203,23 +236,23 @@
     </select>
 
     <select id="selectDailyCutoff" resultType="java.lang.Integer">
-        SELECT DAY(MAX(d.stat_date))
+        SELECT DAY(MAX(d.<include refid="dailyDateColumn"/>))
         FROM <include refid="dailyTable"/> d
         WHERE <include refid="dailyScope"/>
-          AND DATE_FORMAT(d.stat_date, '%Y-%m') = #{query.statMonth}
+          AND DATE_FORMAT(d.<include refid="dailyDateColumn"/>, '%Y-%m') = #{query.statMonth}
     </select>
 
     <!-- Partial-month QoQ uses matching day ranges from both months, while monthly totals remain unchanged. -->
     <select id="selectSamePeriodMetrics" resultType="java.util.HashMap">
-        SELECT DATE_FORMAT(d.stat_date, '%Y-%m') AS statMonth,
+        SELECT DATE_FORMAT(d.<include refid="dailyDateColumn"/>, '%Y-%m') AS statMonth,
         <choose>
             <when test="dimension == 'channel'">d.channel AS channel,</when>
             <when test="dimension == 'category'">d.big_category AS bigCategory, d.small_category AS smallCategory,</when>
         </choose>
         COUNT(1) AS strategyCount,
-        COUNT(DISTINCT d.stat_date) AS dayCount,
-        MIN(DAY(d.stat_date)) AS minDay,
-        MAX(DAY(d.stat_date)) AS maxDay,
+        COUNT(DISTINCT d.<include refid="dailyDateColumn"/>) AS dayCount,
+        MIN(DAY(d.<include refid="dailyDateColumn"/>)) AS minDay,
+        MAX(DAY(d.<include refid="dailyDateColumn"/>)) AS maxDay,
         SUM(d.original_cust) AS originalCust, SUM(d.push_count) AS pushCount,
         SUM(d.usage_count) AS usageCount, SUM(d.reach_count) AS reachCount,
         SUM(d.target_conv_num) AS targetConvNum, SUM(d.product_conv_num) AS productConvNum,
@@ -227,9 +260,9 @@
         SUM(d.reject_count) AS rejectCount
         FROM <include refid="dailyTable"/> d
         WHERE <include refid="dailyScope"/>
-          AND DATE_FORMAT(d.stat_date, '%Y-%m') IN (#{previousMonth}, #{query.statMonth})
-          AND DAY(d.stat_date) &lt;= #{cutoffDay}
-        GROUP BY DATE_FORMAT(d.stat_date, '%Y-%m')
+          AND DATE_FORMAT(d.<include refid="dailyDateColumn"/>, '%Y-%m') IN (#{previousMonth}, #{query.statMonth})
+          AND DAY(d.<include refid="dailyDateColumn"/>) &lt;= #{cutoffDay}
+        GROUP BY DATE_FORMAT(d.<include refid="dailyDateColumn"/>, '%Y-%m')
         <choose>
             <when test="dimension == 'channel'">, d.channel</when>
             <when test="dimension == 'category'">, d.big_category, d.small_category</when>
@@ -245,9 +278,22 @@
             SELECT DISTINCT s.strategy_id, s.stat_month, s.city_id, s.county_id
             FROM <include refid="periodTable"/> s
             WHERE <include refid="scope"/>
-        ) s ON s.strategy_id = b.strategy_id
-          AND b.tab_type = #{query.tabType} AND s.city_id &lt;=&gt; b.city_id AND s.county_id &lt;=&gt; b.county_id
-          AND DATE_FORMAT(s.stat_month, '%Y-%m') = DATE_FORMAT(b.stat_date, '%Y-%m')
+        ) s ON s.strategy_id COLLATE utf8mb4_unicode_ci = b.strategy_id COLLATE utf8mb4_unicode_ci
+          AND
+          <choose>
+              <when test="query.tabType == 'active' and (query.strategyClass == &quot;升接&quot; or query.strategyClass == &quot;稳&quot;)">
+                  b.strategy_class = #{query.strategyClass}
+              </when>
+              <otherwise>
+                  b.tab_type = #{query.tabType}
+                  <if test="query.tabType == 'active' and query.strategyClass != null and query.strategyClass != ''">
+                      AND b.strategy_class = #{query.strategyClass}
+                  </if>
+              </otherwise>
+          </choose>
+          AND s.city_id COLLATE utf8mb4_unicode_ci &lt;=&gt; b.city_id COLLATE utf8mb4_unicode_ci
+          AND s.county_id COLLATE utf8mb4_unicode_ci &lt;=&gt; b.county_id COLLATE utf8mb4_unicode_ci
+          AND DATE_FORMAT(s.stat_month, '%Y-%m') = DATE_FORMAT(b.<include refid="strategyBizDateColumn"/>, '%Y-%m')
         WHERE b.is_deleted = 0 AND b.biz_name != '全部'
         GROUP BY DATE_FORMAT(s.stat_month, '%Y-%m'), b.biz_name
         ORDER BY statMonth, capacity DESC
@@ -284,7 +330,7 @@
               <choose>
                   <when test="query.channel != null and query.channel != '' and query.channel != '全部' and query.channel != '全部渠道'">
                       q.channel = '全部' OR q.channel = #{query.channel}
-                      OR q.channel IN (SELECT d.key_code FROM t_sr_dim_channel d
+                      OR CONVERT(q.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                           WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                             AND (d.tab_type = #{query.tabType} OR FIND_IN_SET(#{query.tabType}, d.tab_type) &gt; 0))
                   </when>
@@ -324,8 +370,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
                 ))
@@ -375,8 +420,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
                 ))
@@ -420,8 +464,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'passive' OR FIND_IN_SET('passive', d.tab_type) &gt; 0)
                 ))
@@ -466,8 +509,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'passive' OR FIND_IN_SET('passive', d.tab_type) &gt; 0)
                 ))
@@ -503,98 +545,142 @@
         LIMIT 6
     </select>
 
-    <sql id="upgradeStableManualOverviewScope">
-        m.status = 1 AND m.record_type = 'category_trend'
-        AND m.strategy_class = #{query.strategyClass}
-        AND m.big_category = '全部' AND m.small_category = '全部'
+    <sql id="upgradeStableFactOverviewScope">
+        s.tab_type = 'active'
+        AND s.strategy_class = #{query.strategyClass}
+        AND s.strategy_id = '999'
+        AND s.is_deleted = 0
+        AND s.big_category = '全部'
+        AND COALESCE(s.small_category, '') = '全部'
         <choose>
-            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
-                AND m.channel = '全部'
-            </when>
-            <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
-                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
-                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+            <when test="query.channel != null and query.channel != '' and query.channel != '全部' and query.channel != '全部渠道'">
+                AND ((s.channel COLLATE utf8mb4_unicode_ci) = (#{query.channel} COLLATE utf8mb4_unicode_ci)
+                  OR (s.channel COLLATE utf8mb4_unicode_ci) IN (
+                    SELECT d.key_code COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
+                    WHERE (d.key_name COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci
+                           OR d.key_code COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci)
+                      AND d.status = 1 AND d.is_deleted = 0
+                      AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
+                    UNION ALL
+                    SELECT d.key_name COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
+                    WHERE (d.key_name COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci
+                           OR d.key_code COLLATE utf8mb4_unicode_ci = #{query.channel} COLLATE utf8mb4_unicode_ci)
+                      AND d.status = 1 AND d.is_deleted = 0
+                      AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
                 ))
-            </otherwise>
+            </when>
+            <otherwise>AND s.channel = '全部'</otherwise>
         </choose>
-        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
-        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
-        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
-        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
+        <choose>
+            <when test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND s.city_id = #{query.cityId}</when>
+            <otherwise>AND s.city_id = '999'</otherwise>
+        </choose>
+        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND s.county_id = #{query.countyId}</if>
     </sql>
 
-    <select id="selectLatestUpgradeStableTrendMonth" resultType="java.lang.String">
-        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_manual_metric m
-        WHERE <include refid="upgradeStableManualOverviewScope"/>
+    <select id="selectLatestUpgradeStableFactMonth" resultType="java.lang.String">
+        SELECT DATE_FORMAT(MAX(s.stat_month), '%Y-%m')
+        FROM t_sr_strategy_period_summary_ap s
+        WHERE <include refid="upgradeStableFactOverviewScope"/>
     </select>
 
-    <select id="selectUpgradeStableManualKpis" resultType="java.util.HashMap">
-        SELECT m.metric_code AS metricCode, m.metric_value AS metricValue,
-               m.manual_qoq AS manualQoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_manual_metric m
-        WHERE <include refid="upgradeStableManualOverviewScope"/>
-          AND DATE_FORMAT(m.stat_month, '%Y-%m') = #{statMonth}
-        ORDER BY m.metric_code
+    <select id="selectUpgradeStableFactKpis" resultType="java.util.HashMap">
+        SELECT metric.metricCode AS metricCode,
+               CASE metric.metricCode
+                   WHEN 'strategy_count' THEN s.strategy_count
+                   WHEN 'original_cust' THEN s.original_cust
+                   WHEN 'push_count' THEN s.push_count
+                   WHEN 'usage_count' THEN s.usage_count
+                   WHEN 'reach_count' THEN s.reach_count
+                   WHEN 'product_conv_num' THEN s.product_conv_num
+                   WHEN 'actual_income' THEN s.actual_income
+                   WHEN 'usage_rate' THEN s.usage_rate
+                   WHEN 'reach_rate' THEN ROUND(s.reach_count * 100.0 / NULLIF(s.usage_count, 0), 2)
+                   WHEN 'product_conv_rate' THEN s.product_conv_rate
+               END AS metricValue,
+               CASE metric.metricCode
+                   WHEN 'strategy_count' THEN NULL
+                   WHEN 'original_cust' THEN s.original_cust_qoq
+                   WHEN 'push_count' THEN s.push_count_qoq
+                   WHEN 'usage_count' THEN s.usage_count_qoq
+                   WHEN 'reach_count' THEN s.reach_count_qoq
+                   WHEN 'product_conv_num' THEN s.product_conv_num_qoq
+                   WHEN 'actual_income' THEN s.actual_income_qoq
+                   WHEN 'usage_rate' THEN s.usage_rate_qoq
+                   WHEN 'reach_rate' THEN CASE
+                       WHEN s.reach_count_qoq IS NULL OR s.usage_count_qoq IS NULL
+                         OR s.reach_count_qoq &lt;= -100 OR s.usage_count_qoq &lt;= -100 THEN NULL
+                       ELSE ROUND(
+                           (s.reach_count * 100.0 / NULLIF(s.usage_count, 0)) -
+                           ((s.reach_count / (1 + s.reach_count_qoq / 100.0)) * 100.0 /
+                            NULLIF(s.usage_count / (1 + s.usage_count_qoq / 100.0), 0)), 2)
+                   END
+                   WHEN 'product_conv_rate' THEN s.product_conv_rate_qoq
+               END AS sourceQoq,
+               CASE WHEN metric.metricCode IN ('usage_rate', 'reach_rate', 'product_conv_rate')
+                    THEN 'pp' ELSE 'percent' END AS qoqUnit
+        FROM t_sr_strategy_period_summary_ap s
+        CROSS JOIN (
+            SELECT 'strategy_count' AS metricCode UNION ALL
+            SELECT 'original_cust' UNION ALL SELECT 'push_count' UNION ALL
+            SELECT 'usage_count' UNION ALL SELECT 'reach_count' UNION ALL
+            SELECT 'product_conv_num' UNION ALL SELECT 'actual_income' UNION ALL
+            SELECT 'usage_rate' UNION ALL SELECT 'reach_rate' UNION ALL
+            SELECT 'product_conv_rate'
+        ) metric
+        WHERE <include refid="upgradeStableFactOverviewScope"/>
+          AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}
+        ORDER BY metric.metricCode
     </select>
 
-    <select id="selectUpgradeStableManualTrend" resultType="java.util.HashMap">
-        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
-               m.metric_value AS value, m.manual_qoq AS qoq, m.qoq_unit AS qoqUnit
-        FROM t_sr_manual_metric m
-        WHERE <include refid="upgradeStableManualOverviewScope"/>
-          AND m.metric_code = #{metricCode}
-          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
-        ORDER BY m.stat_month DESC
+    <select id="selectUpgradeStableFactTrend" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(s.stat_month, '%Y-%m') AS month,
+               CASE #{metricCode}
+                   WHEN 'strategy_count' THEN s.strategy_count
+                   WHEN 'original_cust' THEN s.original_cust
+                   WHEN 'push_count' THEN s.push_count
+                   WHEN 'usage_count' THEN s.usage_count
+                   WHEN 'reach_count' THEN s.reach_count
+                   WHEN 'target_conv_num' THEN s.target_conv_num
+                   WHEN 'product_conv_num' THEN s.product_conv_num
+                   WHEN 'expected_income' THEN s.expected_income
+                   WHEN 'actual_income' THEN s.actual_income
+                   WHEN 'reject_count' THEN s.reject_count
+                   WHEN 'usage_rate' THEN s.usage_rate
+                   WHEN 'reach_rate' THEN ROUND(s.reach_count * 100.0 / NULLIF(s.usage_count, 0), 2)
+                   WHEN 'target_conv_rate' THEN s.target_conv_rate
+                   WHEN 'product_conv_rate' THEN s.product_conv_rate
+                   WHEN 'reject_rate' THEN s.reject_rate
+               END AS value,
+               CASE #{metricCode}
+                   WHEN 'strategy_count' THEN NULL
+                   WHEN 'original_cust' THEN s.original_cust_qoq
+                   WHEN 'push_count' THEN s.push_count_qoq
+                   WHEN 'usage_count' THEN s.usage_count_qoq
+                   WHEN 'reach_count' THEN s.reach_count_qoq
+                   WHEN 'target_conv_num' THEN s.target_conv_num_qoq
+                   WHEN 'product_conv_num' THEN s.product_conv_num_qoq
+                   WHEN 'expected_income' THEN s.expected_income_qoq
+                   WHEN 'actual_income' THEN s.actual_income_qoq
+                   WHEN 'reject_count' THEN NULL
+                   WHEN 'usage_rate' THEN s.usage_rate_qoq
+                   WHEN 'reach_rate' THEN CASE
+                       WHEN s.reach_count_qoq IS NULL OR s.usage_count_qoq IS NULL
+                         OR s.reach_count_qoq &lt;= -100 OR s.usage_count_qoq &lt;= -100 THEN NULL
+                       ELSE ROUND(
+                           (s.reach_count * 100.0 / NULLIF(s.usage_count, 0)) -
+                           ((s.reach_count / (1 + s.reach_count_qoq / 100.0)) * 100.0 /
+                            NULLIF(s.usage_count / (1 + s.usage_count_qoq / 100.0), 0)), 2)
+                   END
+                   WHEN 'target_conv_rate' THEN s.target_conv_rate_qoq
+                   WHEN 'product_conv_rate' THEN s.product_conv_rate_qoq
+                   WHEN 'reject_rate' THEN s.reject_rate_qoq
+               END AS qoq
+        FROM t_sr_strategy_period_summary_ap s
+        WHERE <include refid="upgradeStableFactOverviewScope"/>
+          AND DATE_FORMAT(s.stat_month, '%Y-%m') &lt;= #{statMonth}
+        ORDER BY s.stat_month DESC
         LIMIT 12
-    </select>
-
-    <sql id="upgradeStableManualCapacityScope">
-        m.status = 1 AND m.record_type = 'category_trend'
-        AND m.metric_code = 'product_conv_num'
-        AND m.strategy_class = #{query.strategyClass}
-        AND m.big_category = <choose>
-            <when test="query.bigCategory != null and query.bigCategory != '' and query.bigCategory != '全部'">#{query.bigCategory}</when>
-            <otherwise>'全部'</otherwise>
-        </choose>
-        AND m.small_category = <choose>
-            <when test="query.smallCategory != null and query.smallCategory != '' and query.smallCategory != '全部'">#{query.smallCategory}</when>
-            <otherwise>'全部'</otherwise>
-        </choose>
-        <choose>
-            <when test="query.channel == null or query.channel == '' or query.channel == '全部' or query.channel == '全部渠道'">
-                AND m.channel = '全部'
-            </when>
-            <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
-                WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
-                  AND (d.tab_type = 'active' OR FIND_IN_SET('active', d.tab_type) &gt; 0)
-                ))
-            </otherwise>
-        </choose>
-        <if test="query.cityId != null and query.cityId != '' and query.cityId != '全部'">AND m.city_id = #{query.cityId}</if>
-        <if test="query.cityId == null or query.cityId == '' or query.cityId == '全部'">AND m.city_id = '全部'</if>
-        <if test="query.countyId != null and query.countyId != '' and query.countyId != '全部'">AND m.county_id = #{query.countyId}</if>
-        <if test="query.countyId == null or query.countyId == '' or query.countyId == '全部'">AND m.county_id = '全部'</if>
-    </sql>
-
-    <select id="selectLatestUpgradeStableCapacityTrendMonth" resultType="java.lang.String">
-        SELECT DATE_FORMAT(MAX(m.stat_month), '%Y-%m')
-        FROM t_sr_manual_metric m
-        WHERE <include refid="upgradeStableManualCapacityScope"/>
-    </select>
-
-    <select id="selectUpgradeStableManualCapacityTrend" resultType="java.util.HashMap">
-        SELECT DATE_FORMAT(m.stat_month, '%Y-%m') AS month,
-               m.metric_value AS capacity, m.manual_qoq AS qoq
-        FROM t_sr_manual_metric m
-        WHERE <include refid="upgradeStableManualCapacityScope"/>
-          AND DATE_FORMAT(m.stat_month, '%Y-%m') &lt;= #{statMonth}
-        ORDER BY m.stat_month DESC
-        LIMIT 6
     </select>
 
     <sql id="controlManualOverviewScope">
@@ -609,8 +695,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'control' OR FIND_IN_SET('control', d.tab_type) &gt; 0)
                 ))
@@ -665,8 +750,7 @@
                 AND m.channel = '全部'
             </when>
             <otherwise>
-                AND (m.channel = #{query.channel} OR m.channel IN (
-                SELECT d.key_code FROM t_sr_dim_channel d
+                AND (m.channel = #{query.channel} OR CONVERT(m.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d
                 WHERE d.key_name = #{query.channel} AND d.status = 1 AND d.is_deleted = 0
                   AND (d.tab_type = 'control' OR FIND_IN_SET('control', d.tab_type) &gt; 0)
                 ))

@@ -170,10 +170,10 @@ async function seed(connection) {
     ORDER BY stat_month, strategy_id, channel, big_category, small_category
   `)
   const [daily] = await connection.query(`
-    SELECT DATE_FORMAT(MAX(stat_date), '%Y-%m-%d') AS last_date
+    SELECT DATE_FORMAT(MAX(stat_month), '%Y-%m-%d') AS last_date
     FROM t_sr_strategy_daily_ap_key_audience
     WHERE tab_type = 'active' AND strategy_class = '重点客群' AND is_deleted = 0
-      AND stat_date IS NOT NULL
+      AND stat_month IS NOT NULL
   `)
   let partialMonth = null
   if (daily[0] && daily[0].last_date) {

@@ -69,17 +69,7 @@ import { getCategorySummary, getChannelCapacityTrend, getChannelBizCapacity } fr
 import EChart from '@/components/EChart.vue'
 import ReviewTable from './ReviewTable.vue'
 import ReviewState from './ReviewState.vue'
-import { listOf, categoryColumns, controlCategoryColumns, channelBizColumns, categoryLabelColumns, barLineOption, panelRequests } from './reviewData'
-import { visibleSimulationTrend } from './simulationTrend'
-
-function octoberQoqForCategory(categories, selectedCategory) {
-  if (!selectedCategory) return -2
-  const keyOf = (category) => JSON.stringify([category.bigCategory || '', category.smallCategory || ''])
-  const keys = [...new Set(categories.map(keyOf))].sort()
-  const index = keys.indexOf(keyOf(selectedCategory))
-  if (index < 0 || keys.length < 2) return -2
-  return Number((-2.6 + (1.2 * index) / (keys.length - 1)).toFixed(2))
-}
+import { listOf, categoryColumns, controlCategoryColumns, channelBizColumns, categoryLabelColumns, barLineOption, panelRequests, recentMonthRows } from './reviewData'
 
 export default {
   name: 'StockExecution',
@@ -173,26 +163,14 @@ export default {
       return this.filteredCategories.slice((this.page - 1) * 10, this.page * 10)
     },
     trendOption() {
+      const rows = recentMonthRows(this.trend, this.query.statMonth)
       const sourceTrend = {
-        months: this.trend.map((r) => r.monthLabel || r.month),
-        capacity: this.trend.map((r) => r.capacity),
-        qoq: this.trend.map((r) => r.qoq),
+        months: rows.map((r) => r.monthLabel || r.month),
+        capacity: rows.map((r) => r.capacity),
+        qoq: rows.map((r) => r.qoq),
       }
-      const trend = this.query.tabType === 'active' && this.query.strategyClass === '重点客群'
-        ? sourceTrend
-        : visibleSimulationTrend(this.query, sourceTrend, 'capacity')
+      const trend = sourceTrend
       const qoq = [...(trend.qoq || [])]
-      if (this.query.tabType === 'active' && this.query.strategyClass === '离') {
-        const targetYear = String(this.query.statMonth || '').slice(0, 4)
-        const octoberIndex = trend.months.reduce((lastIndex, label, index) => {
-          const text = String(label).trim()
-          const month = text.match(/(?:^|[-/年])(\d{1,2})月?$/) || text.match(/^(\d{1,2})月?$/)
-          const year = text.match(/^(\d{4})/)
-          if (!month || Number(month[1]) !== 10 || (year && targetYear && year[1] !== targetYear)) return lastIndex
-          return index
-        }, -1)
-        if (octoberIndex >= 0) qoq[octoberIndex] = octoberQoqForCategory(this.categories, this.selectedCategory)
-      }
       return barLineOption(trend.months, trend.capacity, qoq, '成功量', '', {
         integerBarLabels: true,
       })

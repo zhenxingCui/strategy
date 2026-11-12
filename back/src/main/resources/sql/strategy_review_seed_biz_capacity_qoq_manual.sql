@@ -15,7 +15,7 @@ FROM (
     FROM v_sr_strategy_period_summary_ap_read p
     JOIN v_sr_strategy_biz_capacity_read b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class IN ('升接', '稳')
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -30,7 +30,7 @@ FROM (
     FROM v_sr_strategy_period_summary_ap_read p
     JOIN v_sr_strategy_biz_capacity_read b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class IN ('升接', '稳')
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -45,7 +45,7 @@ FROM (
     FROM v_sr_strategy_period_summary_ap_read p
     JOIN v_sr_strategy_biz_capacity_read b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class IN ('升接', '稳')
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -60,7 +60,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class = '重点客群'
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -75,7 +75,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class = '重点客群'
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -90,7 +90,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     WHERE p.tab_type = 'active' AND p.strategy_class = '重点客群'
       AND p.strategy_id != '999' AND p.channel != '全部'
@@ -105,7 +105,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     JOIN t_sr_strategy_key_audience cg
       ON cg.tab_type = 'active' AND cg.strategy_class = '重点客群'
@@ -124,7 +124,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     JOIN t_sr_strategy_key_audience cg
       ON cg.tab_type = 'active' AND cg.strategy_class = '重点客群'
@@ -143,7 +143,7 @@ FROM (
     FROM t_sr_strategy_period_summary_ap_key_audience p
     JOIN t_sr_strategy_biz_capacity_key_audience b
       ON b.tab_type = p.tab_type AND b.strategy_id = p.strategy_id
-     AND DATE_FORMAT(b.stat_date, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
+     AND DATE_FORMAT(b.stat_month, '%Y-%m') = DATE_FORMAT(p.stat_month, '%Y-%m')
      AND b.city_id <=> p.city_id AND b.county_id <=> p.county_id
     JOIN t_sr_strategy_key_audience cg
       ON cg.tab_type = 'active' AND cg.strategy_class = '重点客群'

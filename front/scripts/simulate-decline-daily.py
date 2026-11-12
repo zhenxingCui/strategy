@@ -199,7 +199,7 @@ def daily_rows(monthly: list[dict], start: date, end: date) -> list[dict]:
                 "tab_type": TAB_TYPE,
                 "strategy_class": STRATEGY_CLASS,
                 "strategy_id": strategy_id,
-                "stat_date": day.isoformat(),
+                "stat_month": day.isoformat(),
                 "channel": source["channel"],
                 "big_category": source["big_category"],
                 "small_category": source["small_category"],
@@ -226,9 +226,9 @@ def verify(monthly: list[dict], start: date, end: date) -> dict:
               "original_cust", "expected_income", "actual_income", "reject_count"]
     aggregates = ",".join(f"SUM(`{field}`)" for field in fields)
     sql = (
-        "SELECT strategy_id,COUNT(*),COUNT(DISTINCT stat_date),MIN(stat_date),MAX(stat_date)," + aggregates +
+        "SELECT strategy_id,COUNT(*),COUNT(DISTINCT stat_month),MIN(stat_month),MAX(stat_month)," + aggregates +
         f" FROM `{TABLE}` WHERE tab_type='{TAB_TYPE}' AND strategy_class='{STRATEGY_CLASS}' "
-        f"AND city_id='{CITY_ID}' AND is_deleted=0 AND stat_date BETWEEN '{start}' AND '{end}' "
+        f"AND city_id='{CITY_ID}' AND is_deleted=0 AND stat_month BETWEEN '{start}' AND '{end}' "
         "GROUP BY strategy_id ORDER BY strategy_id"
     )
     rows = DB_MODULE["query"](sql)
@@ -259,9 +259,9 @@ def verify(monthly: list[dict], start: date, end: date) -> dict:
                 raise SimulationError(f"Daily sum mismatch for {strategy_id}/{field}: {actual} != {expected}")
             checked += 1
     total_count = DB_MODULE["query"](
-        f"SELECT COUNT(*),COUNT(DISTINCT CONCAT(strategy_id,'/',stat_date)) FROM `{TABLE}` "
+        f"SELECT COUNT(*),COUNT(DISTINCT CONCAT(strategy_id,'/',stat_month)) FROM `{TABLE}` "
         f"WHERE tab_type='{TAB_TYPE}' AND strategy_class='{STRATEGY_CLASS}' AND city_id='{CITY_ID}' "
-        f"AND is_deleted=0 AND stat_date BETWEEN '{start}' AND '{end}'"
+        f"AND is_deleted=0 AND stat_month BETWEEN '{start}' AND '{end}'"
     )[0]
     expected_count = len(monthly) * ((end - start).days + 1)
     if int(total_count[0]) != expected_count or int(total_count[1]) != expected_count:
@@ -276,7 +276,7 @@ def verify(monthly: list[dict], start: date, end: date) -> dict:
         f"AND m.tab_type='{TAB_TYPE}' AND m.strategy_class='{STRATEGY_CLASS}' "
         f"AND m.city_id='{CITY_ID}' AND m.stat_month='{start.strftime('%Y-%m')}-01' AND m.is_deleted=0 "
         f"WHERE d.tab_type='{TAB_TYPE}' AND d.strategy_class='{STRATEGY_CLASS}' AND d.city_id='{CITY_ID}' "
-        f"AND d.is_deleted=0 AND d.stat_date BETWEEN '{start}' AND '{end}'"
+        f"AND d.is_deleted=0 AND d.stat_month BETWEEN '{start}' AND '{end}'"
     )
     funnel_raw = DB_MODULE["query"](funnel_sql)[0]
     funnel_names = ["usageExceedsPush", "reachExceedsUsage", "targetExceedsReach", "productExceedsReach"]
@@ -305,7 +305,7 @@ def main():
     statements = ["SET NAMES utf8mb4;", "START TRANSACTION;"]
     statements.append(
         f"UPDATE `{TABLE}` SET is_deleted=1 WHERE tab_type='{TAB_TYPE}' AND strategy_class='{STRATEGY_CLASS}' "
-        f"AND city_id='{CITY_ID}' AND stat_date BETWEEN '{start}' AND '{end}' AND is_deleted=0;"
+        f"AND city_id='{CITY_ID}' AND stat_month BETWEEN '{start}' AND '{end}' AND is_deleted=0;"
     )
     statements.extend(DB_MODULE["insert_statements"](TABLE, generated, columns, batch_size=150))
     statements.append("COMMIT;")
@@ -335,7 +335,7 @@ def main():
 
     where = (
         f"tab_type='{TAB_TYPE}' AND strategy_class='{STRATEGY_CLASS}' AND city_id='{CITY_ID}' "
-        f"AND stat_date BETWEEN '{start}' AND '{end}' AND is_deleted=0"
+        f"AND stat_month BETWEEN '{start}' AND '{end}' AND is_deleted=0"
     )
     backup_text = DB_MODULE["backup_table"](OUTPUT_DIR, TABLE, where, None, DB_MODULE["mysql_env"]())
     backup_path = OUTPUT_DIR / "daily-backup.sql"

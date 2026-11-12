@@ -28,7 +28,10 @@ export function keyAudienceDataNote(query) {
   const baseline = source.baselineMonth ? `，${source.baselineMonth}为模拟环比基期` : ''
   const dailyEnd = source.dailyEndDate || source.sourceCutoff
   const dailyRange = source.dailyStartDate ? `，日模拟范围${source.dailyStartDate}至${dailyEnd}` : ''
-  return `${history}${baseline}；${source.sourceMonth}月来源数据截至${source.sourceCutoff}${dailyRange}；日数据为模拟分摊，客群汇总转化率相对来源月波动±2pp，逐策略日推送量相对日均波动±10%，不代表实际逐日业绩。`
+  const sourceNote = source.monthlyFullMonthEstimated
+    ? `${source.sourceMonth}月为全月模拟估算，来源数据截至${source.sourceCutoff}`
+    : `${source.sourceMonth}月来源数据截至${source.sourceCutoff}`
+  return `${history}${baseline}；${sourceNote}${dailyRange}；日数据为模拟分摊，客群汇总转化率相对来源月波动±2pp，逐策略日推送量相对日均波动±10%，不代表实际逐日业绩。`
 }
 
 export function passiveDataNote(query) {
@@ -72,21 +75,3 @@ export function upgradeDataNote(query) {
   return [history, oldDaily, `${supplement}；${sourceRule}`].filter(Boolean).join('；') + '。'
 }
 
-// Baseline data stays queryable for comparison; presentation starts at the declared simulation month.
-export function visibleSimulationTrend(query, trend, valueKey = 'values', strategyId = '') {
-  const audienceSource = keyAudienceSource(query)
-  const source = audienceSource || [decline, provenance, incremental, upgrade, stable].find(p => query.tabType === p.tabType && query.cityId === p.cityId &&
-    (query.strategyClass === p.strategyClass || (p.dailyStrategyIds || []).includes(strategyId)))
-  if (!source || !source.baselineMonth || !Array.isArray(trend.months)) return trend
-  const [year, endMonth] = query.statMonth.split('-').map(Number)
-  const indexes = trend.months.reduce((result, label, index) => {
-    const raw = String(label)
-    const m = raw.match(/^(\d{4})-(\d{2})/) || raw.match(/^(\d{4})(\d{2})$/)
-    const n = Number(raw.replace('月', ''))
-    const month = m ? `${m[1]}-${m[2]}` : `${n > endMonth ? year - 1 : year}-${String(n).padStart(2, '0')}`
-    if (month >= source.startMonth) result.push(index)
-    return result
-  }, [])
-  return { ...trend, months: indexes.map(i => trend.months[i]),
-    [valueKey]: indexes.map(i => (trend[valueKey] || [])[i]), qoq: indexes.map(i => (trend.qoq || [])[i]) }
-}

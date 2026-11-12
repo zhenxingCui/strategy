@@ -74,7 +74,7 @@
           <p v-if="query.tabType === 'passive'" class="muted simulation-note">{{ passiveNote }}</p>
           <review-state
             :state="panels.trend"
-            :empty="!trend.months || !trend.months.length"
+            :empty="!visibleTrend.months.length"
             :empty-text="selected.strategyId ? '暂无策略产能' : '请选择左侧策略'"
             @retry="loadTrend"
             ><e-chart :option="trendOption" height="210px"
@@ -151,8 +151,12 @@ import {
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
 import ReviewTable from './ReviewTable.vue'
-import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyBizColumns, categoryLabelColumns, barLineOption, monthRange, panelRequests } from './reviewData'
-import { visibleSimulationTrend, passiveDataNote } from './simulationTrend'
+import { listOf, percentText, strategyColumns, controlStrategyColumns, strategyBizColumns, categoryLabelColumns, barLineOption, monthRange, panelRequests, recentMonthRows } from './reviewData'
+import { passiveDataNote } from './simulationTrend'
+
+function dailyDisplayRange(month) {
+  return monthRange(month)
+}
 import { fetchAllPagedRows } from './fetchAllPagedRows'
 
 function defaultStrategySort(query) {
@@ -183,7 +187,7 @@ export default {
       daily: [],
       dailyTotal: 0,
       dailyPage: 1,
-      dailyRange: monthRange(this.query.statMonth),
+      dailyRange: dailyDisplayRange(this.query.statMonth),
       draftName: '',
       strategyName: '',
       categoryRows: [],
@@ -243,8 +247,22 @@ export default {
         .map((column) => ({ ...column, link: false }))
       return [{ prop: 'date', label: '日期', text: true }, ...columns.filter((column) => column.prop !== 'date')]
     },
+    visibleTrend() {
+      const trend = this.trend
+      const rows = recentMonthRows((trend.months || []).map((month, index) => ({
+        month,
+        capacity: (trend.capacity || [])[index],
+        qoq: (trend.qoq || [])[index],
+      })), this.query.statMonth)
+      return {
+        ...trend,
+        months: rows.map(row => row.month),
+        capacity: rows.map(row => row.capacity),
+        qoq: rows.map(row => row.qoq),
+      }
+    },
     trendOption() {
-      const trend = visibleSimulationTrend(this.query, this.trend, 'capacity', this.selected.strategyId)
+      const trend = this.visibleTrend
       const metricName = this.query.tabType === 'active' && ['升接', '稳', '降拆'].includes(this.query.strategyClass)
         ? '成功量'
         : '产能'
@@ -296,7 +314,7 @@ export default {
       handler() {
         this.page = 1
         this.sort = defaultStrategySort(this.query)
-        this.dailyRange = monthRange(this.query.statMonth)
+        this.dailyRange = dailyDisplayRange(this.query.statMonth)
         this.resetCategoryFilters()
         this.clearDetails()
         this.loadList()

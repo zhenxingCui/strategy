@@ -2236,7 +2236,7 @@ async function main() {
     const cutoffByStrategy = new Map(datasets.flatMap((dataset) => dataset.masters.map((row) => [row.strategy_code, dataset.cutoff])))
     for (const [dailyTable, dateColumn, strategyClasses] of [
       ['t_sr_strategy_daily_ap', 'stat_month', ['升接', '稳']],
-      ['t_sr_strategy_daily_ap_key_audience', 'stat_date', ['重点客群']],
+      ['t_sr_strategy_daily_ap_key_audience', 'stat_month', ['重点客群']],
     ]) {
       const [dailyCutoffs] = await conn.query(
         'SELECT strategy_id,MAX(DAY(??)) AS cutoff_day FROM ?? WHERE tab_type=\'active\' AND strategy_class IN (?) AND city_id=? AND is_deleted=0 AND ?? >=? AND ?? <? GROUP BY strategy_id',
@@ -2444,9 +2444,9 @@ async function main() {
 
       await conn.query("UPDATE ?? SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND city_id=? AND strategy_id IN (?) AND stat_month>=? AND stat_month<? AND is_deleted=0", [table.period, CITY_ID, ids, MONTH_START, NEXT_MONTH])
       const dailyColumns = tableColumnCache.get(table.daily)
-      const dailyDateColumn = dailyColumns.has('stat_date') ? 'stat_date' : 'stat_month'
+      const dailyDateColumn = dailyColumns.has('stat_month') ? 'stat_month' : 'stat_date'
       await conn.query("UPDATE ?? SET is_deleted=1 WHERE tab_type='active' AND city_id=? AND strategy_id IN (?) AND ??>=? AND ??<=? AND is_deleted=0", [table.daily, CITY_ID, ids, dailyDateColumn, MONTH_START, dailyDateColumn, MONTH_END])
-      const businessDateColumn = (tableColumnCache.get(table.business).has('stat_date')) ? 'stat_date' : 'stat_month'
+      const businessDateColumn = (tableColumnCache.get(table.business).has('stat_month')) ? 'stat_month' : 'stat_date'
       await conn.query("UPDATE ?? SET is_deleted=1,update_time=NOW() WHERE tab_type='active' AND city_id=? AND strategy_id IN (?) AND ??>=? AND ??<? AND is_deleted=0", [table.business, CITY_ID, ids, businessDateColumn, MONTH_START, businessDateColumn, NEXT_MONTH])
       await conn.query("UPDATE ?? SET is_deleted=1,update_time=NOW() WHERE city_id=? AND strategy_id IN (?) AND stat_month>=? AND stat_month<? AND is_deleted=0", [table.reject, CITY_ID, ids, MONTH_START, NEXT_MONTH])
 
@@ -2512,7 +2512,8 @@ async function main() {
     const verification = []
     for (const dataset of datasets) {
       const [monthly] = await conn.query("SELECT COUNT(*) n,COUNT(DISTINCT strategy_id) strategies FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id=? AND stat_month=? AND strategy_id IN (?) AND is_deleted=0", [dataset.tables.period, dataset.strategyClass, CITY_ID, MONTH_START, dataset.masters.map((row) => row.strategy_code)])
-      const [daily] = await conn.query("SELECT COUNT(*) n,COUNT(DISTINCT strategy_id) strategies,MIN(??) first_day,MAX(??) last_day FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id=? AND strategy_id IN (?) AND ?? BETWEEN ? AND ? AND is_deleted=0", [tableColumnCache.get(dataset.tables.daily).has('stat_date') ? 'stat_date' : 'stat_month', tableColumnCache.get(dataset.tables.daily).has('stat_date') ? 'stat_date' : 'stat_month', dataset.tables.daily, dataset.strategyClass, CITY_ID, dataset.masters.map((row) => row.strategy_code), tableColumnCache.get(dataset.tables.daily).has('stat_date') ? 'stat_date' : 'stat_month', `${SOURCE_MONTH}-01`, dataset.cutoffDate])
+      const dailyDateColumn = tableColumnCache.get(dataset.tables.daily).has('stat_month') ? 'stat_month' : 'stat_date'
+      const [daily] = await conn.query("SELECT COUNT(*) n,COUNT(DISTINCT strategy_id) strategies,MIN(??) first_day,MAX(??) last_day FROM ?? WHERE tab_type='active' AND strategy_class=? AND city_id=? AND strategy_id IN (?) AND ?? BETWEEN ? AND ? AND is_deleted=0", [dailyDateColumn, dailyDateColumn, dataset.tables.daily, dataset.strategyClass, CITY_ID, dataset.masters.map((row) => row.strategy_code), dailyDateColumn, `${SOURCE_MONTH}-01`, dataset.cutoffDate])
       const expectedDaily = dataset.facts.length * dataset.cutoff
       assert(Number(monthly[0].n) === dataset.facts.length, `${dataset.sourceFile} 月事实记录数校验失败：${monthly[0].n}/${dataset.facts.length}`)
       assert(Number(daily[0].n) === expectedDaily, `${dataset.sourceFile} 日事实记录数校验失败：${daily[0].n}/${expectedDaily}`)

@@ -80,14 +80,17 @@ public class StrategyScopeAggregationService {
         TouchpointQueryReq copy = new TouchpointQueryReq();
         BeanUtils.copyProperties(req, copy);
         String month = copy.getStatMonth();
-        if (month == null || month.trim().isEmpty()) {
+        boolean activeFactScope = "active".equals(req.getTabType());
+        if (!activeFactScope && (month == null || month.trim().isEmpty())) {
             month = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
         }
         if (month == null || month.trim().isEmpty()) {
             month = reviewMapper.selectLatestStrategyMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
         }
         if (month == null || month.trim().isEmpty()) month = YearMonth.now().toString();
-        if (month.matches("[0-9]{6}")) month = month.substring(0, 4) + "-" + month.substring(4);
+        String compactMonth = month.replace("-", "");
+        if (compactMonth.matches("[0-9]{8}")) compactMonth = compactMonth.substring(0, 6);
+        if (compactMonth.matches("[0-9]{6}")) month = compactMonth.substring(0, 4) + "-" + compactMonth.substring(4);
         copy.setStatMonth(YearMonth.parse(month).toString());
         return copy;
     }
@@ -125,6 +128,7 @@ public class StrategyScopeAggregationService {
         if (!"active".equals(req.getTabType()) || !"降拆".equals(req.getStrategyClass())) return Collections.emptySet();
         DimQueryReq dimensions = new DimQueryReq();
         dimensions.setTabType(req.getTabType());
+        dimensions.setStrategyClass(req.getStrategyClass());
         return reviewMapper.selectChannelDims(dimensions).stream()
             .filter(item -> "市级-营服".equals(item.getKeyName()))
             .map(DimItemVO::getKeyCode)
@@ -172,6 +176,10 @@ public class StrategyScopeAggregationService {
     }
 
     private List<Map<String, Object>> rows(TouchpointQueryReq req, String dimension) {
+        return rows(req, dimension, true);
+    }
+
+    private List<Map<String, Object>> rows(TouchpointQueryReq req, String dimension, boolean useSamePeriod) {
         List<Map<String, Object>> rows = "business".equals(dimension)
             ? mapper.selectBusiness(req) : mapper.selectMetrics(req, dimension);
         if (rows == null) rows = new ArrayList<>();
@@ -191,7 +199,7 @@ public class StrategyScopeAggregationService {
             }
             byMonth.put(key(row, row.get("statMonth").toString()), row);
         }
-        Map<List<Object>, Map<String, Object>> samePeriod = samePeriodRows(req, dimension);
+        Map<List<Object>, Map<String, Object>> samePeriod = useSamePeriod ? samePeriodRows(req, dimension) : null;
         for (Map<String, Object> row : rows) {
             String previousMonth = YearMonth.parse(row.get("statMonth").toString()).minusMonths(1).toString();
             Map<String, Object> previous = byMonth.get(key(row, previousMonth));
@@ -215,6 +223,10 @@ public class StrategyScopeAggregationService {
     }
 
     private Map<List<Object>, Map<String, Object>> samePeriodRows(TouchpointQueryReq req, String dimension) {
+        // 这两个分类的 2026-10 月事实是全月模拟值，不能用部分月份的分日数据覆盖月环比。
+        if ("active".equals(req.getTabType())
+                && ("离".equals(req.getStrategyClass()) || "重点客群".equals(req.getStrategyClass()))
+                && "2026-10".equals(req.getStatMonth())) return null;
         if (!"active".equals(req.getTabType()) || "business".equals(dimension)) return null;
         Integer cutoff = mapper.selectDailyCutoff(req);
         if (cutoff == null || cutoff < 1 || cutoff >= YearMonth.parse(req.getStatMonth()).lengthOfMonth()) return null;
@@ -423,19 +435,38 @@ public class StrategyScopeAggregationService {
             card.setLabel(metadata[2]);
             card.setUnit(metadata[3]);
             card.setValue(number(row, "metricValue"));
-            card.setTrendQoQ(number(row, "manualQoq"));
+            card.setTrendQoQ(number(row, "sourceQoq"));
             result.add(card);
         }
         return result;
     }
 
-    public List<KpiCardVO> upgradeStableManualKpis(OverviewQueryReq request) {
+    public List<KpiCardVO> audienceFactKpis(OverviewQueryReq request) {
+        Map<String, Object> fact = total(scope(request));
+        if (fact == null) return Collections.emptyList();
+        List<KpiCardVO> result = new ArrayList<>();
+        for (String metricCode : KEY_AUDIENCE_TREND_METRICS) {
+            String[] metadata = Arrays.stream(METRICS).filter(metric -> metricCode.equals(metric[1]))
+                .findFirst().orElse(null);
+            if (metadata == null) continue;
+            KpiCardVO card = new KpiCardVO();
+            card.setMetricCode(metricCode);
+            card.setLabel(metadata[2]);
+            card.setUnit(metadata[3]);
+            card.setValue(number(fact, metadata[0]));
+            card.setTrendQoQ(number(fact, metadata[0] + "QoQ"));
+            result.add(card);
+        }
+        return result;
+    }
+
+    public List<KpiCardVO> upgradeStableKpis(OverviewQueryReq request) {
         String statMonth = normalizeAudienceMonth(request.getStatMonth());
-        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableTrendMonth(request);
+        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableFactMonth(request);
         if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
 
         Map<String, Map<String, Object>> rowsByMetric = new HashMap<>();
-        for (Map<String, Object> row : mapper.selectUpgradeStableManualKpis(request, statMonth)) {
+        for (Map<String, Object> row : mapper.selectUpgradeStableFactKpis(request, statMonth)) {
             rowsByMetric.put(Objects.toString(row.get("metricCode"), ""), row);
         }
         List<KpiCardVO> result = new ArrayList<>();
@@ -450,7 +481,7 @@ public class StrategyScopeAggregationService {
             card.setLabel(metadata[2]);
             card.setUnit(metadata[3]);
             card.setValue(number(row, "metricValue"));
-            card.setTrendQoQ(number(row, "manualQoq"));
+            card.setTrendQoQ(number(row, "sourceQoq"));
             result.add(card);
         }
         return result;
@@ -482,12 +513,12 @@ public class StrategyScopeAggregationService {
         return result;
     }
 
-    public KpiTrendVO upgradeStableManualTrend(OverviewQueryReq request) {
+    public KpiTrendVO upgradeStableTrend(OverviewQueryReq request) {
         String[] metadata = Arrays.stream(METRICS)
             .filter(metric -> metric[1].equals(request.getMetricCode()))
             .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
         String statMonth = normalizeAudienceMonth(request.getStatMonth());
-        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableTrendMonth(request);
+        if (statMonth == null) statMonth = mapper.selectLatestUpgradeStableFactMonth(request);
 
         KpiTrendVO result = new KpiTrendVO();
         result.setUnit(metadata[3]);
@@ -497,7 +528,7 @@ public class StrategyScopeAggregationService {
             result.setQoq(Collections.emptyList());
             return result;
         }
-        List<Map<String, Object>> rows = mapper.selectUpgradeStableManualTrend(
+        List<Map<String, Object>> rows = mapper.selectUpgradeStableFactTrend(
             request, request.getMetricCode(), statMonth);
         Collections.reverse(rows);
         result.setMonths(rows.stream().map(row -> monthLabel(Objects.toString(row.get("month"), "")))
@@ -549,7 +580,7 @@ public class StrategyScopeAggregationService {
             card.setLabel(metadata[2]);
             card.setUnit(metadata[3]);
             card.setValue(number(row, "metricValue"));
-            card.setTrendQoQ(number(row, "manualQoq"));
+            card.setTrendQoQ(number(row, "sourceQoq"));
             result.add(card);
         }
         return result;
@@ -600,26 +631,6 @@ public class StrategyScopeAggregationService {
         }).collect(Collectors.toList());
     }
 
-    public List<ChannelTrendVO> upgradeStableManualCapacityTrend(TouchpointQueryReq request) {
-        TouchpointQueryReq req = new TouchpointQueryReq();
-        BeanUtils.copyProperties(request, req);
-        String statMonth = normalizeAudienceMonth(req.getStatMonth());
-        if (statMonth == null || statMonth.trim().isEmpty()) {
-            statMonth = mapper.selectLatestUpgradeStableCapacityTrendMonth(req);
-        }
-        if (statMonth == null || statMonth.trim().isEmpty()) return Collections.emptyList();
-        req.setStatMonth(normalizeAudienceMonth(statMonth));
-        List<Map<String, Object>> rows = mapper.selectUpgradeStableManualCapacityTrend(req, req.getStatMonth());
-        Collections.reverse(rows);
-        return rows.stream().map(row -> {
-            ChannelTrendVO item = new ChannelTrendVO();
-            item.setMonth(Objects.toString(row.get("month"), ""));
-            item.setMonthLabel(monthLabel(item.getMonth()));
-            item.setCapacity(number(row, "capacity"));
-            item.setQoq(number(row, "qoq"));
-            return item;
-        }).collect(Collectors.toList());
-    }
 
     public List<KpiCardVO> controlManualKpis(OverviewQueryReq request) {
         String statMonth = normalizeAudienceMonth(request.getStatMonth());
@@ -639,7 +650,7 @@ public class StrategyScopeAggregationService {
             card.setLabel(metadata[2]);
             card.setUnit(metadata[3]);
             card.setValue(number(row, "metricValue"));
-            card.setTrendQoQ(number(row, "manualQoq"));
+            card.setTrendQoQ(number(row, "sourceQoq"));
             result.add(card);
         }
         return result;
@@ -690,7 +701,10 @@ public class StrategyScopeAggregationService {
     }
 
     public List<KpiCardVO> kpis(OverviewQueryReq req) {
-        Map<String, Object> total = total(scope(req));
+        TouchpointQueryReq overviewScope = scope(req);
+        boolean declineOverview = "active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass());
+        List<Map<String, Object>> currentRows = current(rows(overviewScope, "total", !declineOverview), overviewScope);
+        Map<String, Object> total = currentRows.isEmpty() ? null : currentRows.get(0);
         if (total == null) return Collections.emptyList();
         List<KpiCardVO> cards = new ArrayList<>();
         for (String[] metric : metrics(req.getTabType())) {
@@ -717,7 +731,8 @@ public class StrategyScopeAggregationService {
     public KpiTrendVO trend(OverviewQueryReq req) {
         String[] selected = Arrays.stream(metrics(req.getTabType())).filter(metric -> metric[1].equals(req.getMetricCode()))
             .findFirst().orElseThrow(() -> new BaseException("不支持的指标编码"));
-        List<Map<String, Object>> all = rows(scope(req), "total");
+        boolean declineOverview = "active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass());
+        List<Map<String, Object>> all = rows(scope(req), "total", !declineOverview);
         List<Map<String, Object>> latest = all.subList(Math.max(0, all.size() - 12), all.size());
         KpiTrendVO result = new KpiTrendVO();
         result.setMonths(latest.stream().map(row -> monthLabel(row.get("statMonth").toString())).collect(Collectors.toList()));
@@ -737,6 +752,7 @@ public class StrategyScopeAggregationService {
         Map<String, String> names = new HashMap<>();
         DimQueryReq dimensions = new DimQueryReq();
         dimensions.setTabType(req.getTabType());
+        dimensions.setStrategyClass(req.getStrategyClass());
         for (DimItemVO dim : reviewMapper.selectChannelDims(dimensions)) names.put(dim.getKeyCode(), dim.getKeyName());
         List<Map<String, Object>> current = current(rows(req, "channel"), req);
         sort(current, req, "strategyCount");

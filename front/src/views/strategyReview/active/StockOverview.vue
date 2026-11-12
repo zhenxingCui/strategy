@@ -52,8 +52,8 @@
                 v-for="metric in groups.mid"
                 :key="metric.key"
                 class="metric-block metric-mid"
-                :class="{ active: activeMetric === code(metric), 'metric-block--static': isKeyAudience && metric.key === 'original_cust' }"
-                :disabled="metric.key === 'strategy_count' || (isKeyAudience && metric.key === 'original_cust') || !card(metric)"
+                :class="{ active: activeMetric === code(metric) }"
+                :disabled="metric.key === 'strategy_count' || !card(metric)"
                 @click="selectMetric(metric)"
               >
                 <span class="metric-orb" aria-hidden="true" /><span class="metric-mid-body"
@@ -171,17 +171,8 @@ import { getOverviewKpi, getOverviewTrend } from '@/api/strategyReview'
 import EChart from '@/components/EChart.vue'
 import ReviewState from './ReviewState.vue'
 import { listOf, integerText, oneDecimalText, barLineOption, panelRequests, downgradeChannelMetrics, currentYearChartRows, isOnlineInboundReview } from './reviewData'
-import { visibleSimulationTrend } from './simulationTrend'
 
 const item = (key, label, title) => ({ key, label, title })
-const KEY_AUDIENCE_COUNTS = Object.freeze({
-  拆弹客户: 1049338,
-  超套客户: 4920897,
-  老旧资费客户: 1795272,
-  零低流量客户: 30390413,
-  异网分流客户: 25070711,
-  低价套餐客户: 28685025,
-})
 
 export default {
   name: 'StockOverview',
@@ -201,7 +192,7 @@ export default {
       kpis: [],
       activeMetric: '',
       activeMetricTabType: '',
-      audienceConversionQoQ: {},
+      activeMetricStrategyClass: '',
       trend: {},
       funnelShapes: [
         { top: 74, bottom: 178, topWidth: 400, bottomWidth: 306, topRy: 30, bottomRy: 22, color: 'cyan', cap: '#b5eef4', rim: '#78d2de', labelY: 143 },
@@ -220,18 +211,6 @@ export default {
     },
     isOnlineInbound() {
       return isOnlineInboundReview(this.query)
-    },
-    isHotlineInbound() {
-      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
-      return this.isUpgrade && channel === '热线呼入'
-    },
-    isBusinessOpportunityTeam() {
-      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
-      return this.isUpgrade && channel === '商机团队'
-    },
-    isHotlineInstant() {
-      const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
-      return this.isUpgrade && channel === '热线瞬时'
     },
     isLobbyTouchpoint() {
       const channel = String(this.query.channel || '').replace(/[\s-]/g, '')
@@ -342,7 +321,7 @@ export default {
       return this.kpis.find((k) => k.metricCode === this.activeMetric) || {}
     },
     currentYearTrend() {
-      const trend = this.isKeyAudience ? this.trend : visibleSimulationTrend(this.query, this.trend)
+      const trend = this.trend
       const points = currentYearChartRows(trend.months, trend.values, trend.qoq, this.query.statMonth)
       return { ...trend, months: points.months, values: points.values, qoq: points.comparison }
     },
@@ -370,13 +349,11 @@ export default {
     query: {
       deep: true,
       handler() {
-        this.ensureAudienceConversionQoQ()
         this.loadKpis()
       },
     },
   },
   created() {
-    this.ensureAudienceConversionQoQ()
     this.loadKpis()
   },
   methods: {
@@ -387,29 +364,11 @@ export default {
       return this.kpis.find((k) => k.metricCode === this.code(metric))
     },
     value(metric) {
-      const rawValue = this.isUpgrade && !this.query.channel && metric.key === 'strategy_count'
-        ? 306
-        : this.isKeyAudience && metric.key === 'original_cust'
-          ? this.keyAudienceCount()
-          : (this.card(metric) || {}).value
+      const rawValue = (this.card(metric) || {}).value
       if (metric.key === 'strategy_count') return integerText(rawValue)
       return this.usesMyriadUnit(metric) && rawValue !== null && rawValue !== undefined && rawValue !== ''
         ? oneDecimalText(Number(rawValue) / 10000)
         : oneDecimalText(rawValue)
-    },
-    keyAudienceCount() {
-      return KEY_AUDIENCE_COUNTS[this.query.customerGroup || '零低流量客户'] || KEY_AUDIENCE_COUNTS['零低流量客户']
-    },
-    audienceConversionKey() {
-      return `${this.query.customerGroup || '零低流量客户'}|${this.query.channel || '全部渠道'}`
-    },
-    ensureAudienceConversionQoQ() {
-      if (!this.isKeyAudience) return
-      const key = this.audienceConversionKey()
-      if (this.audienceConversionQoQ[key] == null) {
-        const delta = (Math.floor(Math.random() * 3) + 1) / 10
-        this.$set(this.audienceConversionQoQ, key, delta)
-      }
     },
     unit(metric) {
       const rawUnit = this.isKeyAudience && metric.key === 'original_cust'
@@ -425,39 +384,15 @@ export default {
       return metric.key !== 'strategy_count' && rawUnit !== '%' && !rawUnit.startsWith('万')
     },
     qoq(metric) {
-      if (this.isKeyAudience && metric.key === 'product_conv_rate') {
-        const delta = this.audienceConversionQoQ[this.audienceConversionKey()] || 0.2
-        return `${delta.toFixed(1)}pp`
-      }
-      if (this.isHotlineInstant && metric.key === 'usage_rate') return '0.3pp'
-      if (this.isHotlineInstant && metric.key === 'reach_rate') return '0.1pp'
-      if (this.isHotlineInstant && metric.key === 'product_conv_rate') return '0.2pp'
-      if (this.isBusinessOpportunityTeam && metric.key === 'usage_rate') return '0.3pp'
-      if (this.isBusinessOpportunityTeam && metric.key === 'reach_rate') return '0.6pp'
-      if (this.isBusinessOpportunityTeam && metric.key === 'product_conv_rate') return '0.2pp'
-      if (this.isHotlineInbound && metric.key === 'usage_rate') return '0.3pp'
-      if (this.isHotlineInbound && metric.key === 'reach_rate') return '0.4pp'
-      if (this.isHotlineInbound && metric.key === 'product_conv_rate') return '0.2pp'
-      if (this.isUpgrade && !this.query.channel && metric.key === 'usage_rate') return '0.2pp'
-      if (this.isUpgrade && !this.query.channel && metric.key === 'reach_rate') return '0.1pp'
-      if (this.isUpgrade && !this.query.channel && metric.key === 'product_conv_rate') return '0.1pp'
-      if (this.isUpgrade && metric.key === 'usage_rate') return '0.3pp'
-      if (this.isUpgrade && metric.key === 'reach_rate') return '0.5pp'
-      if (this.isUpgrade && metric.key === 'product_conv_rate') return '0.2pp'
-      if (this.isLeave && metric.key === 'usage_rate') return '0.5pp'
-      if (this.isLeave && metric.key === 'product_conv_rate') return '0.6pp'
       const card = this.card(metric) || {}
       return card.unit === '%' && card.trendQoQ != null
         ? `${oneDecimalText(card.trendQoQ)}pp`
         : card.trendQoQ == null ? '—' : `${oneDecimalText(card.trendQoQ)}%`
     },
     direction(metric) {
-      if (this.isKeyAudience && metric.key === 'product_conv_rate') return 'up'
-      if (this.isUpgrade && ['usage_rate', 'reach_rate', 'product_conv_rate'].includes(metric.key)) return 'up'
       const n = (this.card(metric) || {}).trendQoQ
       if (n == null) return ''
       const value = Number(n)
-      if (this.isDowngrade || this.isLeave) return 'up'
       return value > 0 ? 'up' : value < 0 ? 'down' : ''
     },
     funnelPath(shape) {
@@ -477,15 +412,16 @@ export default {
         (result) => {
           this.kpis = listOf(result)
           const visibleCodes = this.groups.left.concat(this.groups.mid, this.groups.rate)
-            .filter((metric) => !(this.isKeyAudience && metric.key === 'original_cust'))
             .map((metric) => metric.key)
           const selectedMetricExists = visibleCodes.includes(this.activeMetric) && this.kpis.some((k) => k.metricCode === this.activeMetric)
-          if (this.activeMetricTabType !== this.query.tabType || !selectedMetricExists) {
+          const enteringLeave = this.isLeave && this.activeMetricStrategyClass !== '离'
+          if (this.activeMetricTabType !== this.query.tabType || enteringLeave || !selectedMetricExists) {
             const capacityCode = this.groups.left.find((metric) => metric.label === '产能')?.key
             this.activeMetric = (capacityCode && this.kpis.some((k) => k.metricCode === capacityCode) ? capacityCode : '') ||
               visibleCodes.find((code) => code !== 'strategy_count' && this.kpis.some((k) => k.metricCode === code)) || ''
           }
           this.activeMetricTabType = this.query.tabType
+          this.activeMetricStrategyClass = this.query.strategyClass
           this.loadTrend()
         },
       ).then(() => {
@@ -493,7 +429,7 @@ export default {
       })
     },
     selectMetric(metric) {
-      if (!this.card(metric) || (this.isKeyAudience && metric.key === 'original_cust')) return
+      if (!this.card(metric)) return
       this.activeMetric = this.code(metric)
       this.loadTrend()
     },

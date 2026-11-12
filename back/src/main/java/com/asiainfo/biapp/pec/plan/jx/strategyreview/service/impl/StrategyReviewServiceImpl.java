@@ -51,8 +51,16 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
                 && (StringUtils.isBlank(strategyClass) || "全部".equals(strategyClass));
     }
 
-    private static boolean usesLeaveKpiSummary(OverviewQueryReq req) {
-        return req != null && "active".equals(req.getTabType()) && "离".equals(req.getStrategyClass());
+    private static boolean usesSpecialFactTables(String tabType, String strategyClass) {
+        return "active".equals(tabType) && ("降拆".equals(strategyClass) || "离".equals(strategyClass));
+    }
+
+    private static boolean usesSpecialFactTables(OverviewQueryReq req) {
+        return req != null && usesSpecialFactTables(req.getTabType(), req.getStrategyClass());
+    }
+
+    private static boolean usesSpecialFactTables(TouchpointQueryReq req) {
+        return req != null && usesSpecialFactTables(req.getTabType(), req.getStrategyClass());
     }
 
     static {
@@ -138,26 +146,16 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return scopeAggregation.passiveManualKpis(req);
         }
         if ("active".equals(req.getTabType()) && "重点客群".equals(req.getStrategyClass())) {
-            return overviewMonthlyReconciler.reconcile(req, scopeAggregation.audienceManualKpis(req));
+            return scopeAggregation.audienceFactKpis(req);
         }
         if ("control".equals(req.getTabType())) {
             return scopeAggregation.controlManualKpis(req);
         }
         if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
-            return overviewMonthlyReconciler.reconcile(req, scopeAggregation.upgradeStableManualKpis(req));
+            return scopeAggregation.upgradeStableKpis(req);
         }
-        if (usesLeaveKpiSummary(req)) {
-            String statMonth = normalizeStatMonth(req.getStatMonth());
-            if (StringUtils.isBlank(statMonth)) {
-                statMonth = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
-            }
-            if (StringUtils.isBlank(statMonth)) return new ArrayList<>();
-            List<KpiCardVO> cards = reviewMapper.selectKpiCard(req.getTabType(), statMonth,
-                    req.getCityId(), req.getCountyId(), req.getStrategyClass());
-            return overviewMonthlyReconciler.reconcile(req, cards == null ? new ArrayList<>() : cards);
-        }
+        if (usesSpecialFactTables(req)) return scopeAggregation.kpis(req);
         if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.kpis(req);
-        if (usesDeclineChannelSummary(req)) return overviewMonthlyReconciler.reconcile(req, declineChannelKpis(req));
         if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.kpis(req);
         String statMonth = normalizeStatMonth(req.getStatMonth());
         if (StringUtils.isBlank(statMonth)) {
@@ -334,39 +332,36 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return scopeAggregation.passiveManualTrend(req);
         }
         if ("active".equals(req.getTabType()) && "重点客群".equals(req.getStrategyClass())) {
-            return overviewMonthlyReconciler.reconcileTrend(req, scopeAggregation.audienceManualTrend(req));
+            return scopeAggregation.trend(req);
         }
         if ("control".equals(req.getTabType())) {
             return scopeAggregation.controlManualTrend(req);
         }
         if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
-            return overviewMonthlyReconciler.reconcileTrend(req, scopeAggregation.upgradeStableManualTrend(req));
+            return scopeAggregation.upgradeStableTrend(req);
         }
-        boolean leaveKpiSummary = usesLeaveKpiSummary(req);
-        if (usesDeclineChannelSummary(req)) return overviewMonthlyReconciler.reconcileTrend(req, declineChannelTrend(req));
-        if (!leaveKpiSummary) {
-            if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.trend(req);
-            if ("active".equals(req.getTabType()) && "product_conv_num".equals(req.getMetricCode())) {
-                return scopeAggregation.trend(req);
-            }
-            if ("active".equals(req.getTabType()) && "strategy_count".equals(req.getMetricCode())) {
-                return scopeAggregation.trend(req);
-            }
-            if ("control".equals(req.getTabType()) && "reach_rate".equals(req.getMetricCode())) {
-                return scopeAggregation.trend(req);
-            }
-            if ("control".equals(req.getTabType()) && "retain_rate".equals(req.getMetricCode())
-                    && req.getProductName() == null && StringUtils.isBlank(req.getChannel())) {
-                return controlRetainRateTrend(req);
-            }
-            if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.trend(req);
+        if (usesSpecialFactTables(req)) return scopeAggregation.trend(req);
+        if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.trend(req);
+        if ("active".equals(req.getTabType()) && "product_conv_num".equals(req.getMetricCode())) {
+            return scopeAggregation.trend(req);
         }
+        if ("active".equals(req.getTabType()) && "strategy_count".equals(req.getMetricCode())) {
+            return scopeAggregation.trend(req);
+        }
+        if ("control".equals(req.getTabType()) && "reach_rate".equals(req.getMetricCode())) {
+            return scopeAggregation.trend(req);
+        }
+        if ("control".equals(req.getTabType()) && "retain_rate".equals(req.getMetricCode())
+                && req.getProductName() == null && StringUtils.isBlank(req.getChannel())) {
+            return controlRetainRateTrend(req);
+        }
+        if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.trend(req);
         if (StringUtils.isBlank(req.getMetricCode())) {
             throw new BaseException("指标编码metricCode不能为空");
         }
         List<KpiTrendItemVO> rows;
         String statMonth = normalizeStatMonth(req.getStatMonth());
-        if (StringUtils.isNotBlank(req.getChannel()) && !leaveKpiSummary) {
+        if (StringUtils.isNotBlank(req.getChannel())) {
             if (!"control".equals(req.getTabType()) && "reach_rate".equals(req.getMetricCode())) {
                 rows = reviewMapper.selectChannelReachRateTrend(req.getTabType(), req.getChannel(),
                         StringUtils.isBlank(statMonth) ? java.time.YearMonth.now().toString() : toYearMonth(statMonth),
@@ -395,7 +390,7 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         }
         // Keep the category trend aligned with its KPI cards when the latest month
         // exists in strategy facts but has not yet been written to the KPI summary.
-        if (!leaveKpiSummary && "active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getStrategyClass())) {
+        if ("active".equals(req.getTabType()) && StringUtils.isNotBlank(req.getStrategyClass())) {
             String latestMonth = statMonth;
             if (StringUtils.isBlank(latestMonth)) {
                 latestMonth = reviewMapper.selectLatestKpiMonth(req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass());
@@ -433,106 +428,6 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
         resp.setValues(values);
         resp.setQoq(qoq);
         return overviewMonthlyReconciler.reconcileTrend(req, resp);
-    }
-
-    private static boolean usesDeclineChannelSummary(OverviewQueryReq req) {
-        return req != null && "active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())
-                && StringUtils.isBlank(req.getCustomerGroup()) && StringUtils.isBlank(req.getProductName());
-    }
-
-    private static String declineChannel(OverviewQueryReq req) {
-        return StringUtils.isBlank(req.getChannel()) ? "整体" : req.getChannel();
-    }
-
-    private String declineChannelMonth(OverviewQueryReq req) {
-        String month = normalizeStatMonth(req.getStatMonth());
-        if (StringUtils.isBlank(month)) {
-            month = reviewMapper.selectLatestChannelSummaryMonth(req.getTabType(), declineChannel(req),
-                    req.getCityId(), req.getCountyId(), req.getStrategyClass());
-        }
-        return normalizeStatMonth(month);
-    }
-
-    private List<KpiCardVO> declineChannelKpis(OverviewQueryReq req) {
-        String statMonth = declineChannelMonth(req);
-        if (StringUtils.isBlank(statMonth)) return new ArrayList<>();
-        List<ChannelSummaryRowVO> rows = reviewMapper.selectChannelSummaryList(
-                req.getTabType(), toYearMonth(statMonth), req.getCityId(), req.getCountyId(),
-                "c.strategy_count DESC", declineChannel(req), req.getStrategyClass());
-        if (rows == null || rows.isEmpty()) return new ArrayList<>();
-
-        ChannelSummaryRowVO row = rows.get(0);
-        org.springframework.beans.BeanWrapper bean = new org.springframework.beans.BeanWrapperImpl(row);
-        String channelName = StringUtils.defaultIfBlank(row.getChannelName(), declineChannel(req));
-        String pushLabel = "市级-营服".equals(channelName) || "网格-面客".equals(channelName) ? "接单量" : "咨询量";
-        String[][] metrics = {
-                {"strategyCount", "strategy_count", "策略数", "个"},
-                {"originalCust", "original_cust", "原始客群", "人"},
-                {"pushCount", "push_count", pushLabel, "次"},
-                {"usageCount", "usage_count", "使用量", "次"},
-                {"usageRate", "usage_rate", "使用率", "%"},
-                {"reachCount", "reach_count", "成功量", "次"},
-                {"reachRate", "reach_rate", "成功率", "%"},
-                {"targetConvNum", "target_conv_num", "派单量", "次"},
-                {"targetConvRate", "target_conv_rate", "派单率", "%"},
-                {"productConvNum", "product_conv_num", "派单量", "次"},
-                {"productConvRate", "product_conv_rate", "派单率", "%"},
-                {"expectedIncome", "expected_income", "预期收入", "元"},
-                {"actualIncome", "actual_income", "收入", "元"}
-        };
-        List<KpiCardVO> cards = new ArrayList<>();
-        for (String[] metric : metrics) {
-            Object value = bean.getPropertyValue(metric[0]);
-            if (value == null) continue;
-            KpiCardVO card = new KpiCardVO();
-            card.setMetricCode(metric[1]);
-            card.setLabel(metric[2]);
-            card.setUnit(metric[3]);
-            card.setValue(new BigDecimal(value.toString()));
-            Object qoq = bean.getPropertyValue(metric[0] + "QoQ");
-            if (qoq != null) card.setTrendQoQ(new BigDecimal(qoq.toString()));
-            cards.add(card);
-        }
-        return cards;
-    }
-
-    private KpiTrendVO declineChannelTrend(OverviewQueryReq req) {
-        String statMonth = declineChannelMonth(req);
-        KpiTrendVO resp = new KpiTrendVO();
-        if (StringUtils.isBlank(statMonth)) {
-            resp.setMonths(new ArrayList<>());
-            resp.setValues(new ArrayList<>());
-            resp.setQoq(new ArrayList<>());
-            return resp;
-        }
-        if (StringUtils.isBlank(req.getMetricCode())) throw new BaseException("指标编码metricCode不能为空");
-        String metricColumn = AP_SORT_MAP.get(req.getMetricCode());
-        if (metricColumn == null && AP_SORT_MAP.containsValue(req.getMetricCode())) metricColumn = req.getMetricCode();
-        List<String> supportedMetrics = Arrays.asList("strategy_count", "original_cust", "push_count", "usage_count",
-                "usage_rate", "reach_count", "reach_rate", "target_conv_num", "target_conv_rate", "product_conv_num",
-                "product_conv_rate", "expected_income", "actual_income");
-        if (metricColumn == null || !supportedMetrics.contains(metricColumn)) {
-            throw new BaseException("降拆渠道月汇总表不包含指标：" + req.getMetricCode());
-        }
-        List<KpiTrendItemVO> rows = reviewMapper.selectChannelKpiTrend(req.getTabType(), declineChannel(req),
-                metricColumn, req.getCityId(), req.getCountyId(), toYearMonth(statMonth), req.getStrategyClass());
-        if (rows == null) rows = new ArrayList<>();
-        Collections.reverse(rows);
-        List<String> months = new ArrayList<>();
-        List<BigDecimal> values = new ArrayList<>();
-        List<BigDecimal> qoq = new ArrayList<>();
-        for (KpiTrendItemVO row : rows) {
-            months.add(toMonthLabel(row.getMonth()));
-            values.add(row.getValue());
-            qoq.add(row.getQoq());
-        }
-        resp.setMonths(months);
-        resp.setValues(values);
-        resp.setQoq(qoq);
-        resp.setUnit("reach_rate".equals(metricColumn) || metricColumn.endsWith("_rate") ? "%"
-                : "strategy_count".equals(metricColumn) ? "个" : "actual_income".equals(metricColumn)
-                || "expected_income".equals(metricColumn) ? "元" : "次");
-        return resp;
     }
 
     private KpiTrendVO controlRetainRateTrend(OverviewQueryReq req) {
@@ -584,12 +479,11 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
 
     @Override
     public ChannelSummaryRespVO queryChannelSummary(TouchpointQueryReq req) {
-        // 降拆的触点映射依赖渠道口径（例如营服派单率=派单量/接单量），
-        // 汇总表没有保存派单率，需从策略事实动态聚合并计算。
-        if ("active".equals(req.getTabType()) && "降拆".equals(req.getStrategyClass())) {
+        // Production channel summaries have no strategy_class column. Scope all active
+        // classifications from the period facts so the interface does not depend on it.
+        if ("active".equals(req.getTabType())) {
             return scopeAggregation.channels(req);
         }
-        if (isAllStockScope(req.getTabType(), req.getStrategyClass())) return scopeAggregation.channels(req);
         if (req.getCustomerGroup() != null || req.getProductName() != null) return scopeAggregation.channels(req);
         String statMonth = requireStatMonth(req.getStatMonth());
         boolean control = "control".equals(req.getTabType());
@@ -651,23 +545,46 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return scopeAggregation.passiveManualCapacityTrend(req);
         }
         if ("active".equals(req.getTabType()) && "重点客群".equals(req.getStrategyClass())) {
-            return scopeAggregation.audienceManualCapacityTrend(req);
+            if (StringUtils.isBlank(req.getCustomerGroup())) {
+                List<ChannelTrendVO> sourceRows = reviewMapper.selectChannelCapacityTrend(
+                        req.getTabType(), req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
+                        req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())),
+                        req.getStrategyClass());
+                if (sourceRows == null) return new ArrayList<>();
+                Collections.reverse(sourceRows);
+                for (ChannelTrendVO vo : sourceRows) vo.setMonthLabel(toMonthLabel(vo.getMonth()));
+                return sourceRows;
+            }
+            return scopeAggregation.capacityTrend(req);
         }
         if ("control".equals(req.getTabType())) {
             return scopeAggregation.controlManualCapacityTrend(req);
         }
         if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
-            return scopeAggregation.upgradeStableManualCapacityTrend(req);
+            List<ChannelTrendVO> sourceRows = reviewMapper.selectChannelCapacityTrend(
+                    req.getTabType(), req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
+                    req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())),
+                    req.getStrategyClass());
+            if (sourceRows == null) return new ArrayList<>();
+            Collections.reverse(sourceRows);
+            for (ChannelTrendVO vo : sourceRows) vo.setMonthLabel(toMonthLabel(vo.getMonth()));
+            return sourceRows;
         }
-        // Active/passive capacity is shown as the successful quantity for the selected channel.
-        // Decline has a dedicated monthly channel summary table; query it directly so the
-        // historical trend follows the same values that can be maintained in that table.
-        boolean declineChannelSummary = "active".equals(req.getTabType())
-                && "降拆".equals(req.getStrategyClass())
-                && req.getCustomerGroup() == null && req.getProductName() == null;
-        if (!declineChannelSummary && ("active".equals(req.getTabType()) || "passive".equals(req.getTabType())
+        // Special class capacity has its own monthly table. Filtered scopes retain the
+        // strategy-fact aggregation path because the monthly table has no customer-group key.
+        if (usesSpecialFactTables(req) && req.getCustomerGroup() == null && req.getProductName() == null) {
+            List<ChannelTrendVO> sourceRows = reviewMapper.selectChannelCapacityTrend(
+                    req.getTabType(), req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
+                    req.getCityId(), req.getCountyId(), toYearMonth(normalizeStatMonth(req.getStatMonth())),
+                    req.getStrategyClass());
+            if (sourceRows == null) return new ArrayList<>();
+            Collections.reverse(sourceRows);
+            for (ChannelTrendVO vo : sourceRows) vo.setMonthLabel(toMonthLabel(vo.getMonth()));
+            return sourceRows;
+        }
+        if ("active".equals(req.getTabType()) || "passive".equals(req.getTabType())
                 || req.getCustomerGroup() != null || req.getProductName() != null
-                || StringUtils.isNotBlank(req.getBigCategory()) || StringUtils.isNotBlank(req.getSmallCategory()))) {
+                || StringUtils.isNotBlank(req.getBigCategory()) || StringUtils.isNotBlank(req.getSmallCategory())) {
             return scopeAggregation.capacityTrend(req);
         }
         List<ChannelTrendVO> list = reviewMapper.selectChannelCapacityTrend(
@@ -685,6 +602,35 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
 
     @Override
     public List<ChannelBizVO> queryChannelBizCapacity(TouchpointQueryReq req) {
+        if ("active".equals(req.getTabType()) && ("升接".equals(req.getStrategyClass()) || "稳".equals(req.getStrategyClass()))) {
+            // Across all channels a strategy may occur in several channel facts, while its
+            // business rows are stored once per strategy. Aggregate those rows once instead
+            // of summing channel rollups, which can count the same business multiple times.
+            if ((StringUtils.isBlank(req.getChannel()) || "全部".equals(req.getChannel()) || "全部渠道".equals(req.getChannel()))
+                    && (StringUtils.isNotBlank(req.getBigCategory()) || StringUtils.isNotBlank(req.getSmallCategory()))) {
+                return scopeAggregation.business(req);
+            }
+            String statMonth = normalizeStatMonth(req.getStatMonth());
+            if (StringUtils.isBlank(statMonth)) {
+                statMonth = normalizeStatMonth(reviewMapper.selectLatestStrategyMonth(
+                        req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass()));
+            }
+            if (StringUtils.isBlank(statMonth)) return new ArrayList<>();
+            return reviewMapper.selectChannelBizCapacity(req.getTabType(), statMonth, req.getCityId(),
+                    req.getCountyId(), req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
+                    req.getStrategyClass());
+        }
+        if (usesSpecialFactTables(req) && req.getCustomerGroup() == null && req.getProductName() == null) {
+            String statMonth = normalizeStatMonth(req.getStatMonth());
+            if (StringUtils.isBlank(statMonth)) {
+                statMonth = normalizeStatMonth(reviewMapper.selectLatestStrategyMonth(
+                        req.getTabType(), req.getCityId(), req.getCountyId(), req.getStrategyClass()));
+            }
+            if (StringUtils.isBlank(statMonth)) return new ArrayList<>();
+            return reviewMapper.selectChannelBizCapacity(req.getTabType(), statMonth, req.getCityId(),
+                    req.getCountyId(), req.getChannel(), req.getBigCategory(), req.getSmallCategory(),
+                    req.getStrategyClass());
+        }
         return scopeAggregation.business(req);
     }
 
@@ -867,6 +813,9 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
             return month;
         }
         String compact = month.replace("-", "");
+        if (compact.length() == 8 && compact.matches("[0-9]{8}")) {
+            compact = compact.substring(0, 6);
+        }
         if (compact.length() == 6) {
             return compact.substring(0, 4) + "-" + compact.substring(4);
         }
@@ -897,9 +846,12 @@ public class StrategyReviewServiceImpl implements IStrategyReviewService {
     @Override
     public String getLatestDataDate(DimQueryReq req) {
         String tabType = req.getTabType() != null ? req.getTabType() : "active";
-        // 先查 KPI 汇总表
-        String latestMonth = reviewMapper.selectLatestKpiMonth(tabType, req.getCityId(), req.getCountyId(), req.getStrategyClass());
-        // KPI 表无数据时，兜底查策略周期汇总表
+        String latestMonth = null;
+        // The production KPI summary is classless. Active scopes get their latest month
+        // from strategy facts, which retain strategy_class.
+        if (!"active".equals(tabType)) {
+            latestMonth = reviewMapper.selectLatestKpiMonth(tabType, req.getCityId(), req.getCountyId(), req.getStrategyClass());
+        }
         if (StringUtils.isBlank(latestMonth)) {
             latestMonth = reviewMapper.selectLatestStrategyMonth(tabType, req.getCityId(), req.getCountyId(), req.getStrategyClass());
         }

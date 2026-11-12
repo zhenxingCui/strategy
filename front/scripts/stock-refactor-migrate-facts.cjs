@@ -25,7 +25,7 @@ async function main() {
       const expected = new Set(templateColumns.map(column => column.Field))
       for (const source of group.sources) {
         const [sourceColumns] = await c.query('SHOW COLUMNS FROM ??.??', [SOURCE, source])
-        const actual = new Set(sourceColumns.map(column => group.target === 'sr_strategy_daily' && source === 't_sr_strategy_daily_ap' && column.Field === 'stat_month' ? 'stat_date' : column.Field))
+        const actual = new Set(sourceColumns.map(column => column.Field))
         const missing = [...expected].filter(column => !actual.has(column))
         const extra = [...actual].filter(column => !expected.has(column))
         if (missing.length || extra.length) throw new Error(`${source}: schema mismatch; missing=${missing.join(',')}; extra=${extra.join(',')}`)
@@ -46,7 +46,7 @@ async function main() {
       for (const source of group.sources) {
         const [sourceColumns] = await c.query('SHOW COLUMNS FROM ??.??', [SOURCE, source])
         const available = new Set(sourceColumns.map(column => column.Field))
-        const sourceFields = columns.map(column => group.target === 'sr_strategy_daily' && source === 't_sr_strategy_daily_ap' && column === 'stat_date' ? 'stat_month' : column)
+        const sourceFields = columns
         const missing = sourceFields.filter(column => !available.has(column))
         if (missing.length) throw new Error(`${source}: missing columns ${missing.join(', ')}`)
         const columnSql = columns.map(column => c.escapeId(column)).join(', ')

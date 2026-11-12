@@ -36,7 +36,7 @@ for _ in $(seq 1 600); do
   if mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent >/dev/null 2>&1; then
     object_count=$(mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse \
       "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${MYSQL_DATABASE}'" 2>/dev/null || true)
-    if [[ "$object_count" =~ ^[0-9]+$ ]] && (( object_count >= 67 )); then
+    if [[ "$object_count" =~ ^[0-9]+$ ]] && (( object_count >= 51 )); then
       database_ready=true
       break
     fi
@@ -50,21 +50,18 @@ if [[ "$database_ready" != true ]]; then
   exit 1
 fi
 
-# The packaged legacy snapshot stores daily dates in `stat_month` for this table.
-# The current mapper expects `stat_date`, so rename the column in-place. Keeping
-# the DATE values intact preserves the existing per-day rows on both fresh and
-# pre-existing data volumes. This check is idempotent across container restarts.
-legacy_daily_column=$(mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse \
+# The current mapper and the daily read view expect stat_month in this table.
+# Restore older volumes that were migrated to stat_date, preserving DATE values.
+month_column=$(mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse \
   "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 't_sr_strategy_daily_ap' AND column_name = 'stat_month'")
-current_daily_column=$(mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse \
+date_column=$(mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -Nse \
   "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 't_sr_strategy_daily_ap' AND column_name = 'stat_date'")
-
-if [[ "$legacy_daily_column" == "1" && "$current_daily_column" == "0" ]]; then
-  echo "Migrating t_sr_strategy_daily_ap.stat_month to stat_date"
+if [[ "$month_column" == "0" && "$date_column" == "1" ]]; then
+  echo "Restoring t_sr_strategy_daily_ap.stat_date to stat_month"
   mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -D "$MYSQL_DATABASE" -e \
-    "ALTER TABLE t_sr_strategy_daily_ap CHANGE COLUMN stat_month stat_date DATE DEFAULT NULL"
-elif [[ "$current_daily_column" != "1" ]]; then
-  echo "Expected stat_date or legacy stat_month on t_sr_strategy_daily_ap; refusing to start" >&2
+    "ALTER TABLE t_sr_strategy_daily_ap CHANGE COLUMN stat_date stat_month DATE DEFAULT NULL"
+elif [[ "$month_column" != "1" ]]; then
+  echo "Expected stat_month or stat_date on t_sr_strategy_daily_ap; refusing to start" >&2
   exit 1
 fi
 

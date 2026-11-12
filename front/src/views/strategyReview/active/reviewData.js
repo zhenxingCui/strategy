@@ -73,6 +73,22 @@ function parseYearMonth(value) {
   return null
 }
 
+// Limit capacity charts to the six calendar months ending at the selected month.
+export function recentMonthRows(rows = [], statMonth = '', count = 6) {
+  const reference = parseYearMonth(statMonth)
+  if (!reference || reference.year == null) return rows.slice(-count)
+  const end = reference.year * 12 + reference.month - 1
+  return rows.filter((row) => {
+    const parsed = parseYearMonth(row.month) || parseYearMonth(row.monthLabel)
+    if (!parsed) return false
+    const year = parsed.year == null
+      ? reference.year - (parsed.month > reference.month ? 1 : 0)
+      : parsed.year
+    const month = year * 12 + parsed.month - 1
+    return month > end - count && month <= end
+  })
+}
+
 // Strategy overview charts show the current calendar year's months only.
 // Month-only labels (for example, "1月") are anchored to the query month so
 // a rolling 12-month series crossing January can be assigned to the right year.

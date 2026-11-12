@@ -4,7 +4,7 @@
       <div class="page-head">
         <h1>运营策略</h1>
         <span class="spacer" />
-        <span v-if="month" class="data-month">数据月份 {{ month }}</span>
+        <label v-if="month" class="data-month">数据月份 <input type="month" aria-label="数据月份" :value="month" @change="changeMonth($event.target.value)" /></label>
       </div>
       <review-state :state="panels.bootstrap" @retry="bootstrap">
         <template v-if="month">
@@ -235,5 +235,6 @@ export default {
 }
 </script>
 <style lang="less">
+.simulation-note { color: #6b7280; font-size: 13px; margin: 0 0 12px; }
 @import './active-review.less';
 </style>

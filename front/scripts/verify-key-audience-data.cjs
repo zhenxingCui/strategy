@@ -21,7 +21,7 @@ async function main() {
     for (const row of periods) {
       assert.ok(row.original_cust >= row.push_count && row.push_count >= row.usage_count && row.usage_count >= row.reach_count)
       assert.ok(row.reach_count >= row.product_conv_num && row.product_conv_num >= row.target_conv_num)
-      const days = daily.filter(day => day.strategy_id === row.strategy_id && day.stat_date.slice(0, 7) === row.stat_month.slice(0, 7))
+      const days = daily.filter(day => day.strategy_id === row.strategy_id && day.stat_month.slice(0, 7) === row.stat_month.slice(0, 7))
       for (const field of fields) assert.equal(days.reduce((sum, day) => sum + Number(day[field]), 0), Number(row[field]), `${row.strategy_id} ${row.stat_month} ${field}`)
     }
     const classes = ['升接', '稳', '降拆', '离', '重点客群']

@@ -192,7 +192,7 @@
     </update>
 
     <select id="selectChannelNamesByCodes" resultType="java.lang.String">
-        SELECT COALESCE(d.key_name, requested.channel)
+        SELECT COALESCE(CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci, CONVERT(requested.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci)
         FROM (
             <foreach collection="channels" item="code" separator=" UNION ALL ">
                 SELECT #{code} AS channel
@@ -200,7 +200,7 @@
         ) requested
         LEFT JOIN t_sr_dim_channel d
           ON d.status = 1 AND d.is_deleted = 0
-         AND (d.key_code = requested.channel OR d.key_name = requested.channel)
+         AND (CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(requested.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci OR CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(requested.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci)
     </select>
 
     <!-- ==================== 命中策略 ==================== -->
@@ -234,7 +234,7 @@
 
     <sql id="hitStrategyFilters">
         AND s.strategy_id != '999'
-        <if test="channel != null and channel != ''">AND (s.channel = #{channel} OR s.channel IN (SELECT d.key_code FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
+        <if test="channel != null and channel != ''">AND (s.channel = #{channel} OR CONVERT(s.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci IN (SELECT CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci FROM t_sr_dim_channel d WHERE d.key_name = #{channel} AND d.status = 1 AND d.is_deleted = 0 AND (d.tab_type = #{tabType} OR FIND_IN_SET(#{tabType}, d.tab_type) &gt; 0)))</if>
         <if test="tabType != 'control' and strategyClass != null and strategyClass != '' and strategyClass != '全部'">AND s.strategy_class = #{strategyClass}</if>
         <if test="countyId != null and countyId != ''">AND s.county_id = #{countyId}</if>
         <if test="statMonth != null and statMonth != ''">AND DATE_FORMAT(s.stat_month, '%Y-%m') = #{statMonth}</if>
@@ -271,7 +271,7 @@
                     s.strategy_code      AS strategyCode,
                     s.strategy_name      AS strategyName,
                     s.channel            AS channel,
-                    COALESCE(d.key_name, s.channel) AS channelName,
+                    COALESCE(CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci, CONVERT(s.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci) AS channelName,
                     s.big_category       AS bigCategory,
                     s.small_category     AS smallCategory,
                     s.push_count             AS consultCount,
@@ -290,7 +290,7 @@
                     s.actual_income_qoq      AS incomeQoQ,
                     DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
                     FROM t_sr_strategy_period_summary_ctrl s
-                    LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
+                    LEFT JOIN t_sr_dim_channel d ON CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(s.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci
                     <include refid="hitStrategyWhereCtrl"/>
                         and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
                     <![CDATA[${conditionSQL}]]>
@@ -302,7 +302,7 @@
                     s.strategy_name        AS strategyName,
                     s.strategy_class       AS strategyClass,
                     s.channel              AS channel,
-                    COALESCE(d.key_name, s.channel) AS channelName,
+                    COALESCE(CONVERT(d.key_name USING utf8mb4) COLLATE utf8mb4_unicode_ci, CONVERT(s.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci) AS channelName,
                     s.big_category         AS bigCategory,
                     s.small_category       AS smallCategory,
                     s.original_cust        AS originalCust,
@@ -332,7 +332,7 @@
                     s.reject_count         AS rejectCount,
                     DATE_FORMAT(s.stat_month, '%Y-%m-%d') AS statMonth
                     FROM <include refid="apPeriodTable"/> s
-                    LEFT JOIN t_sr_dim_channel d ON d.key_code = s.channel
+                    LEFT JOIN t_sr_dim_channel d ON CONVERT(d.key_code USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(s.channel USING utf8mb4) COLLATE utf8mb4_unicode_ci
                     <include refid="hitStrategyWhere"/>
                         and s.channel!='全部' and s.big_category !='全部' and s.small_category !='全部' and s.strategy_name!='全部'
                     <![CDATA[${conditionSQL}]]>

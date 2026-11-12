@@ -42,15 +42,12 @@ public interface SrStrategyScopeMapper {
     String selectLatestPassiveCapacityTrendMonth(@Param("query") TouchpointQueryReq query);
     List<Map<String, Object>> selectPassiveManualCapacityTrend(@Param("query") TouchpointQueryReq query,
                                                                  @Param("statMonth") String statMonth);
-    String selectLatestUpgradeStableTrendMonth(@Param("query") OverviewQueryReq query);
-    List<Map<String, Object>> selectUpgradeStableManualKpis(@Param("query") OverviewQueryReq query,
+    String selectLatestUpgradeStableFactMonth(@Param("query") OverviewQueryReq query);
+    List<Map<String, Object>> selectUpgradeStableFactKpis(@Param("query") OverviewQueryReq query,
                                                             @Param("statMonth") String statMonth);
-    List<Map<String, Object>> selectUpgradeStableManualTrend(@Param("query") OverviewQueryReq query,
+    List<Map<String, Object>> selectUpgradeStableFactTrend(@Param("query") OverviewQueryReq query,
                                                              @Param("metricCode") String metricCode,
                                                              @Param("statMonth") String statMonth);
-    String selectLatestUpgradeStableCapacityTrendMonth(@Param("query") TouchpointQueryReq query);
-    List<Map<String, Object>> selectUpgradeStableManualCapacityTrend(@Param("query") TouchpointQueryReq query,
-                                                                      @Param("statMonth") String statMonth);
     String selectLatestControlTrendMonth(@Param("query") OverviewQueryReq query);
     List<Map<String, Object>> selectControlManualKpis(@Param("query") OverviewQueryReq query,
                                                        @Param("statMonth") String statMonth);

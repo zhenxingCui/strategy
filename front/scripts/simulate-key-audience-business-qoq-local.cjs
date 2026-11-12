@@ -184,8 +184,8 @@ async function main() {
       FROM t_sr_strategy_biz_capacity_key_audience b
       WHERE b.tab_type = 'active' AND b.is_deleted = 0
         AND b.biz_name IS NOT NULL AND b.biz_name != '' AND b.biz_name != '全部'
-        AND b.stat_date >= STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d')
-        AND b.stat_date < DATE_ADD(STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d'), INTERVAL 1 MONTH)
+        AND b.stat_month >= STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d')
+        AND b.stat_month < DATE_ADD(STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d'), INTERVAL 1 MONTH)
       GROUP BY b.strategy_id, b.city_id, b.county_id, b.biz_name
     `, [month, month])
 

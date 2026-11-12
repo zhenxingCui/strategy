@@ -1,5 +1,11 @@
 # 存量策略页面迁移与本地联调
 
+2026-10-30：重点客群页面的整体 KPI/趋势改为从 `t_sr_strategy_period_summary_ap_key_audience` 按事实聚合；无客群筛选时触点产能趋势读取 `t_sr_channel_monthly_capacity_ap_key_audience`，选择具体客群时从策略月事实聚合。单策略产能趋势也从重点客群月事实读取，不再依赖整体/单策略人工趋势值。五张重点客群主事实表已按升接稳对应表统一字段名、顺序、类型、默认值；日表日期列改为 `stat_month DATE`，单策略业务表增加 `stat_month DATE`、`strategy_class='重点客群'`，并保留标准表的 `stat_date` 列。旧环境迁移脚本为 `back/src/main/resources/sql/refactor/V006__align_key_audience_fact_schemas.sql`；客群筛选仍通过策略主表的 `customer_group` 关联过滤。
+
+2026-10-30：降拆、离的主指标与触点汇总改为从 `t_sr_strategy_period_summary_ap_special` 聚合，不再读取 `t_sr_kpi_summary_special` 或 `t_sr_channel_summary_ap_special`；触点产能趋势读取 `t_sr_channel_monthly_capacity_ap_special`，触点业务产能读取 `t_sr_channel_biz_capacity_ap_special`，单策略业务明细读取 `t_sr_strategy_biz_capacity_special`。未完月的同周期环比按需使用 `t_sr_strategy_daily_ap_special`。拒绝原因仍由拒绝原因明细表提供，渠道/策略名称等维度表仍作为辅助维表。五张 special 主事实表的字段名、字段顺序、类型、默认值和索引已按升接稳对应表对齐，页面日期统一按 `stat_month` 查询；`strategy_class` 使用对应页面分类值（降拆、离）。单策略业务表保留与标准表一致的 `stat_date` 兼容列，页面账期筛选仍使用 `stat_month`。渠道月产能表的 `stat_month` 已统一为 `DATE` 类型并存每月 1 日；本地迁移见 `back/src/main/resources/sql/refactor/V004__align_special_fact_schemas.sql` 和 `V005__channel_capacity_stat_month_date.sql`。
+
+2026-10-29：升接、稳已切换为附件生产 ETL 的事实表口径。概览 KPI/趋势和触点汇总读取 `t_sr_strategy_period_summary_ap` 的分类汇总行；日明细以 `stat_month` 为日期，触点产能读取 `t_sr_channel_monthly_capacity_ap`，触点/单策略业务产能读取生产业务表及其账期/环比列。这些升接、稳接口不再依赖 `t_sr_manual_metric`；表结构调整见 `back/src/main/resources/sql/refactor/V003__upgrade_stable_production_alignment.sql`。
+
 2026-10-29：六张人工趋势/环比表已合并到 `t_sr_manual_metric`。统一表通过 `record_type` 区分分类趋势、单策略趋势、业务环比和单策略业务环比；接口查询已切换到统一表。旧表保留作回滚副本，未删除。迁移前六表共 102,926 行，按来源表及原行 ID 保留并逐列核对，缺失/差异均为 0；切换前后当前月份 overview 接口 514 个用例一致。`npm run db:sync-manual-metrics` 可将旧维护脚本刚写入的记录同步到统一表，五个相关 `db:seed-*` 命令已自动执行同步。
 
 2026-10-26：增量策略月度趋势使用独立人工维护表：`t_sr_passive_monthly_trend_manual` 支持整体 KPI 月趋势及分类执行产能趋势，`t_sr_passive_strategy_monthly_trend_manual` 支持单策略产能趋势。数据由 `t_sr_strategy_period_summary_ap_passive` 聚合生成；单策略环比使用同表相邻月值，来源月为部分月时按截至日折算日均。新增本地补种命令 `npm run db:seed-passive-trend-manual`、`npm run db:seed-passive-strategy-trend-manual`。
